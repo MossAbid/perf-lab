@@ -264,6 +264,7 @@ function exCard(s,ex){
       <div class="chev">▶</div></div>
     <div class="ex-body"><div class="ex-inner">
       <div class="cue">${esc(ex.cue||'')}</div>
+      ${ex.target?`<div class="target"><span class="t-ico">🎯</span>Charge cible — ${esc(ex.target)}</div>`:""}
       ${ex.tempo?tempoGrid(ex.tempo,ex.key||0):""}
       <div class="setlab">Séries — coche${ex.load?" + note ta charge":""}</div>
       <div class="sets">${setsHtml}</div>
