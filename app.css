@@ -141,36 +141,42 @@ footer{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;
 .fig{position:absolute;inset:0}
 .fig line,.fig circle,.fig path,.fig rect,.fig polyline{stroke:var(--accent);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .fig .bar{stroke:var(--muted)}
-.mover{transform-box:fill-box;animation-play-state:paused}
+.mover{transform-box:view-box;animation-play-state:paused}
 .anim.go .mover{animation-play-state:running}
-@keyframes upd{0%,100%{transform:translateY(4px)}50%{transform:translateY(-4px)}}
-@keyframes updFast{0%,100%{transform:translateY(5px)}35%,45%{transform:translateY(-6px)}}
-@keyframes pressUp{0%,100%{transform:translateY(3px)}50%{transform:translateY(-5px)}}
-@keyframes rowPull{0%,100%{transform:translateX(3px)}50%{transform:translateX(-5px)}}
-@keyframes flex{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-32deg)}}
-@keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
-@keyframes crunch{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-26deg)}}
-@keyframes raise{0%,100%{transform:rotate(14deg)}50%{transform:rotate(-30deg)}}
-@keyframes hold{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
-@keyframes roll{0%,100%{transform:translateX(4px)}50%{transform:translateX(-6px)}}
-@keyframes rotate{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+/* translations verticales (tractions, dips) — descente plus lente que la montée */
+@keyframes liftY{0%{transform:translateY(5px)}55%{transform:translateY(-5px)}100%{transform:translateY(5px)}}
+@keyframes liftYFast{0%{transform:translateY(6px)}28%{transform:translateY(-7px)}42%{transform:translateY(-6px)}100%{transform:translateY(6px)}}
+/* poussées : montée + court lockout en haut */
+@keyframes press{0%{transform:translateY(4px)}48%{transform:translateY(-6px)}60%{transform:translateY(-6px)}100%{transform:translateY(4px)}}
+/* rowing : on tire la barre vers la hanche (haut-gauche) */
+@keyframes pull{0%{transform:translate(4px,3px)}50%{transform:translate(-4px,-3px)}100%{transform:translate(4px,3px)}}
+/* curl : l'avant-bras pivote au coude */
+@keyframes curl{0%{transform:rotate(8deg)}50%{transform:rotate(-112deg)}100%{transform:rotate(8deg)}}
+/* crunch : le buste fléchit à la hanche */
+@keyframes crunch{0%{transform:rotate(2deg)}50%{transform:rotate(-34deg)}100%{transform:rotate(2deg)}}
+/* élévation : le bras pivote à l'épaule */
+@keyframes raise{0%{transform:rotate(18deg)}50%{transform:rotate(-46deg)}100%{transform:rotate(18deg)}}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes hold{0%,100%{transform:translateY(.6px)}50%{transform:translateY(-1.4px)}}
+@keyframes roll{0%{transform:translateX(5px)}50%{transform:translateX(-7px)}100%{transform:translateX(5px)}}
+@keyframes rotate{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(13deg)}}
 @keyframes carry{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
-@keyframes pulse{0%,100%{transform:scale(.92)}50%{transform:scale(1.06)}}
-.a-pullup .mover{animation:upd 1.4s ease-in-out infinite}
-.a-explo  .mover{animation:updFast 1s ease-in-out infinite}
-.a-dip    .mover{animation:upd 1.5s ease-in-out infinite}
-.a-press  .mover{animation:pressUp 1.4s ease-in-out infinite}
-.a-row    .mover{animation:rowPull 1.3s ease-in-out infinite}
-.a-bench  .mover{animation:pressUp 1.5s ease-in-out infinite}
-.a-curl   .mover{animation:flex 1.4s ease-in-out infinite}
-.a-hang   .mover{animation:sway 2.4s ease-in-out infinite}
-.a-crunch .mover{animation:crunch 1.5s ease-in-out infinite}
-.a-raise  .mover{animation:raise 1.6s ease-in-out infinite}
-.a-hold   .mover{animation:hold 1.8s ease-in-out infinite}
-.a-roll   .mover{animation:roll 1.7s ease-in-out infinite}
-.a-rotate .mover{animation:rotate 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(.9)}50%{transform:scale(1.08)}}
+.a-pullup .mover{animation:liftY 1.6s ease-in-out infinite}
+.a-explo  .mover{animation:liftYFast 1s cubic-bezier(.2,.85,.3,1) infinite}
+.a-dip    .mover{animation:liftY 1.7s ease-in-out infinite}
+.a-press  .mover{animation:press 1.7s ease-in-out infinite}
+.a-row    .mover{animation:pull 1.4s ease-in-out infinite}
+.a-bench  .mover{animation:press 1.8s ease-in-out infinite}
+.a-curl   .mover{transform-origin:21px 27px;animation:curl 1.6s ease-in-out infinite}
+.a-hang   .mover{transform-origin:27px 11px;animation:sway 2.6s ease-in-out infinite}
+.a-crunch .mover{transform-origin:38px 44px;animation:crunch 1.7s ease-in-out infinite}
+.a-raise  .mover{transform-origin:27px 18px;animation:raise 1.8s ease-in-out infinite}
+.a-hold   .mover{animation:hold 2.2s ease-in-out infinite}
+.a-roll   .mover{animation:roll 1.9s ease-in-out infinite}
+.a-rotate .mover{transform-origin:27px 26px;animation:rotate 2s ease-in-out infinite}
 .a-carry  .mover{animation:carry 1.1s ease-in-out infinite}
-.a-pulse  .mover{animation:pulse 1.5s ease-in-out infinite}
+.a-pulse  .mover{transform-origin:27px 27px;animation:pulse 1.6s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.mover{animation:none!important}}
 
 /* ---- carte « ajouter » ---- */
