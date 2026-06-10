@@ -53,8 +53,8 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET A — 4 tours", note:"Charge sub-maximale (RPE 8), tempo contrôlé, on cherche la congestion.",
           ex:[
-            {k:"row",name:"Rowing lourd (seal / pendlay / DB 1 bras)",reps:"8-10 reps",anim:"row",load:true,sets:4,tempo:["2","1","1","0"],key:2,
-             cue:"1″ de pause en haut, coude vers la hanche. Dos verrouillé.",yt:YT("seal row barbell")},
+            {k:"row",name:"Rowing haltère 1 bras (appui au banc)",reps:"8-10 reps",anim:"row",load:true,sets:4,tempo:["2","1","1","0"],key:2,
+             cue:"Genou et main en appui sur le banc, dos à plat. 1″ de pause en haut, coude vers la hanche.",yt:YT("one arm dumbbell row bench form")},
             {k:"bench",name:"Développé couché (ou DB bench)",reps:"8-10 reps",anim:"bench",load:true,sets:4,tempo:["3","1","1","0"],key:0,
              cue:"Descente 3″ contrôlée, omoplates serrées. Amplitude complète.",yt:YT("barbell bench press form")}
           ]},
