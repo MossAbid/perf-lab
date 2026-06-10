@@ -53,16 +53,16 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET A — 4 tours", note:"Charge sub-maximale (RPE 8), tempo contrôlé, on cherche la congestion.",
           ex:[
-            {k:"row",name:"Rowing haltère 1 bras (appui au banc)",reps:"8-10 reps",anim:"row",load:true,sets:4,tempo:["2","1","1","0"],key:2,
+            {k:"row",name:"Rowing haltère 1 bras (appui au banc)",reps:"8-10 reps",anim:"row",load:true,sets:4,tempo:["2","1","1","0"],key:2,target:"24-26 kg / haltère",
              cue:"Genou et main en appui sur le banc, dos à plat. 1″ de pause en haut, coude vers la hanche.",yt:YT("one arm dumbbell row bench form")},
-            {k:"bench",name:"Développé couché (ou DB bench)",reps:"8-10 reps",anim:"bench",load:true,sets:4,tempo:["3","1","1","0"],key:0,
+            {k:"bench",name:"Développé couché (ou DB bench)",reps:"8-10 reps",anim:"bench",load:true,sets:4,tempo:["3","1","1","0"],key:0,target:"55-60 kg",
              cue:"Descente 3″ contrôlée, omoplates serrées. Amplitude complète.",yt:YT("barbell bench press form")}
           ]},
         { label:"FINISHER BRAS B — 3 tours",
           ex:[
-            {k:"curl",name:"Curl barre / haltères",reps:"10-12 reps",anim:"curl",load:true,sets:3,tempo:["2","0","2","0"],key:2,
+            {k:"curl",name:"Curl barre / haltères",reps:"10-12 reps",anim:"curl",load:true,sets:3,tempo:["2","0","2","0"],key:2,target:"28-30 kg",
              cue:"Coudes fixes, pas d'élan. Squeeze en haut.",yt:YT("barbell biceps curl form")},
-            {k:"tri",name:"Extension triceps (skull / banded)",reps:"max",anim:"curl",load:true,sets:3,
+            {k:"tri",name:"Extension triceps (skull / banded)",reps:"max",anim:"curl",load:true,sets:3,target:"poids du corps / élastique — RPE 9",
              cue:"Coudes serrés et fixes, extension complète. Jusqu'à la chauffe.",yt:YT("barbell skullcrusher triceps")}
           ]}
       ]},

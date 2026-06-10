@@ -97,6 +97,8 @@ h1 em{font-style:normal;color:var(--accent);transition:color .4s}
 .ex.open .ex-body{max-height:1000px}
 .ex-inner{padding:0 14px 16px}
 .cue{font-size:13px;color:var(--muted);background:var(--panel2);border-left:2px solid var(--accent);padding:9px 12px;border-radius:0 8px 8px 0;margin-bottom:12px}
+.target{display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);border:1px solid var(--accent);background:var(--panel2);padding:7px 12px;border-radius:999px;margin-bottom:12px;letter-spacing:.04em}
+.target .t-ico{font-size:13px;line-height:1}
 .tempo{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
 .tcell{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 4px;text-align:center}
 .tcell .n{font-family:'Anton',sans-serif;font-size:20px}
