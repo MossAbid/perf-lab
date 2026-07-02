@@ -78,6 +78,28 @@ t("exercice jamais évalué → palier de départ", () => {
   assert.equal(P.effectiveTier({}, "p", "x", 5, tiers), 2);
 });
 
+/* ---- sparkline ---- */
+t("sparklineSVG : vide sous 2 points, sinon ligne + points + douleur marquée", () => {
+  assert.equal(P.sparklineSVG([{ w: 1, tier: 2 }], tiers), "");
+  assert.equal(P.sparklineSVG(null, tiers), "");
+  const hist = [{ w: 1, rpe: 5, pain: false, tier: 2 }, { w: 2, rpe: 8, pain: false, tier: 3 }, { w: 3, rpe: 4, pain: true, tier: 3 }];
+  const svg = P.sparklineSVG(hist, tiers);
+  assert.ok(svg.includes("<polyline"));
+  assert.equal((svg.match(/<circle/g) || []).length, 3);
+  assert.equal((svg.match(/sp-bad/g) || []).length, 1, "le point douleur est marqué");
+  assert.ok(svg.includes("RPE 8"));
+});
+
+/* ---- jalons / tests ---- */
+t("recordTest : trie par date, remplace la saisie du même jour", () => {
+  const pr = {};
+  P.recordTest(pr, "pullup", "testpu", "2026-07-16", 1);
+  P.recordTest(pr, "pullup", "testpu", "2026-07-02", 0);
+  P.recordTest(pr, "pullup", "testpu", "2026-07-16", 2); // re-saisie
+  const tests = pr.pullup.testpu.tests;
+  assert.deepEqual(tests, [{ d: "2026-07-02", reps: 0 }, { d: "2026-07-16", reps: 2 }]);
+});
+
 /* ---- schéma : classification des imports ---- */
 const oldFmt = { id: "test", title: "TEST", sessions: [{ id: "s1", blocks: [] }] };
 t("ancien format (racine id + sessions) → kind program", () => {
@@ -138,8 +160,11 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
   // tous les exercices de lower et pullup ont des paliers ; prehaltero aucun (zéro RPE)
   lower.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(ex.tiers, ex.name))));
   const pu = DEFAULT_PROGRAMS.find(p => p.id === "pullup");
-  assert.equal(pu.sessions.length, 3);
-  pu.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(ex.tiers, ex.name))));
+  assert.equal(pu.sessions.length, 4);
+  pu.sessions.slice(0, 3).forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(ex.tiers, ex.name))));
+  // la séance TEST porte un exercice jalon
+  const testEx = pu.sessions[3].blocks.flatMap(b => b.ex).find(ex => ex.test);
+  assert.ok(testEx, "exercice test:true dans la séance TEST");
   const ph = DEFAULT_PROGRAMS.find(p => p.id === "prehaltero");
   ph.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(!ex.tiers, ex.name))));
   assert.ok(withTiers >= 30, "au moins 30 exercices avec paliers (trouvé " + withTiers + ")");

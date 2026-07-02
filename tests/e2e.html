@@ -59,10 +59,23 @@
 
     /* 2b. programme Pull-Up Lab : paliers + RPE fonctionnels chez Souad */
     await goto("p/pullup");
-    ok("Pull-Up Lab : 3 séances", document.querySelectorAll(".tab").length === 3);
+    ok("Pull-Up Lab : 4 séances (dont TEST)", document.querySelectorAll(".tab").length === 4);
     ok("Pull-Up Lab : paliers affichés", document.querySelectorAll(".target.tier").length >= 3);
     ok("plus aucun bouton Timer/EMOM", !document.querySelector("[data-settimer]") && !document.querySelector("[data-setemom]"));
+    /* jalon : séance TEST, saisie d'un résultat */
+    document.querySelectorAll(".tab")[3].click(); await tick();
+    const tin = document.querySelector('.tin[data-tt="testpu"]');
+    ok("séance TEST : saisie jalon présente", !!tin);
+    tin.value = "1"; tin.dispatchEvent(new Event("change")); await tick();
+    const tests = (Backend.loadProgression().pullup || {}).testpu;
+    ok("jalon enregistré avec date", tests && tests.tests.length === 1 && tests.tests[0].reps === 1);
+    /* séance faite → journal */
+    ok("bouton séance faite présent", !!document.getElementById("sdone"));
+    document.getElementById("sdone").click(); await tick(100);
+    ok("séance journalisée", Backend.getLog().some(e => e.prog === "pullup" && e.s === "s4"));
+    ok("bouton passé à l'état enregistré", document.getElementById("sdone").disabled);
     await goto("");
+    ok("assiduité : 1 jour allumé chez Souad", document.querySelectorAll(".aday.on").length === 1);
 
     /* 3. import ancien format pendant que Souad est actif → rattaché à Moss, silencieusement */
     await goto("add");
@@ -96,8 +109,14 @@
     ok("palier RDL initial 60 kg", tierBadges[0] && tierBadges[0].textContent.includes("60 kg"));
     const rpe = document.querySelector('.rpe[data-rk="rdl"]');
     ok("saisie RPE présente", !!rpe);
+    // repos inline : après la 1re série cochée il apparaît, après la dernière il s'arrête
+    const rdlBtns = [...document.querySelectorAll('.setbtn[data-k="rdl"]')];
+    rdlBtns[0].click(); await tick();
+    const restEl = rdlBtns[0].closest("[data-ex]").querySelector("[data-rest]");
+    ok("repos inline affiché après une série", !restEl.hidden && restEl.textContent.includes("REPOS"));
     // toutes les séries du RDL + RPE 5 → doit proposer le palier supérieur (70 kg)
-    document.querySelectorAll('.setbtn[data-k="rdl"]').forEach(b => b.click());
+    rdlBtns.slice(1).forEach(b => b.click()); await tick();
+    ok("repos masqué après la dernière série", restEl.hidden);
     rpe.value = "5"; rpe.dispatchEvent(new Event("change"));
     await tick();
     const next = document.querySelector('[data-nk="rdl"]');
@@ -114,11 +133,20 @@
     await tick();
     ok("semaine 2 : palier 50 kg appliqué",
        document.querySelector(".target.tier").textContent.includes("50 kg"));
+    /* 2e évaluation en S2 → sparkline au re-rendu */
+    document.querySelectorAll('.setbtn[data-k="rdl"]').forEach(b => b.click());
+    const rpe2 = document.querySelector('.rpe[data-rk="rdl"]');
+    rpe2.value = "7"; rpe2.dispatchEvent(new Event("change")); await tick();
+    document.getElementById("wdown").click(); await tick();
+    document.getElementById("wup").click(); await tick();
+    ok("sparkline visible après 2 évaluations", !!document.querySelector(".spark"));
 
     /* 6. Moss : bibliothèque complète ; isolation de la progression */
     await goto("");
     ok("Moss : bibliothèque avec legacy + import",
        !!document.querySelector('[data-go="legacy-prog"]') && !!document.querySelector('[data-go="import-test"]'));
+    ok("rappel de sauvegarde signalé (jamais exporté, données présentes)",
+       !!document.querySelector(".backup.warn"));
     document.querySelector('[data-prof="souad"]').click();
     await tick(200);
     ok("progression Moss (lower) invisible chez Souad", !("lower" in Backend.loadProgression()));

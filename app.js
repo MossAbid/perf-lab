@@ -27,6 +27,15 @@ const setAccent = hex => document.documentElement.style.setProperty("--accent", 
 const rLS = (k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(e){ return d; } };
 const wLS = (k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today = ()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+/* téléchargement d'un fichier (sauvegarde JSON) */
+function dl(name, text){
+  const b=new Blob([text],{type:"application/json"});
+  const u=URL.createObjectURL(b), a=document.createElement("a");
+  a.href=u; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(u); a.remove(); },500);
+}
+function softBeep(){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(); const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start(); setTimeout(()=>{o.stop();c.close();},160);}catch(e){} }
 
 /* ---- state ---- */
 const PL = window.PLProgression;
@@ -113,6 +122,25 @@ function renderLibrary(){
   const prof = Backend.activeProfile();
   const profSel = cloud ? "" : `<div class="profsel">${Backend.profiles().map(p=>
     `<button class="profbtn${p.id===prof?" active":""}" data-prof="${esc(p.id)}">${esc(p.name)}</button>`).join("")}</div>`;
+  /* assiduité : 14 derniers jours du journal de séances du profil */
+  const log = Backend.getLog();
+  const doneDays = new Set(log.map(e=>e.d));
+  let assid = "";
+  for(let i=13;i>=0;i--){
+    const d = new Date(Date.now()-i*864e5);
+    const iso = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    assid += `<span class="aday${doneDays.has(iso)?" on":""}" title="${iso.split("-").reverse().join("/")}"></span>`;
+  }
+  const assidHtml = `<div class="assid"><span class="alab">14 derniers jours</span>${assid}<span class="acount">${log.length} séance${log.length>1?"s":""}</span></div>`;
+  /* rappel de sauvegarde : jamais exporté avec des données, ou > 7 jours */
+  const le = Backend.lastExport();
+  const hasData = log.length>0 || Object.keys(PROGRESSION).length>0;
+  const staleDays = le ? Math.floor((Date.now()-le)/864e5) : null;
+  const warn = (!le && hasData) || (staleDays!=null && staleDays>7);
+  const backupHtml = cloud ? "" : `<div class="backup${warn?" warn":""}">
+      <span>💾 Sauvegarde : ${le ? (staleDays===0?"aujourd'hui":"il y a "+staleDays+" j") : "jamais"}</span>
+      <button class="dbtn" id="backup">Exporter</button>
+    </div>`;
   app.innerHTML = `<div class="view"><div class="wrap">
     <header>
       <div class="topbar">
@@ -121,6 +149,8 @@ function renderLibrary(){
       </div>
       <h1>PERF<br><em>LAB</em></h1>
       <p class="lede">${LIBRARY.length} programme${LIBRARY.length>1?"s":""} · ${cloud?"synchronisé sur tes appareils":"profil "+esc(prof.charAt(0).toUpperCase()+prof.slice(1))+" · stocké sur cet appareil"}.</p>
+      ${assidHtml}
+      ${backupHtml}
       <div class="lib">
         ${cards}
         <div class="card add" data-add>
@@ -139,6 +169,10 @@ function renderLibrary(){
     await hydrate(); renderLibrary();
   });
   const so=$("#signout"); if(so) so.onclick=async()=>{ await Backend.signOut(); renderAuth(); };
+  const bk=$("#backup"); if(bk) bk.onclick=()=>{
+    dl("perflab-backup-"+today()+".json", JSON.stringify(Backend.exportAll(),null,2));
+    Backend.markExported(); toast("Sauvegarde téléchargée."); renderLibrary();
+  };
   window.scrollTo(0,0);
 }
 
@@ -206,6 +240,7 @@ function renderAdd(){
   };
   const ea=$("#expall"); if(ea) ea.onclick=async()=>{
     const txt=JSON.stringify(Backend.exportAll(),null,2);
+    Backend.markExported();
     try{ await navigator.clipboard.writeText(txt); toast("Export profils copié."); }
     catch(e){ const t=$("#jsonin"); t.value=txt; toast("Export affiché ci-dessus."); }
   };
@@ -267,17 +302,19 @@ function renderTabs(){
 }
 function tempoGrid(t,key){ const L=["EXC","PAUSE","CONC","PAUSE"];
   return `<div class="tempo">`+t.map((n,i)=>`<div class="tcell${i===key?" key":""}"><div class="n">${esc(n)}</div><div class="l">${L[i]}</div></div>`).join("")+`</div>`; }
-function exCard(s,ex){
+function exCard(s,ex,blockTimer){
   const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
   const d=(st[s.id]&&st[s.id][ex.k])||{done:[],load:[]};
   const sets=ex.sets||1; let setsHtml="";
   for(let i=0;i<sets;i++){ const done=d.done&&d.done[i]; const lv=(d.load&&d.load[i]!=null)?d.load[i]:"";
     setsHtml+=`<div class="setcol"><button class="setbtn${done?" done":""}" data-s="${esc(s.id)}" data-k="${esc(ex.k)}" data-i="${i}">${i+1}</button>${ex.load?`<input class="load" type="number" inputmode="decimal" placeholder="–" value="${esc(lv)}" data-ls="${esc(s.id)}" data-lk="${esc(ex.k)}" data-li="${i}"><div class="loadu">kg</div>`:""}</div>`; }
-  let tierHtml="", rpeHtml="";
+  const entry=PROGRESSION[CUR.id]&&PROGRESSION[CUR.id][ex.k];
+  let tierHtml="", rpeHtml="", testHtml="";
   if(ex.tiers && Array.isArray(ex.tiers.steps) && ex.tiers.steps.length){
     const ti=PL.effectiveTier(PROGRESSION,CUR.id,ex.k,wk,ex.tiers);
     tierHtml=`<div class="target tier"><span class="t-ico">📶</span>Palier ${ti+1}/${ex.tiers.steps.length} — ${esc(PL.tierLabel(ex.tiers,ti))}</div>`;
-    const entry=PROGRESSION[CUR.id]&&PROGRESSION[CUR.id][ex.k];
+    const spark=PL.sparklineSVG(entry&&entry.hist, ex.tiers);
+    if(spark) tierHtml+=`<div class="sparkrow">${spark}<span class="sparklab">évolution du palier</span></div>`;
     const prop=(entry&&entry.week===wk&&entry.next!=null)
       ? (entry.next>entry.tier?"→ prochaine séance : "+PL.tierLabel(ex.tiers,entry.next)
         :entry.next<entry.tier?"→ retour à : "+PL.tierLabel(ex.tiers,entry.next)
@@ -289,7 +326,19 @@ function exCard(s,ex){
         <span class="rpe-next" data-ns="${esc(s.id)}" data-nk="${esc(ex.k)}">${esc(prop)}</span>
       </div>`;
   }
-  return `<div class="ex" data-ex>
+  if(ex.test){
+    const tests=(entry&&entry.tests)||[];
+    const cur=tests.find(t=>t.d===today());
+    const hist=tests.slice(-6).map(t=>
+      `<span class="tres${t.reps>0?" win":""}">${esc(t.d.slice(5).split("-").reverse().join("/"))} → ${t.reps}</span>`).join("");
+    testHtml=`<div class="setlab" style="margin-top:12px">Résultat du jour — répétitions strictes réussies</div>
+      <div class="rpe-row">
+        <input class="load tin" type="number" inputmode="numeric" min="0" placeholder="–" value="${cur?cur.reps:""}" data-tt="${esc(ex.k)}">
+        <span class="rpe-next" data-tout="${esc(ex.k)}"></span>
+      </div>
+      ${hist?`<div class="tresrow">${hist}</div>`:""}`;
+  }
+  return `<div class="ex" data-ex data-rest-s="${blockTimer||90}">
     <div class="ex-top" data-toggle>
       <div class="anim a-${esc(ex.anim||'pulse')}">${figFor(ex.anim)}</div>
       <div class="ex-id"><div class="ex-name">${esc(ex.name)}</div><div class="ex-scheme">${esc(ex.reps||'')}</div></div>
@@ -301,19 +350,28 @@ function exCard(s,ex){
       ${ex.tempo?tempoGrid(ex.tempo,ex.key||0):""}
       <div class="setlab">Séries — coche${ex.load?" + note ta charge":""}</div>
       <div class="sets">${setsHtml}</div>
+      <div class="rest" data-rest hidden></div>
       ${rpeHtml}
+      ${testHtml}
       <div class="exbtns">
         <button class="gbtn" data-play><svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Animer</button>
         ${ex.yt?`<a class="gbtn" href="${esc(ex.yt)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 15l5.2-3L10 9v6zm12-3c0 2-.2 3.4-.5 4.2-.3.9-1 1.6-1.9 1.9-.8.3-2.6.4-5.6.4s-4.8-.1-5.6-.4c-.9-.3-1.6-1-1.9-1.9C5.2 15.4 5 14 5 12s.2-3.4.5-4.2c.3-.9 1-1.6 1.9-1.9C8.2 5.6 10 5.5 13 5.5s4.8.1 5.6.4c.9.3 1.6 1 1.9 1.9.3.8.5 2.2.5 4.2z"/></svg>Vidéo</a>`:""}
       </div></div></div></div>`;
 }
 function renderSession(){
+  stopRest();
   const s=CUR.sessions.find(x=>x.id===activeSession);
   let html=`<div class="shead"><h2>${esc(s.t)} <em>${esc(s.t2||'')}</em></h2><div class="pill">${esc(s.pill||'')}</div></div><p class="sfocus">${esc(s.focus||'')}</p>`;
   s.blocks.forEach(b=>{ html+=`<div class="blk"><div class="blk-h"><div class="bl">${esc(b.label||'')}</div><div class="line"></div>`;
     html+=`</div>`; if(b.note) html+=`<div class="blk-note">${esc(b.note)}</div>`;
-    (b.ex||[]).forEach(ex=> html+=exCard(s,ex)); html+=`</div>`; });
+    (b.ex||[]).forEach(ex=> html+=exCard(s,ex,b.timer)); html+=`</div>`; });
+  const logged=Backend.getLog().some(e=>e.d===today() && e.prog===CUR.id && e.s===s.id);
+  html+=`<button class="donebtn${logged?" ok":""}" id="sdone" ${logged?"disabled":""}>${logged?"✓ Séance enregistrée aujourd'hui":"✓ Séance faite"}</button>`;
   $("#main").innerHTML=html; bindSession();
+  $("#sdone").onclick=()=>{
+    Backend.addLog({ d:today(), prog:CUR.id, s:s.id, w:getWeek(CUR.id) });
+    toast("Séance enregistrée — bien joué."); renderSession();
+  };
 }
 function findEx(sid,k){
   const s=CUR.sessions.find(x=>x.id===sid); if(!s) return null;
@@ -335,12 +393,32 @@ function reevaluate(sid,k){
     : r.next<r.tier ? "→ retour à : "+PL.tierLabel(ex.tiers,r.next)
     : "→ maintien du palier";
 }
+/* ---- repos inline : compte à rebours discret dans la carte après une série ---- */
+let restInt=null, restEl=null;
+function stopRest(){ clearInterval(restInt); restInt=null; if(restEl){ restEl.hidden=true; restEl=null; } }
+function startRest(card, sec){
+  stopRest();
+  const el=card.querySelector("[data-rest]"); if(!el) return;
+  let rem=sec; restEl=el; el.hidden=false;
+  const fmt=r=>Math.floor(r/60)+":"+String(r%60).padStart(2,"0");
+  const draw=()=>{ el.textContent="REPOS "+fmt(rem)+" · toucher pour arrêter"; };
+  draw();
+  el.onclick=stopRest;
+  restInt=setInterval(()=>{ rem--; if(rem<=0){ softBeep(); stopRest(); } else draw(); },1000);
+}
 function bindSession(){
   const main=$("#main");
   main.querySelectorAll("[data-toggle]").forEach(t=>{ t.onclick=e=>{ if(e.target.closest("[data-play]")||e.target.closest("a"))return; t.closest("[data-ex]").classList.toggle("open"); }; });
   main.querySelectorAll(".setbtn").forEach(b=>{ b.onclick=()=>{ const {s,k,i}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[s]=st[s]||{}; st[s][k]=st[s][k]||{done:[],load:[]}; st[s][k].done[i]=!st[s][k].done[i]; b.classList.toggle("done",st[s][k].done[i]);
-    Backend.saveProgress(CUR.id,wk,st); updateGlobal(); reevaluate(s,k); }; });
+    Backend.saveProgress(CUR.id,wk,st); updateGlobal(); reevaluate(s,k);
+    // repos auto après une série cochée, sauf la dernière de l'exercice
+    if(st[s][k].done[i]){
+      const ex=findEx(s,k); const n=(ex&&ex.sets)||1;
+      let done=0; for(let j=0;j<n;j++) if(st[s][k].done[j]) done++;
+      const card=b.closest("[data-ex]");
+      if(done<n) startRest(card, +card.dataset.restS||90); else stopRest();
+    } else stopRest(); }; });
   main.querySelectorAll(".load:not(.rpe)").forEach(inp=>{ inp.onchange=()=>{ const {ls,lk,li}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[ls]=st[ls]||{}; st[ls][lk]=st[ls][lk]||{done:[],load:[]}; st[ls][lk].load[li]=inp.value; Backend.saveProgress(CUR.id,wk,st); }; });
   main.querySelectorAll(".rpe").forEach(inp=>{ inp.onchange=()=>{ const {rs,rk}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
@@ -352,6 +430,14 @@ function bindSession(){
     st[ps]=st[ps]||{}; st[ps][pk]=st[ps][pk]||{done:[],load:[]};
     st[ps][pk].pain=!st[ps][pk].pain; b.classList.toggle("on",st[ps][pk].pain);
     Backend.saveProgress(CUR.id,wk,st); reevaluate(ps,pk); }; });
+  main.querySelectorAll(".tin").forEach(inp=>{ inp.onchange=()=>{ const k=inp.dataset.tt;
+    if(inp.value==="") return;
+    const v=Math.max(0,Math.round(+inp.value)); inp.value=v;
+    PL.recordTest(PROGRESSION,CUR.id,k,today(),v);
+    Backend.saveProgression(PROGRESSION);
+    const out=main.querySelector(`[data-tout="${k}"]`);
+    if(out) out.textContent = v>0 ? "🎉 "+v+" stricte"+(v>1?"s":"")+" — enregistré" : "enregistré — la prochaine est pour bientôt";
+    toast("Test enregistré."); }; });
   main.querySelectorAll("[data-play]").forEach(p=>{ p.onclick=()=>{ const a=p.closest("[data-ex]").querySelector(".anim"); const on=a.classList.toggle("go"); p.classList.toggle("on",on); }; });
 }
 function updateGlobal(){

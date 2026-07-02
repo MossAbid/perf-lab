@@ -315,6 +315,20 @@ const DEFAULT_PROGRAMS = [
             {k:"kneeraise",name:"Hanging knee raises",reps:"reps / palier",anim:"raise",sets:3,tiers:{u:"reps",steps:[5,8,10,12],start:0},
              cue:"Suspendue à la barre, monte les genoux sans balancier. Grip + abdos + habitude de la barre.",yt:YT("hanging knee raise strict")}
           ]}
+      ]},
+    { id:"s4", t:"TEST", t2:"STRICTE", sub:"Jalon · toutes les 2 semaines", accent:"#ff5a7a", pill:"~10 MIN",
+      focus:"Le juge de paix : combien de tractions strictes aujourd'hui ? Toutes les 2 semaines, fraîche, après un bon échauffement. 0 n'est pas un échec, c'est une mesure.",
+      blocks:[
+        { label:"ÉCHAUFFEMENT — 5 minutes", note:"Jamais de test à froid : le résultat serait faussé et l'épaule n'aimerait pas.",
+          ex:[
+            {k:"warmup",name:"Scapula pull-ups + dead hang + 2-3 tractions élastiques",reps:"2 tours légers",anim:"hang",sets:2,
+             cue:"Monte progressivement en intensité. Arrête-toi loin de la fatigue : le test doit te trouver fraîche.",yt:YT("pull up warm up routine")}
+          ]},
+        { label:"LE TEST — 1 seule tentative", note:"Max de tractions strictes, sans élan, menton au-dessus. Note le résultat même si c'est 0 : la courbe se construit mesure après mesure.",
+          ex:[
+            {k:"testpu",name:"Tractions strictes — tentative max",reps:"max reps",anim:"pullup",sets:1,test:true,
+             cue:"Départ bras tendus, zéro kip, menton clairement au-dessus de la barre. Arrête à la première rep dégradée.",yt:YT("strict pull up standard")}
+          ]}
       ]}
   ]
 },

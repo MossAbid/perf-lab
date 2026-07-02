@@ -208,3 +208,36 @@ footer{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;
 .painbtn{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);background:var(--panel2);padding:8px 12px;border-radius:9px;cursor:pointer;transition:all .2s}
 .painbtn.on{background:var(--hot);color:#fff;border-color:var(--hot);font-weight:700}
 .rpe-next{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.04em}
+
+/* ---- sparkline d'évolution des paliers ---- */
+.sparkrow{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.spark{display:block;flex:none}
+.spark polyline{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.spark circle{fill:var(--accent)}
+.spark circle.sp-bad{fill:var(--hot)}
+.sparklab{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+/* ---- repos inline ---- */
+.rest{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--accent);border:1px dashed var(--accent);border-radius:9px;padding:9px 12px;margin:10px 0 2px;text-align:center;cursor:pointer;user-select:none}
+
+/* ---- jalon / test ---- */
+.tresrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tres{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+.tres.win{color:var(--accent);border-color:var(--accent);font-weight:700}
+
+/* ---- séance faite ---- */
+.donebtn{display:block;width:100%;margin:22px 0 0;font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.08em;text-transform:uppercase;background:var(--accent);color:var(--bg);border:none;border-radius:12px;padding:14px;cursor:pointer}
+.donebtn:active{transform:scale(.98)}
+.donebtn.ok{background:transparent;color:var(--muted);border:1px solid var(--line);cursor:default}
+
+/* ---- assiduité (14 jours) ---- */
+.assid{display:flex;align-items:center;gap:4px;margin:14px 0 0}
+.alab{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+.aday{width:10px;height:10px;border-radius:3px;background:var(--panel2);border:1px solid var(--line)}
+.aday.on{background:var(--accent);border-color:var(--accent)}
+.acount{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-left:6px}
+
+/* ---- rappel de sauvegarde ---- */
+.backup{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.backup.warn{color:var(--accent);border-color:var(--accent)}
+.backup .dbtn{padding:6px 10px;font-size:10px}

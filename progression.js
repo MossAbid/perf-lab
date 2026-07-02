@@ -69,6 +69,41 @@
     return { tier: tier, next: next };
   }
 
+  /* ---- sparkline de progression (SVG, mono-série) ----
+     hist = [{w, rpe, pain, tier}] ; y = palier (domaine fixe 0..n-1),
+     x = semaine. Trait 2px, points aux évaluations, douleur en rouge.  */
+  function sparklineSVG(hist, tiers, accent) {
+    if (!hist || hist.length < 2 || !tiers || !tiers.steps) return "";
+    const n = tiers.steps.length;
+    const H = 28, W = 120, PAD = 4;
+    const h = hist.slice().sort((a, b) => a.w - b.w);
+    const x = i => PAD + i * ((W - 2 * PAD) / (h.length - 1));
+    const y = t => n < 2 ? H / 2 : (H - PAD) - (t / (n - 1)) * (H - 2 * PAD);
+    const pts = h.map((e, i) => x(i).toFixed(1) + "," + y(e.tier).toFixed(1)).join(" ");
+    const dots = h.map((e, i) => {
+      const bad = e.pain || (e.rpe != null && e.rpe >= 9);
+      const r = i === h.length - 1 ? 3 : 2.2;
+      const title = "S" + e.w + " — palier " + (e.tier + 1) + (e.rpe != null ? " · RPE " + e.rpe : "") + (e.pain ? " · douleur" : "");
+      return `<circle cx="${x(i).toFixed(1)}" cy="${y(e.tier).toFixed(1)}" r="${r}"` +
+        (bad ? ` class="sp-bad"` : "") + `><title>${title}</title></circle>`;
+    }).join("");
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Progression des paliers">` +
+      `<polyline points="${pts}"/>` + dots + `</svg>`;
+  }
+
+  /* ---- jalons / tests (ex. tentative de traction stricte max) ----
+     progression[progId][exKey].tests = [{d:"AAAA-MM-JJ", reps}] — la
+     dernière saisie du jour remplace celle du même jour.               */
+  function recordTest(progression, progId, exKey, dateISO, reps) {
+    progression[progId] = progression[progId] || {};
+    const e = progression[progId][exKey] = progression[progId][exKey] || {};
+    const tests = (e.tests || []).filter(t => t.d !== dateISO);
+    tests.push({ d: dateISO, reps: reps });
+    tests.sort((a, b) => a.d < b.d ? -1 : 1);
+    e.tests = tests;
+    return tests;
+  }
+
   /* ---- schéma JSON ----
      ANCIEN (v1, un programme) : { id, title, sessions:[...] }
      NOUVEAU (v2, export/import global) :
@@ -111,7 +146,7 @@
   function mergeProfilesDoc(state, doc) {
     doc.profiles.forEach(pr => {
       const id = pr.id;
-      const cur = state[id] || { programs: [], progress: {}, weeks: {}, progression: {} };
+      const cur = state[id] || { programs: [], progress: {}, weeks: {}, progression: {}, log: [] };
       (pr.programs || []).forEach(p => {
         const i = cur.programs.findIndex(x => x.id === p.id);
         if (i >= 0) cur.programs[i] = p; else cur.programs.push(p);
@@ -119,6 +154,7 @@
       if (pr.progress)    cur.progress    = pr.progress;
       if (pr.weeks)       cur.weeks       = pr.weeks;
       if (pr.progression) cur.progression = pr.progression;
+      if (pr.log)         cur.log         = pr.log;
       state[id] = cur;
     });
     return state;
@@ -127,6 +163,7 @@
   const API = {
     PROFILES, DEFAULT_PROFILE,
     nextTier, tierLabel, startTier, effectiveTier, recordRpe,
+    sparklineSVG, recordTest,
     isProfilesDoc, validateProgram, validateProfilesDoc, classifyImport, mergeProfilesDoc
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;

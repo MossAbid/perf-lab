@@ -96,6 +96,19 @@ const Backend = (() => {
   function loadProgression(){ return readLS(K("progression"), {}); }
   function saveProgression(pr){ writeLS(K("progression"), pr); }
 
+  /* ---- journal de séances (assiduité) — local par profil ----
+     entrées {d:"AAAA-MM-JJ", prog, s, w} ; une par (jour, prog, séance). */
+  function getLog(){ return readLS(K("log"), []); }
+  function addLog(entry){
+    const log = getLog().filter(e=>!(e.d===entry.d && e.prog===entry.prog && e.s===entry.s));
+    log.push(entry); writeLS(K("log"), log); return log;
+  }
+
+  /* ---- horodatage de la dernière sauvegarde (export) — global ---- */
+  const EXPORT_KEY = "perflab.lastExport";
+  function lastExport(){ const v = localStorage.getItem(EXPORT_KEY); return v ? +v : null; }
+  function markExported(){ try{ localStorage.setItem(EXPORT_KEY, String(Date.now())); }catch(e){} }
+
   /* ---- file d'attente offline (cloud) ---- */
   function enqueue(op){ const q = readLS(K("queue"), []); q.push(op); writeLS(K("queue"), q); }
   async function flushQueue(){
@@ -292,7 +305,8 @@ const Backend = (() => {
         programs:    readLS(Kp(p.id,"programs"), []),
         progress:    readLS(Kp(p.id,"progress"), {}),
         weeks:       readLS(Kp(p.id,"weeks"), {}),
-        progression: readLS(Kp(p.id,"progression"), {})
+        progression: readLS(Kp(p.id,"progression"), {}),
+        log:         readLS(Kp(p.id,"log"), [])
       }))
     };
   }
@@ -303,7 +317,8 @@ const Backend = (() => {
         programs:    readLS(Kp(p.id,"programs"), []),
         progress:    readLS(Kp(p.id,"progress"), {}),
         weeks:       readLS(Kp(p.id,"weeks"), {}),
-        progression: readLS(Kp(p.id,"progression"), {})
+        progression: readLS(Kp(p.id,"progression"), {}),
+        log:         readLS(Kp(p.id,"log"), [])
       };
     });
     window.PLProgression.mergeProfilesDoc(state, doc);
@@ -314,6 +329,7 @@ const Backend = (() => {
       writeLS(Kp(pid,"progress"),    state[pid].progress);
       writeLS(Kp(pid,"weeks"),       state[pid].weeks);
       writeLS(Kp(pid,"progression"), state[pid].progression);
+      writeLS(Kp(pid,"log"),         state[pid].log || []);
     });
   }
 
@@ -321,5 +337,6 @@ const Backend = (() => {
            loadAll, saveProgress, upsertProgram, upsertProgramFor, deleteProgram,
            activeProfile, setProfile, profiles,
            getWeek, setWeek, loadProgression, saveProgression,
+           getLog, addLog, lastExport, markExported,
            exportAll, importProfilesDoc };
 })();

@@ -125,12 +125,15 @@ t("upsertProgramFor('moss') écrit chez Moss même si Souad est actif", async ()
 });
 
 /* ---- export / import global ---- */
-t("exportAll → importProfilesDoc : aller-retour fidèle", async () => {
+t("exportAll → importProfilesDoc : aller-retour fidèle (journal inclus)", async () => {
   const a = boot();
   await a.Backend.loadAll();
   a.Backend.setWeek("core", 4);
   a.Backend.saveProgression({ core: { situp: { week: 4, tier: 1, next: 2, hist: [{ w: 4, rpe: 5, pain: false, tier: 1 }] } } });
+  a.Backend.addLog({ d: "2026-07-02", prog: "core", s: "s1", w: 4 });
+  a.Backend.addLog({ d: "2026-07-02", prog: "core", s: "s1", w: 4 }); // doublon même jour → remplacé
   const doc = a.Backend.exportAll();
+  assert.equal(doc.profiles.find(p => p.id === "moss").log.length, 1);
   assert.equal(doc.schema, "perflab-profiles-v1");
   assert.equal(doc.profiles.length, 2);
   // validation croisée avec progression.js
@@ -142,6 +145,7 @@ t("exportAll → importProfilesDoc : aller-retour fidèle", async () => {
   b.Backend.importProfilesDoc(doc);
   assert.equal(b.Backend.getWeek("core"), 4);
   assert.equal(b.Backend.loadProgression().core.situp.next, 2);
+  assert.equal(b.Backend.getLog().length, 1, "journal de séances restauré");
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });

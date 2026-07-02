@@ -46,10 +46,25 @@ temps de maintien en secondes, ou répétitions). Après l'exercice, saisis un *
 | RPE ≥ 9 **ou** douleur signalée | palier précédent |
 
 Le palier proposé s'applique dès que tu passes à la semaine suivante. L'historique RPE
-est conservé par exercice et par profil. Format d'un palier dans le JSON :
+est conservé par exercice et par profil, et une **sparkline** d'évolution du palier
+apparaît sur l'exercice dès deux évaluations. Format d'un palier dans le JSON :
 `"tiers": { "u": "kg" | "s" | "reps", "steps": [40,50,60,70], "start": 2 }`
 (`start` = indice du palier de départ). Le programme **Pré Haltéro** n'a pas de paliers :
 c'est un échauffement, zéro RPE par conception.
+
+## Séances, repos et jalons
+
+- **Repos inline** : cocher une série lance un compte à rebours discret dans la carte
+  (durée du bloc via `timer`, sinon 90″ ; toucher pour arrêter ; pas de repos après la
+  dernière série).
+- **✓ Séance faite** : bouton en bas de séance — le journal alimente la bande
+  d'assiduité (14 jours) de la bibliothèque. Une entrée par (jour, programme, séance).
+- **Jalons** (`"test": true` sur un exercice) : saisie d'un résultat daté (ex. tractions
+  strictes max du Pull-Up Lab, séance TEST toutes les 2 semaines), historique affiché.
+- **Sauvegarde** : la bibliothèque affiche la date du dernier export et le signale
+  au-delà de 7 jours ; le bouton télécharge un fichier `perflab-backup-<date>.json`
+  (format profils v2, champ `log` inclus). Pense-bête utile : iOS peut purger le
+  localStorage d'une PWA peu utilisée.
 
 ## Schéma JSON — deux formats d'import
 
