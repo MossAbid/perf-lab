@@ -10,11 +10,60 @@ Animations par mouvement, timer (EVERY / EMOM / countdown), suivi de charge & de
 - `index.html` · coque
 - `app.css` · design + animations
 - `app.js` · moteur (routeur, rendu, écran d'ajout, timer)
-- `backend.js` · couche local/cloud (auth + sync + cache offline + file d'attente)
+- `progression.js` · règle RPE, paliers, validation & migration du schéma JSON (logique pure, testée en Node)
+- `backend.js` · couche local/cloud (profils + auth + sync + cache offline + file d'attente)
 - `config.js` · **tes clés Supabase** (vide = local)
 - `programs.js` · programmes par défaut (semence à la 1ʳᵉ utilisation)
 - `manifest.webmanifest`, `sw.js`, `icons/`
 - `schema.sql` · à exécuter dans Supabase
+
+---
+
+## Profils (mode LOCAL)
+
+Deux profils sans compte ni mot de passe : **Moss** et **Souad**. Le sélecteur est en haut
+de la bibliothèque ; le profil actif est persistant (localStorage). Chaque profil a ses
+propres programmes, sa progression hebdo et ses paliers RPE, dans des espaces de stockage
+séparés (`perflab.p.<profil>.*`). Les données d'une installation mono-profil existante
+sont migrées automatiquement et silencieusement vers Moss au premier lancement.
+En mode CLOUD, le compte fait office de profil : le sélecteur est masqué.
+
+## Progression conditionnelle par RPE
+
+Les exercices qui portent un champ `tiers` ont des paliers prédéfinis (charge en kg,
+temps de maintien en secondes, ou répétitions). Après l'exercice, saisis un **RPE 0-10**
+(+ bouton **Douleur** le cas échéant) :
+
+| Condition | Palier à la séance suivante |
+|---|---|
+| Toutes les séries faites **et** RPE ≤ 6 | palier supérieur |
+| RPE 7-8 | maintien |
+| RPE ≥ 9 **ou** douleur signalée | palier précédent |
+
+Le palier proposé s'applique dès que tu passes à la semaine suivante. L'historique RPE
+est conservé par exercice et par profil. Format d'un palier dans le JSON :
+`"tiers": { "u": "kg" | "s" | "reps", "steps": [40,50,60,70], "start": 2 }`
+(`start` = indice du palier de départ). Le programme **Pré Haltéro** n'a pas de paliers :
+c'est un échauffement, zéro RPE par conception.
+
+## Schéma JSON — deux formats d'import
+
+**Format programme (v1, inchangé)** : objet racine avec `id`, `title`, `sessions[]`.
+Toujours accepté — un fichier à ce format est rattaché automatiquement et silencieusement
+au profil **Moss**.
+
+**Format profils (v2, export/import global)** :
+```json
+{
+  "schema": "perflab-profiles-v1",
+  "profiles": [
+    { "id": "moss",  "name": "Moss",  "programs": [ ... ], "progress": { }, "weeks": { }, "progression": { } },
+    { "id": "souad", "name": "Souad", "programs": [ ... ], "progress": { }, "weeks": { }, "progression": { } }
+  ]
+}
+```
+Le bouton **Exporter tout (profils)** de l'écran ＋ AJOUTER produit ce format ; l'import
+le fusionne profil par profil (programmes remplacés par `id`, états remplacés quand fournis).
 
 ---
 

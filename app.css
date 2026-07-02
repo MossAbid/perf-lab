@@ -200,3 +200,16 @@ footer{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;
 /* ---- toast ---- */
 .toast{position:fixed;left:50%;bottom:calc(86px + var(--safe-b));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.04em;padding:11px 16px;border-radius:11px;opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:88vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- profils ---- */
+.profsel{display:flex;gap:6px}
+.profbtn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:10px;cursor:pointer;transition:all .2s}
+.profbtn.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700}
+
+/* ---- progression RPE (paliers) ---- */
+.target.tier{border-style:dashed;margin-left:8px}
+.rpe-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rpe-row .rpe{width:56px;height:34px;font-size:15px}
+.painbtn{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);background:var(--panel2);padding:8px 12px;border-radius:9px;cursor:pointer;transition:all .2s}
+.painbtn.on{background:var(--hot);color:#fff;border-color:var(--hot);font-weight:700}
+.rpe-next{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.04em}

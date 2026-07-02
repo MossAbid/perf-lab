@@ -29,10 +29,10 @@ const wLS = (k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){}
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---- state ---- */
-let LIBRARY=[], PROGRESS={}, CUR=null, activeSession=null;
-const WEEKS="perflab.weeks";
-const getWeek = pid => (rLS(WEEKS,{})[pid] || 1);
-const setWeek = (pid,n)=>{ const w=rLS(WEEKS,{}); w[pid]=n; wLS(WEEKS,w); };
+const PL = window.PLProgression;
+let LIBRARY=[], PROGRESS={}, PROGRESSION={}, CUR=null, activeSession=null;
+const getWeek = pid => Backend.getWeek(pid);
+const setWeek = (pid,n)=> Backend.setWeek(pid,n);
 function weekState(pid,wk){ PROGRESS[pid]=PROGRESS[pid]||{}; PROGRESS[pid]["w"+wk]=PROGRESS[pid]["w"+wk]||{}; return PROGRESS[pid]["w"+wk]; }
 
 /* ---- toast ---- */
@@ -55,8 +55,9 @@ async function hydrate(){
   try{
     const r = await Backend.loadAll();
     LIBRARY = r.programs || []; PROGRESS = r.progress || {};
+    PROGRESSION = Backend.loadProgression();
     if(r.offline) toast("Hors-ligne — données locales");
-  }catch(e){ LIBRARY = rLS("perflab.programs", DEFAULT_PROGRAMS.slice()); PROGRESS = rLS("perflab.progress",{}); }
+  }catch(e){ LIBRARY = DEFAULT_PROGRAMS.slice(); PROGRESS = {}; PROGRESSION = {}; }
 }
 
 /* ---- ROUTER ---- */
@@ -111,14 +112,17 @@ function renderLibrary(){
       <div class="cb">${esc(p.blurb||'')}</div>
       <div class="cmeta">${(p.meta||[]).map(m=>`<span>${esc(m)}</span>`).join("")}</div>
     </div>`).join("");
+  const prof = Backend.activeProfile();
+  const profSel = cloud ? "" : `<div class="profsel">${Backend.profiles().map(p=>
+    `<button class="profbtn${p.id===prof?" active":""}" data-prof="${esc(p.id)}">${esc(p.name)}</button>`).join("")}</div>`;
   app.innerHTML = `<div class="view"><div class="wrap">
     <header>
       <div class="topbar">
         <div class="kicker">Perf Lab · Bibliothèque</div>
-        ${cloud&&u?`<button class="back" id="signout">${esc(u.email||'compte')} · sortir</button>`:``}
+        ${cloud&&u?`<button class="back" id="signout">${esc(u.email||'compte')} · sortir</button>`:profSel}
       </div>
       <h1>PERF<br><em>LAB</em></h1>
-      <p class="lede">${LIBRARY.length} programme${LIBRARY.length>1?"s":""} · ${cloud?"synchronisé sur tes appareils":"stocké sur cet appareil"}.</p>
+      <p class="lede">${LIBRARY.length} programme${LIBRARY.length>1?"s":""} · ${cloud?"synchronisé sur tes appareils":"profil "+esc(prof.charAt(0).toUpperCase()+prof.slice(1))+" · stocké sur cet appareil"}.</p>
       <div class="lib">
         ${cards}
         <div class="card add" data-add>
@@ -131,6 +135,11 @@ function renderLibrary(){
   </div></div>`;
   app.querySelectorAll("[data-go]").forEach(c=> c.onclick=()=> location.hash="#/p/"+c.dataset.go );
   app.querySelector("[data-add]").onclick=()=> location.hash="#/add";
+  app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
+    if(b.dataset.prof===Backend.activeProfile()) return;
+    Backend.setProfile(b.dataset.prof);
+    await hydrate(); renderLibrary();
+  });
   const so=$("#signout"); if(so) so.onclick=async()=>{ await Backend.signOut(); renderAuth(); };
   window.scrollTo(0,0);
 }
@@ -145,16 +154,9 @@ const TEMPLATE = {
     blocks:[{ label:"BLOC A — 4 tours", note:"consigne du bloc",
       ex:[{ k:"ex1", name:"Exercice", reps:"8-10 reps", anim:"pullup", load:true, sets:4,
             tempo:["3","0","1","0"], key:0, cue:"Consigne d'exécution.",
+            tiers:{ u:"kg", steps:[10,12.5,15,17.5,20], start:1 },
             yt:"https://www.youtube.com/results?search_query=exercice" }] }] }]
 };
-function validateProgram(p){
-  if(!p || typeof p!=="object") throw "JSON invalide.";
-  if(!p.id || typeof p.id!=="string") throw "Champ 'id' (texte) requis.";
-  if(!p.title) throw "Champ 'title' requis.";
-  if(!Array.isArray(p.sessions) || !p.sessions.length) throw "Au moins une séance ('sessions').";
-  p.sessions.forEach((s,i)=>{ if(!Array.isArray(s.blocks)) throw `Séance ${i+1} : 'blocks' manquant.`; });
-  return true;
-}
 function renderAdd(){
   document.querySelector(".dock").style.display="none";
   setAccent("#ffb02e");
@@ -179,6 +181,7 @@ function renderAdd(){
       <div class="authbtns">
         <button class="dbtn go" id="import">Importer</button>
         <button class="dbtn" id="tmpl">Insérer un modèle</button>
+        ${Backend.isCloud()?"":`<button class="dbtn" id="expall">Exporter tout (profils)</button>`}
       </div>
     </div>
     <div class="blk"><div class="blk-h"><div class="bl">Dans ta bibliothèque</div><div class="line"></div></div>
@@ -187,10 +190,27 @@ function renderAdd(){
   $("#back").onclick=()=> location.hash="#/";
   $("#tmpl").onclick=()=>{ $("#jsonin").value = JSON.stringify(TEMPLATE,null,2); };
   $("#import").onclick=async()=>{
-    let p; try{ p=JSON.parse($("#jsonin").value); validateProgram(p); }
+    let r; try{ r=PL.classifyImport(JSON.parse($("#jsonin").value)); }
     catch(ex){ $("#adderr").textContent = "Erreur : "+(ex.message||ex); return; }
-    if(LIBRARY.some(x=>x.id===p.id) && !confirm(`Un programme « ${p.id} » existe déjà. Le remplacer ?`)) return;
-    await Backend.upsertProgram(p); await hydrate(); toast("Programme importé."); location.hash="#/";
+    if(r.kind==="profiles"){
+      Backend.importProfilesDoc(r.doc);
+      await hydrate(); toast("Profils importés."); location.hash="#/"; return;
+    }
+    // ancien format (racine id + sessions) : rattaché au profil Moss, silencieusement
+    const p=r.program;
+    const dest = Backend.isCloud() ? Backend.activeProfile() : "moss";
+    if(dest===Backend.activeProfile()){
+      if(LIBRARY.some(x=>x.id===p.id) && !confirm(`Un programme « ${p.id} » existe déjà. Le remplacer ?`)) return;
+      await Backend.upsertProgram(p);
+    } else {
+      await Backend.upsertProgramFor("moss", p);
+    }
+    await hydrate(); toast("Programme importé."); location.hash="#/";
+  };
+  const ea=$("#expall"); if(ea) ea.onclick=async()=>{
+    const txt=JSON.stringify(Backend.exportAll(),null,2);
+    try{ await navigator.clipboard.writeText(txt); toast("Export profils copié."); }
+    catch(e){ const t=$("#jsonin"); t.value=txt; toast("Export affiché ci-dessus."); }
   };
   app.querySelectorAll("[data-exp]").forEach(b=>b.onclick=async()=>{
     const p=LIBRARY.find(x=>x.id===b.dataset.exp); const txt=JSON.stringify(p,null,2);
@@ -257,6 +277,22 @@ function exCard(s,ex){
   const sets=ex.sets||1; let setsHtml="";
   for(let i=0;i<sets;i++){ const done=d.done&&d.done[i]; const lv=(d.load&&d.load[i]!=null)?d.load[i]:"";
     setsHtml+=`<div class="setcol"><button class="setbtn${done?" done":""}" data-s="${esc(s.id)}" data-k="${esc(ex.k)}" data-i="${i}">${i+1}</button>${ex.load?`<input class="load" type="number" inputmode="decimal" placeholder="–" value="${esc(lv)}" data-ls="${esc(s.id)}" data-lk="${esc(ex.k)}" data-li="${i}"><div class="loadu">kg</div>`:""}</div>`; }
+  let tierHtml="", rpeHtml="";
+  if(ex.tiers && Array.isArray(ex.tiers.steps) && ex.tiers.steps.length){
+    const ti=PL.effectiveTier(PROGRESSION,CUR.id,ex.k,wk,ex.tiers);
+    tierHtml=`<div class="target tier"><span class="t-ico">📶</span>Palier ${ti+1}/${ex.tiers.steps.length} — ${esc(PL.tierLabel(ex.tiers,ti))}</div>`;
+    const entry=PROGRESSION[CUR.id]&&PROGRESSION[CUR.id][ex.k];
+    const prop=(entry&&entry.week===wk&&entry.next!=null)
+      ? (entry.next>entry.tier?"→ prochaine séance : "+PL.tierLabel(ex.tiers,entry.next)
+        :entry.next<entry.tier?"→ retour à : "+PL.tierLabel(ex.tiers,entry.next)
+        :"→ maintien du palier") : "";
+    rpeHtml=`<div class="setlab" style="margin-top:12px">RPE 0-10 après l'exercice — ≤6 monte · 7-8 maintient · ≥9 ou douleur descend</div>
+      <div class="rpe-row">
+        <input class="load rpe" type="number" inputmode="numeric" min="0" max="10" placeholder="–" value="${d.rpe!=null?esc(d.rpe):""}" data-rs="${esc(s.id)}" data-rk="${esc(ex.k)}">
+        <button class="painbtn${d.pain?" on":""}" data-ps="${esc(s.id)}" data-pk="${esc(ex.k)}">⚡ Douleur</button>
+        <span class="rpe-next" data-ns="${esc(s.id)}" data-nk="${esc(ex.k)}">${esc(prop)}</span>
+      </div>`;
+  }
   return `<div class="ex" data-ex>
     <div class="ex-top" data-toggle>
       <div class="anim a-${esc(ex.anim||'pulse')}">${figFor(ex.anim)}</div>
@@ -265,9 +301,11 @@ function exCard(s,ex){
     <div class="ex-body"><div class="ex-inner">
       <div class="cue">${esc(ex.cue||'')}</div>
       ${ex.target?`<div class="target"><span class="t-ico">🎯</span>Charge cible — ${esc(ex.target)}</div>`:""}
+      ${tierHtml}
       ${ex.tempo?tempoGrid(ex.tempo,ex.key||0):""}
       <div class="setlab">Séries — coche${ex.load?" + note ta charge":""}</div>
       <div class="sets">${setsHtml}</div>
+      ${rpeHtml}
       <div class="exbtns">
         <button class="gbtn" data-play><svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Animer</button>
         ${ex.yt?`<a class="gbtn" href="${esc(ex.yt)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 15l5.2-3L10 9v6zm12-3c0 2-.2 3.4-.5 4.2-.3.9-1 1.6-1.9 1.9-.8.3-2.6.4-5.6.4s-4.8-.1-5.6-.4c-.9-.3-1.6-1-1.9-1.9C5.2 15.4 5 14 5 12s.2-3.4.5-4.2c.3-.9 1-1.6 1.9-1.9C8.2 5.6 10 5.5 13 5.5s4.8.1 5.6.4c.9.3 1.6 1 1.9 1.9.3.8.5 2.2.5 4.2z"/></svg>Vidéo</a>`:""}
@@ -283,14 +321,43 @@ function renderSession(){
     (b.ex||[]).forEach(ex=> html+=exCard(s,ex)); html+=`</div>`; });
   $("#main").innerHTML=html; bindSession();
 }
+function findEx(sid,k){
+  const s=CUR.sessions.find(x=>x.id===sid); if(!s) return null;
+  let r=null; s.blocks.forEach(b=>(b.ex||[]).forEach(e=>{ if(e.k===k) r=e; })); return r;
+}
+/* réévalue le palier proposé dès qu'un RPE / douleur / série change */
+function reevaluate(sid,k){
+  const ex=findEx(sid,k);
+  if(!ex||!ex.tiers||!Array.isArray(ex.tiers.steps)||!ex.tiers.steps.length) return;
+  const wk=getWeek(CUR.id), st=weekState(CUR.id,wk);
+  const d=(st[sid]&&st[sid][k])||{};
+  if(d.rpe==null && !d.pain) return;
+  const n=ex.sets||1, done=d.done||[];
+  let all=true; for(let i=0;i<n;i++) if(!done[i]) all=false;
+  const r=PL.recordRpe(PROGRESSION,CUR.id,k,wk,ex.tiers,d.rpe,!!d.pain,all);
+  Backend.saveProgression(PROGRESSION);
+  const out=$("#main").querySelector(`[data-ns="${sid}"][data-nk="${k}"]`);
+  if(out) out.textContent = r.next>r.tier ? "→ prochaine séance : "+PL.tierLabel(ex.tiers,r.next)
+    : r.next<r.tier ? "→ retour à : "+PL.tierLabel(ex.tiers,r.next)
+    : "→ maintien du palier";
+}
 function bindSession(){
   const main=$("#main");
   main.querySelectorAll("[data-toggle]").forEach(t=>{ t.onclick=e=>{ if(e.target.closest("[data-play]")||e.target.closest("a"))return; t.closest("[data-ex]").classList.toggle("open"); }; });
   main.querySelectorAll(".setbtn").forEach(b=>{ b.onclick=()=>{ const {s,k,i}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[s]=st[s]||{}; st[s][k]=st[s][k]||{done:[],load:[]}; st[s][k].done[i]=!st[s][k].done[i]; b.classList.toggle("done",st[s][k].done[i]);
-    Backend.saveProgress(CUR.id,wk,st); updateGlobal(); }; });
-  main.querySelectorAll(".load").forEach(inp=>{ inp.onchange=()=>{ const {ls,lk,li}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
+    Backend.saveProgress(CUR.id,wk,st); updateGlobal(); reevaluate(s,k); }; });
+  main.querySelectorAll(".load:not(.rpe)").forEach(inp=>{ inp.onchange=()=>{ const {ls,lk,li}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[ls]=st[ls]||{}; st[ls][lk]=st[ls][lk]||{done:[],load:[]}; st[ls][lk].load[li]=inp.value; Backend.saveProgress(CUR.id,wk,st); }; });
+  main.querySelectorAll(".rpe").forEach(inp=>{ inp.onchange=()=>{ const {rs,rk}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
+    st[rs]=st[rs]||{}; st[rs][rk]=st[rs][rk]||{done:[],load:[]};
+    const v=inp.value===""?null:Math.max(0,Math.min(10,Math.round(+inp.value)));
+    if(v!=null) inp.value=v;
+    st[rs][rk].rpe=v; Backend.saveProgress(CUR.id,wk,st); reevaluate(rs,rk); }; });
+  main.querySelectorAll(".painbtn").forEach(b=>{ b.onclick=()=>{ const {ps,pk}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
+    st[ps]=st[ps]||{}; st[ps][pk]=st[ps][pk]||{done:[],load:[]};
+    st[ps][pk].pain=!st[ps][pk].pain; b.classList.toggle("on",st[ps][pk].pain);
+    Backend.saveProgress(CUR.id,wk,st); reevaluate(ps,pk); }; });
   main.querySelectorAll("[data-play]").forEach(p=>{ p.onclick=()=>{ const a=p.closest("[data-ex]").querySelector(".anim"); const on=a.classList.toggle("go"); p.classList.toggle("on",on); }; });
   main.querySelectorAll("[data-settimer]").forEach(b=> b.onclick=()=> startCountdown(+b.dataset.settimer,true));
   main.querySelectorAll("[data-setemom]").forEach(b=> b.onclick=()=> startEmom(+b.dataset.setemom));
