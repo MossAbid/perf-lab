@@ -75,7 +75,6 @@ window.addEventListener("hashchange", route);
 
 /* ---- AUTH ---- */
 function renderAuth(){
-  document.querySelector(".dock").style.display="none";
   setAccent("#ffb02e");
   app.innerHTML = `<div class="view"><div class="wrap auth">
     <div class="kicker">Perf Lab · Compte</div>
@@ -103,7 +102,6 @@ function renderAuth(){
 /* ---- LIBRARY ---- */
 function renderLibrary(){
   setAccent("#ffb02e");
-  document.querySelector(".dock").style.display="none";
   const cloud = Backend.isCloud(), u = Backend.user();
   const cards = LIBRARY.map(p=>`
     <div class="card" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'#ffb02e')}">
@@ -158,7 +156,6 @@ const TEMPLATE = {
             yt:"https://www.youtube.com/results?search_query=exercice" }] }] }]
 };
 function renderAdd(){
-  document.querySelector(".dock").style.display="none";
   setAccent("#ffb02e");
   const list = LIBRARY.map(p=>`
     <div class="mrow">
@@ -229,7 +226,6 @@ function renderProgram(prog){
   CUR = prog; setAccent(prog.accent||"#ffb02e");
   activeSession = prog.sessions[0].id;
   const wk = getWeek(prog.id);
-  document.querySelector(".dock").style.display="block";
   app.innerHTML = `<div class="view"><div class="wrap">
     <header>
       <div class="topbar"><div class="kicker">${esc(prog.tag||'')}</div>
@@ -315,8 +311,6 @@ function renderSession(){
   const s=CUR.sessions.find(x=>x.id===activeSession);
   let html=`<div class="shead"><h2>${esc(s.t)} <em>${esc(s.t2||'')}</em></h2><div class="pill">${esc(s.pill||'')}</div></div><p class="sfocus">${esc(s.focus||'')}</p>`;
   s.blocks.forEach(b=>{ html+=`<div class="blk"><div class="blk-h"><div class="bl">${esc(b.label||'')}</div><div class="line"></div>`;
-    if(b.timer) html+=`<button class="gbtn" data-settimer="${b.timer}" style="padding:5px 9px"><svg viewBox="0 0 24 24" style="width:12px;height:12px"><path fill="currentColor" d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 11h-2V7h2z"/></svg>Timer</button>`;
-    if(b.emom) html+=`<button class="gbtn" data-setemom="${b.emom}" style="padding:5px 9px">EMOM</button>`;
     html+=`</div>`; if(b.note) html+=`<div class="blk-note">${esc(b.note)}</div>`;
     (b.ex||[]).forEach(ex=> html+=exCard(s,ex)); html+=`</div>`; });
   $("#main").innerHTML=html; bindSession();
@@ -359,8 +353,6 @@ function bindSession(){
     st[ps][pk].pain=!st[ps][pk].pain; b.classList.toggle("on",st[ps][pk].pain);
     Backend.saveProgress(CUR.id,wk,st); reevaluate(ps,pk); }; });
   main.querySelectorAll("[data-play]").forEach(p=>{ p.onclick=()=>{ const a=p.closest("[data-ex]").querySelector(".anim"); const on=a.classList.toggle("go"); p.classList.toggle("on",on); }; });
-  main.querySelectorAll("[data-settimer]").forEach(b=> b.onclick=()=> startCountdown(+b.dataset.settimer,true));
-  main.querySelectorAll("[data-setemom]").forEach(b=> b.onclick=()=> startEmom(+b.dataset.setemom));
 }
 function updateGlobal(){
   const s=CUR.sessions.find(x=>x.id===activeSession); const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
@@ -369,22 +361,6 @@ function updateGlobal(){
   const pct=total?Math.round(done/total*100):0;
   $("#gfill").style.width=pct+"%"; $("#gtxt").textContent=`${done} / ${total} séries · ${s.t} ${s.t2||''}`; $("#gpct").textContent=pct+"%";
 }
-
-/* ---- TIMER ---- */
-let tInt=null, interval=0;
-const clk=()=>$("#clock"), dm=()=>$("#dmode");
-const fmt=s=>{ s=Math.max(0,s); return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
-function beep(){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(); const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.18;o.start(); setTimeout(()=>{o.stop();c.close();},160);}catch(e){} }
-const clearT=()=>{ clearInterval(tInt); tInt=null; };
-function startCountdown(sec,loop){ clearT(); interval=sec; let rem=sec; if(dm())dm().textContent=(loop?"INTERVALLE":"COUNTDOWN")+" · "+fmt(sec); if(clk())clk().textContent=fmt(rem);
-  tInt=setInterval(()=>{ rem--; if(clk())clk().textContent=fmt(rem); if(rem<=0){ beep(); if(loop) rem=interval; else { clearT(); if(dm())dm().textContent="TERMINÉ"; } } },1000); }
-function startEmom(min){ clearT(); let rem=60,round=1; if(dm())dm().textContent="EMOM · 1/"+min; if(clk())clk().textContent=fmt(rem);
-  tInt=setInterval(()=>{ rem--; if(clk())clk().textContent=fmt(rem); if(rem<=0){ beep(); round++; if(round>min){ clearT(); if(dm())dm().textContent="EMOM TERMINÉ"; } else { rem=60; if(dm())dm().textContent="EMOM · "+round+"/"+min; } } },1000); }
-document.addEventListener("click",e=>{ const b=e.target.closest(".dbtn"); if(!b)return;
-  if(b.dataset.t) startCountdown(+b.dataset.t,true);
-  else if(b.dataset.emom) startEmom(+b.dataset.emom);
-  else if(b.id==="tstart"){ if(!tInt&&interval) startCountdown(interval,true); }
-  else if(b.id==="tstop"){ clearT(); if(dm())dm().textContent="ARRÊT"; if(clk())clk().textContent="00:00"; } });
 
 /* ---- service worker + go ---- */
 if("serviceWorker" in navigator){ window.addEventListener("load",()=> navigator.serviceWorker.register("sw.js").catch(()=>{}) ); }

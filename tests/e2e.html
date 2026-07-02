@@ -10,13 +10,6 @@
 </head>
 <body>
 <div id="app"></div>
-<div class="dock" style="display:none">
-  <div class="dock-in">
-    <div class="clock" id="clock">00:00</div>
-    <div class="dock-c"></div>
-    <div class="dmode" id="dmode">PRÊT</div>
-  </div>
-</div>
 <pre id="results"></pre>
 
 <script>
@@ -45,7 +38,8 @@
     await tick(300); // boot()
 
     /* 1. bibliothèque : programmes par défaut + programme legacy migré + sélecteur */
-    ok("bibliothèque rendue", document.querySelectorAll(".card[data-go]").length === 5);
+    ok("bibliothèque rendue (3 défauts Moss + legacy)", document.querySelectorAll(".card[data-go]").length === 4);
+    ok("Pré Haltéro absent chez Moss", !document.querySelector('[data-go="prehaltero"]'));
     ok("LOWER LAB présent", !!document.querySelector('[data-go="lower"]'));
     ok("programme legacy migré vers Moss", !!document.querySelector('[data-go="legacy-prog"]'));
     ok("clé legacy supprimée", localStorage.getItem("perflab.programs") === null);
@@ -57,9 +51,18 @@
     document.querySelector('[data-prof="souad"]').click();
     await tick(200);
     ok("Souad actif après clic", Backend.activeProfile() === "souad");
-    ok("Souad : seulement les 4 programmes par défaut",
-       document.querySelectorAll(".card[data-go]").length === 4 &&
+    ok("Souad : Pull-Up Lab + Pré Haltéro uniquement",
+       document.querySelectorAll(".card[data-go]").length === 2 &&
+       !!document.querySelector('[data-go="pullup"]') &&
+       !!document.querySelector('[data-go="prehaltero"]') &&
        !document.querySelector('[data-go="legacy-prog"]'));
+
+    /* 2b. programme Pull-Up Lab : paliers + RPE fonctionnels chez Souad */
+    await goto("p/pullup");
+    ok("Pull-Up Lab : 3 séances", document.querySelectorAll(".tab").length === 3);
+    ok("Pull-Up Lab : paliers affichés", document.querySelectorAll(".target.tier").length >= 3);
+    ok("plus aucun bouton Timer/EMOM", !document.querySelector("[data-settimer]") && !document.querySelector("[data-setemom]"));
+    await goto("");
 
     /* 3. import ancien format pendant que Souad est actif → rattaché à Moss, silencieusement */
     await goto("add");
@@ -83,7 +86,9 @@
     ok("format profiles importé chez Souad",
        JSON.parse(localStorage.getItem("perflab.p.souad.programs") || "[]").some(p => p.id === "souad-prog"));
 
-    /* 5. LOWER LAB : paliers + RPE + douleur */
+    /* 5. LOWER LAB (profil Moss) : paliers + RPE + douleur */
+    document.querySelector('[data-prof="moss"]').click();
+    await tick(200);
     await goto("p/lower");
     ok("J1/J2 en onglets", document.querySelectorAll(".tab").length === 2);
     const tierBadges = document.querySelectorAll(".target.tier");
@@ -110,13 +115,13 @@
     ok("semaine 2 : palier 50 kg appliqué",
        document.querySelector(".target.tier").textContent.includes("50 kg"));
 
-    /* 6. profil Moss intact après tout ça */
+    /* 6. Moss : bibliothèque complète ; isolation de la progression */
     await goto("");
-    document.querySelector('[data-prof="moss"]').click();
-    await tick(200);
-    ok("retour Moss : bibliothèque avec legacy + import",
+    ok("Moss : bibliothèque avec legacy + import",
        !!document.querySelector('[data-go="legacy-prog"]') && !!document.querySelector('[data-go="import-test"]'));
-    ok("progression Souad invisible chez Moss", !("lower" in Backend.loadProgression()));
+    document.querySelector('[data-prof="souad"]').click();
+    await tick(200);
+    ok("progression Moss (lower) invisible chez Souad", !("lower" in Backend.loadProgression()));
   } catch (e) {
     out.push("E2E-FAIL exception : " + (e && e.stack || e));
   }

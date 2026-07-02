@@ -116,7 +116,7 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
   const src = require("fs").readFileSync(path.join(__dirname, "..", "programs.js"), "utf8");
   const DEFAULT_PROGRAMS = new Function(src + "; return DEFAULT_PROGRAMS;")();
   const ids = DEFAULT_PROGRAMS.map(p => p.id);
-  assert.deepEqual(ids, ["upper", "core", "lower", "prehaltero"]);
+  assert.deepEqual(ids, ["upper", "core", "lower", "pullup", "prehaltero"]);
   DEFAULT_PROGRAMS.forEach(P.validateProgram);
   const lower = DEFAULT_PROGRAMS.find(p => p.id === "lower");
   assert.equal(lower.sessions.length, 2);
@@ -135,11 +135,18 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
         assert.ok(ex.tiers.steps[i] > ex.tiers.steps[i - 1], ex.name + " : paliers non croissants");
     }
   }))));
-  // tous les exercices de lower ont des paliers ; prehaltero n'en a aucun (zéro RPE)
+  // tous les exercices de lower et pullup ont des paliers ; prehaltero aucun (zéro RPE)
   lower.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(ex.tiers, ex.name))));
+  const pu = DEFAULT_PROGRAMS.find(p => p.id === "pullup");
+  assert.equal(pu.sessions.length, 3);
+  pu.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(ex.tiers, ex.name))));
   const ph = DEFAULT_PROGRAMS.find(p => p.id === "prehaltero");
   ph.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(!ex.tiers, ex.name))));
-  assert.ok(withTiers >= 20, "au moins 20 exercices avec paliers (trouvé " + withTiers + ")");
+  assert.ok(withTiers >= 30, "au moins 30 exercices avec paliers (trouvé " + withTiers + ")");
+  // assignation par profil : Moss = entraînements, Souad = pull-up + pré-haltéro
+  const byProfile = pid => DEFAULT_PROGRAMS.filter(p => !p.assign || p.assign.includes(pid)).map(p => p.id);
+  assert.deepEqual(byProfile("moss"), ["upper", "core", "lower"]);
+  assert.deepEqual(byProfile("souad"), ["pullup", "prehaltero"]);
 });
 
 console.log(`\n${n} tests OK`);

@@ -58,6 +58,26 @@ const Backend = (() => {
     }catch(e){}
   })();
 
+  /* ---- migration one-shot : Pré Haltéro passe chez Souad ----
+     Le programme est retiré de l'espace Moss (données comprises) et ne
+     sera plus re-seedé chez lui ; Souad le reçoit via ses défauts.      */
+  (function migratePrehaltero(){
+    try{
+      if(CLOUD) return;
+      if(localStorage.getItem("perflab.mig.prehaltero")) return;
+      const key = Kp("moss","programs");
+      const progs = readLS(key, null);
+      if(progs && progs.some(p=>p.id==="prehaltero")){
+        writeLS(key, progs.filter(p=>p.id!=="prehaltero"));
+        ["progress","weeks","progression"].forEach(n=>{
+          const v = readLS(Kp("moss",n), null);
+          if(v && v.prehaltero !== undefined){ delete v.prehaltero; writeLS(Kp("moss",n), v); }
+        });
+      }
+      localStorage.setItem("perflab.mig.prehaltero","1");
+    }catch(e){}
+  })();
+
   let client = null, currentUser = null, authCb = null;
 
   function cacheProgress(progId, week, state){
@@ -145,16 +165,23 @@ const Backend = (() => {
   function onAuth(cb){ authCb = cb; }
   function isCloud(){ return CLOUD; }
 
+  /* ---- programmes par défaut du profil actif ----
+     Un programme par défaut peut être réservé à certains profils via
+     son champ `assign` (ex. assign:["souad"]). Sans `assign` : tous. */
+  function defaultsFor(pid){
+    return DEFAULT_PROGRAMS.filter(d=>!d.assign || d.assign.includes(pid));
+  }
+
   /* ---- fusion des programmes par défaut manquants ----
-     Ajoute tout DEFAULT_PROGRAMS dont l'id n'existe pas déjà
-     ET qui n'a pas été supprimé volontairement. Rend l'ajout
+     Ajoute tout programme par défaut du profil dont l'id n'existe pas
+     déjà ET qui n'a pas été supprimé volontairement. Rend l'ajout
      de futurs programmes par défaut automatique sans toucher
      aux programmes importés / à la progression. */
   function mergeDefaults(programs){
     const removed = readLS(K("removed"), []);
     const have = new Set(programs.map(p=>p.id));
     let added = false;
-    DEFAULT_PROGRAMS.forEach(d=>{
+    defaultsFor(activeProfile()).forEach(d=>{
       if(!have.has(d.id) && !removed.includes(d.id)){ programs.push(d); added = true; }
     });
     return { programs, added };
@@ -164,7 +191,7 @@ const Backend = (() => {
   async function loadAll(){
     if(!CLOUD){
       let programs = readLS(K("programs"), null);
-      if(!programs || !programs.length){ programs = DEFAULT_PROGRAMS.slice(); }
+      if(!programs || !programs.length){ programs = defaultsFor(activeProfile()).slice(); }
       const m = mergeDefaults(programs); programs = m.programs;
       cacheProgramsList(programs);
       return { programs, progress: readLS(K("progress"), {}) };
@@ -176,7 +203,7 @@ const Backend = (() => {
       if(e1) throw e1;
       if(!progs || !progs.length){
         // 1ère connexion : on sème les programmes par défaut
-        const seed = DEFAULT_PROGRAMS.map((p,i)=>({ user_id:currentUser.id, id:p.id, data:p, sort:i,
+        const seed = defaultsFor(activeProfile()).map((p,i)=>({ user_id:currentUser.id, id:p.id, data:p, sort:i,
           updated_at:new Date().toISOString() }));
         await client.from("programs").upsert(seed);
         progs = seed;
@@ -187,7 +214,7 @@ const Backend = (() => {
       if(m.added){
         const removed = readLS(K("removed"), []);
         const existing = new Set(progs.map(r=>r.id));
-        const newSeed = DEFAULT_PROGRAMS
+        const newSeed = defaultsFor(activeProfile())
           .filter(d=>!existing.has(d.id) && !removed.includes(d.id))
           .map((p,i)=>({ user_id:currentUser.id, id:p.id, data:p, sort:progs.length+i,
             updated_at:new Date().toISOString() }));
@@ -204,7 +231,7 @@ const Backend = (() => {
       return { programs, progress };
     }catch(e){
       // offline / erreur : on sert le cache
-      let programs = readLS(K("programs"), null) || DEFAULT_PROGRAMS.slice();
+      let programs = readLS(K("programs"), null) || defaultsFor(activeProfile()).slice();
       programs = mergeDefaults(programs).programs;
       cacheProgramsList(programs);
       return { programs, progress: readLS(K("progress"), {}), offline:true };

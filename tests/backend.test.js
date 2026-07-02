@@ -76,16 +76,33 @@ t("profil par défaut Moss, bascule persistante vers Souad", () => {
   assert.equal(Backend.activeProfile(), "souad");
 });
 t("chaque profil a sa propre bibliothèque et ses semaines", async () => {
-  const { Backend, DEFAULT_PROGRAMS } = boot();
+  const { Backend } = boot();
   const moss = await Backend.loadAll();
-  assert.equal(moss.programs.length, DEFAULT_PROGRAMS.length);
+  assert.deepEqual(moss.programs.map(p => p.id), ["upper", "core", "lower"], "Moss : ses 3 programmes, sans Pré Haltéro");
   Backend.setWeek("lower", 3);
   Backend.setProfile("souad");
   const souad = await Backend.loadAll();
-  assert.equal(souad.programs.length, DEFAULT_PROGRAMS.length, "Souad seedée avec les défauts");
+  assert.deepEqual(souad.programs.map(p => p.id), ["pullup", "prehaltero"], "Souad : Pull-Up Lab + Pré Haltéro uniquement");
   assert.equal(Backend.getWeek("lower"), 1, "semaines de Souad indépendantes");
   Backend.setProfile("moss");
   assert.equal(Backend.getWeek("lower"), 3);
+});
+t("migration : Pré Haltéro retiré de l'espace Moss existant", async () => {
+  const { Backend, ls } = boot({
+    "perflab.p.moss.programs": JSON.stringify([
+      { id: "prehaltero", title: "PRÉ", sessions: [{ blocks: [] }] },
+      { id: "custom", title: "C", sessions: [{ blocks: [] }] }
+    ]),
+    "perflab.p.moss.progress": JSON.stringify({ prehaltero: { w1: {} }, custom: { w1: {} } }),
+    "perflab.p.moss.weeks": JSON.stringify({ prehaltero: 2, custom: 3 })
+  });
+  const r = await Backend.loadAll();
+  const ids = r.programs.map(p => p.id);
+  assert.ok(!ids.includes("prehaltero"), "Pré Haltéro absent chez Moss");
+  assert.ok(ids.includes("custom"), "programme perso conservé");
+  assert.equal(JSON.parse(ls.getItem("perflab.p.moss.weeks")).prehaltero, undefined);
+  assert.equal(JSON.parse(ls.getItem("perflab.p.moss.weeks")).custom, 3);
+  assert.equal(ls.getItem("perflab.mig.prehaltero"), "1", "migration marquée faite");
 });
 t("progression RPE isolée par profil", () => {
   const { Backend } = boot();

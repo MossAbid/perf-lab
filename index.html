@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <title>Perf Lab — Bibliothèque d'entraînement</title>
-<meta name="description" content="Bibliothèque d'entraînement synchronisée : programmes, animations, timer et suivi de charge, hors-ligne.">
+<meta name="description" content="Bibliothèque d'entraînement : programmes, animations, progression RPE et suivi de charge, hors-ligne.">
 
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0d10">
@@ -24,21 +24,6 @@
 <body>
 
 <div id="app"></div>
-
-<div class="dock" style="display:none">
-  <div class="dock-in">
-    <div class="clock" id="clock">00:00</div>
-    <div class="dock-c">
-      <button class="dbtn" data-t="60">EVERY 1′</button>
-      <button class="dbtn" data-t="90">EVERY 1′30</button>
-      <button class="dbtn" data-t="120">EVERY 2′</button>
-      <button class="dbtn" data-emom="12">EMOM 12′</button>
-      <button class="dbtn go" id="tstart">▶</button>
-      <button class="dbtn" id="tstop">■</button>
-    </div>
-    <div class="dmode" id="dmode">PRÊT</div>
-  </div>
-</div>
 
 <!-- ordre important : config → programmes par défaut → client supabase → backend → moteur -->
 <script src="config.js"></script>

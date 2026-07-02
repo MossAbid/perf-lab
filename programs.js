@@ -8,7 +8,7 @@ const DEFAULT_PROGRAMS = [
 
 /* ============================ UPPER POWER LAB ============================ */
 {
-  id:"upper",
+  id:"upper", assign:["moss"],
   title:"UPPER", title2:"POWER",
   tag:"Haut du corps",
   accent:"#ffb02e",
@@ -91,7 +91,7 @@ const DEFAULT_PROGRAMS = [
 
 /* ============================== CORE LAB ============================== */
 {
-  id:"core",
+  id:"core", assign:["moss"],
   title:"CORE", title2:"LAB",
   tag:"Chaîne abdominale",
   accent:"#4dd2ff",
@@ -172,7 +172,7 @@ const DEFAULT_PROGRAMS = [
    RPE ≤ 6 sur toutes les séries → palier supérieur à la séance suivante,
    RPE 7-8 → maintien, RPE ≥ 9 ou douleur → palier précédent.            */
 {
-  id:"lower",
+  id:"lower", assign:["moss"],
   title:"LOWER", title2:"LAB",
   tag:"Bas du corps · Genou",
   accent:"#a78bfa",
@@ -236,9 +236,92 @@ const DEFAULT_PROGRAMS = [
   ]
 },
 
+/* ============================== PULL-UP LAB (Souad) ==============================
+   Retour aux tractions après grossesse et arrêt du CrossFit. Base sportive
+   solide : technique acquise, la force se reconstruit vite avec du volume
+   propre et une progression RPE. Objectif : 1ʳᵉ traction stricte, puis 5.  */
+{
+  id:"pullup", assign:["souad"],
+  title:"PULL-UP", title2:"LAB",
+  tag:"Haut du corps · Retour",
+  accent:"#b6f24e",
+  blurb:"Retrouver les tractions et la force du haut du corps. Progression RPE, du contrôle vers la barre.",
+  meta:["3 séances","~25 min","Force / Retour"],
+  intro:"Tu sais déjà tirer — on reconstruit le moteur. Négatives et scapula d'abord, poussée et rowing pour l'équilibre, volume élastique pour le chemin vers la 1ʳᵉ stricte. RPE ≤6 monte, 7-8 maintient, ≥9 ou douleur descend.",
+  sessions:[
+    { id:"s1", t:"TIRAGE", t2:"VERTICAL", sub:"Négatives · scapula · barre", accent:"#b6f24e", pill:"~25 MIN",
+      focus:"Le cœur du retour : temps sous tension sur la barre. Les négatives lentes reconstruisent exactement la force de la traction.",
+      blocks:[
+        { label:"BLOC A — Négatives strictes · 4 séries", note:"Saute ou monte sur box jusqu'au menton au-dessus de la barre, descends le plus lentement possible (cible 4-5″). La qualité de CHAQUE descente compte plus que le nombre.",
+          ex:[
+            {k:"negpu",name:"Traction négative (5″ de descente)",reps:"reps / palier",anim:"pullup",sets:4,tempo:["5","0","X","0"],key:0,tiers:{u:"reps",steps:[2,3,4,5,6],start:0},
+             cue:"Menton au-dessus de la barre au départ, coudes qui résistent jusqu'aux bras tendus. Si la descente passe sous 3″, arrête la série.",yt:YT("negative pull up eccentric progression")},
+            {k:"scap",name:"Scapula pull-ups",reps:"reps / palier",anim:"hang",sets:4,tiers:{u:"reps",steps:[5,8,10,12],start:1},
+             cue:"Bras tendus, hausse et abaisse les épaules sans plier les coudes. C'est le premier étage de la traction.",yt:YT("scapula pull ups activation")}
+          ]},
+        { label:"BLOC B — Tirage assisté · superset 3 tours", note:"L'élastique enlève juste ce qu'il faut. Change de bande quand le RPE passe sous 6, pas avant.",
+          ex:[
+            {k:"bandpu",name:"Traction élastique (bande sous les pieds)",reps:"reps / palier",anim:"pullup",sets:3,tempo:["2","0","X","0"],key:2,tiers:{u:"reps",steps:[3,4,5,6,8],start:1},
+             cue:"Stricte : pas de kip, poitrine vers la barre. Monte en reps au fil des semaines, puis passe à une bande plus fine.",yt:YT("band assisted pull up strict form")},
+            {k:"row1",name:"Ring row / rowing inversé",reps:"reps / palier",anim:"row",sets:3,tempo:["2","1","1","0"],key:0,tiers:{u:"reps",steps:[6,8,10,12],start:1},
+             cue:"Corps gainé en planche, tire la poitrine vers les anneaux/barre. Plus les pieds avancent, plus c'est dur.",yt:YT("ring row bodyweight progression")}
+          ]},
+        { label:"FINISHER — Grip & épaules", note:"La barre doit redevenir un endroit confortable.",
+          ex:[
+            {k:"hang2",name:"Dead hang actif",reps:"tenue / palier",anim:"hang",sets:3,timer:true,tiers:{u:"s",steps:[15,20,30,40,60],start:1},
+             cue:"Épaules engagées (pas affaissées), grip ferme, corps gainé. Respire calmement.",yt:YT("active dead hang shoulder engaged")}
+          ]}
+      ]},
+    { id:"s2", t:"FORCE", t2:"POUSSÉE", sub:"Press · pompes · équilibre", accent:"#ffb02e", pill:"~25 MIN",
+      focus:"L'autre moitié du haut du corps : pousser fort pour équilibrer le tirage et protéger les épaules.",
+      blocks:[
+        { label:"BLOC A — Poussée · superset 4 tours", note:"Charges franches, RPE honnête. La force revient plus vite qu'elle n'est partie.",
+          ex:[
+            {k:"dbpress",name:"Développé haltères (assis ou debout)",reps:"8-10 reps",anim:"press",load:true,sets:4,tempo:["2","0","1","0"],key:2,tiers:{u:"kg",steps:[6,8,10,12,14,16],start:1},
+             cue:"Gainage serré, pas de cambrure. Verrouille en haut sans hausser les épaules.",yt:YT("dumbbell shoulder press seated form")},
+            {k:"pushup",name:"Pompes (surélevées → sol → lestées)",reps:"reps / palier",anim:"dip",sets:4,tempo:["2","0","1","0"],key:0,tiers:{u:"reps",steps:[5,8,10,12,15,20],start:1},
+             cue:"Mains sous les épaules, corps rigide. Trop dur au sol ? Mains sur un banc. Trop facile ? Lesté ou pieds surélevés.",yt:YT("push up progression form")}
+          ]},
+        { label:"BLOC B — Tirage horizontal lourd · 3 séries", note:"Le rowing construit le dos qui portera tes tractions.",
+          ex:[
+            {k:"dbrow",name:"Rowing haltère 1 bras",reps:"8-10 reps",anim:"row",load:true,sets:3,tempo:["2","1","1","0"],key:2,tiers:{u:"kg",steps:[8,10,12,14,16,18,20],start:1},
+             cue:"Appui au banc, dos plat, coude vers la hanche, 1″ de pause en haut.",yt:YT("one arm dumbbell row form")}
+          ]},
+        { label:"FINISHER — Gainage progressif", note:"Reconstruction de la sangle abdominale en douceur : contrôle avant intensité.",
+          ex:[
+            {k:"deadbug2",name:"Dead bug (lent, lombaires plaquées)",reps:"reps / côté",anim:"raise",sets:3,tiers:{u:"reps",steps:[8,10,12,15],start:0},
+             cue:"Lombaires collées au sol en permanence. Si le dos décolle, réduis l'amplitude. Post-grossesse : c'est l'exercice roi.",yt:YT("dead bug core exercise slow")}
+          ]}
+      ]},
+    { id:"s3", t:"VOLUME", t2:"& CHEMIN", sub:"Iso · volume · grip", accent:"#4dd2ff", pill:"~22 MIN",
+      focus:"Accumuler du temps de qualité : tenue au-dessus de la barre, volume de tirage, grip. C'est ici que la 1ʳᵉ stricte se débloque.",
+      blocks:[
+        { label:"BLOC A — Isométrie haute · 4 séries", note:"Tenir menton au-dessus de la barre = la position que ton corps doit réapprendre à posséder.",
+          ex:[
+            {k:"chinhold",name:"Chin-over-bar hold (élastique si besoin)",reps:"tenue / palier",anim:"pullup",sets:4,timer:true,tiers:{u:"s",steps:[5,10,15,20,30],start:0},
+             cue:"Menton au-dessus, coudes fléchis serrés, épaules basses. Descends contrôlé quand tu lâches — bonus de négative.",yt:YT("chin over bar hold isometric")}
+          ]},
+        { label:"BLOC B — Volume de tirage · superset 3 tours", note:"Du volume propre, jamais à l'échec. La technique reste parfaite du premier au dernier rep.",
+          ex:[
+            {k:"row2",name:"Ring row tempo (3″ de descente)",reps:"reps / palier",anim:"row",sets:3,tempo:["3","0","1","1"],key:0,tiers:{u:"reps",steps:[6,8,10,12],start:0},
+             cue:"Même exercice qu'en S1 mais descente 3″. Le tempo transforme un exercice facile en constructeur de force.",yt:YT("ring row tempo eccentric")},
+            {k:"curl2",name:"Curl haltères (biceps = assistants de la traction)",reps:"10-12 reps",anim:"curl",load:true,sets:3,tiers:{u:"kg",steps:[4,6,8,10,12],start:1},
+             cue:"Coudes fixes, montée contrôlée. Des biceps solides = des tractions qui finissent.",yt:YT("dumbbell biceps curl form")}
+          ]},
+        { label:"FINISHER — Grip & posture", note:"Le grip lâche souvent avant le dos. On le blinde.",
+          ex:[
+            {k:"carry2",name:"Farmer carry (2 charges lourdes)",reps:"30-40 m",anim:"carry",load:true,sets:3,tiers:{u:"kg",steps:[12,16,20,24,28],start:1},
+             cue:"Épaules basses et en arrière, marche droite. Charges qui obligent à serrer fort.",yt:YT("farmer carry grip posture")},
+            {k:"kneeraise",name:"Hanging knee raises",reps:"reps / palier",anim:"raise",sets:3,tiers:{u:"reps",steps:[5,8,10,12],start:0},
+             cue:"Suspendue à la barre, monte les genoux sans balancier. Grip + abdos + habitude de la barre.",yt:YT("hanging knee raise strict")}
+          ]}
+      ]}
+  ]
+},
+
 /* ============================== PRÉ HALTERO ============================== */
 {
-  id:"prehaltero",
+  id:"prehaltero", assign:["souad"],
   title:"PRÉ", title2:"HALTERO",
   tag:"Haltérophilie",
   accent:"#ff5a7a",

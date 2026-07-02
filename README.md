@@ -1,7 +1,8 @@
 # Perf Lab — PWA bibliothèque d'entraînement (backend réel)
 
-Coque multi-programmes : héberge **Core Lab** + **Upper Power Lab**, accueille les suivants.
-Animations par mouvement, timer (EVERY / EMOM / countdown), suivi de charge & de séries.
+Coque multi-programmes : **Upper Power Lab**, **Core Lab**, **Lower Lab** (Moss),
+**Pull-Up Lab** et **Pré Haltéro** (Souad). Animations par mouvement, suivi de charge
+& de séries, progression conditionnelle par RPE.
 **Deux modes :**
 - **LOCAL** (par défaut, `config.js` vide) : tout marche, données stockées sur l'appareil.
 - **CLOUD** (tu remplis `config.js`) : compte + **synchronisation entre tous tes appareils**.
@@ -27,6 +28,10 @@ propres programmes, sa progression hebdo et ses paliers RPE, dans des espaces de
 séparés (`perflab.p.<profil>.*`). Les données d'une installation mono-profil existante
 sont migrées automatiquement et silencieusement vers Moss au premier lancement.
 En mode CLOUD, le compte fait office de profil : le sélecteur est masqué.
+
+Les programmes par défaut sont assignés par profil via le champ `assign` dans
+`programs.js` : Moss reçoit Upper / Core / Lower, Souad reçoit Pull-Up Lab et
+Pré Haltéro (sans `assign`, un programme est seedé chez tout le monde).
 
 ## Progression conditionnelle par RPE
 
