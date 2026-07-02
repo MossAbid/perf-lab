@@ -58,23 +58,32 @@ const Backend = (() => {
     }catch(e){}
   })();
 
-  /* ---- migration one-shot : Pré Haltéro passe chez Souad ----
-     Le programme est retiré de l'espace Moss (données comprises) et ne
-     sera plus re-seedé chez lui ; Souad le reçoit via ses défauts.      */
-  (function migratePrehaltero(){
+  /* ---- migration one-shot : applique les assignations par profil ----
+     Retire de chaque espace profil les programmes par défaut qui ne lui
+     sont pas assignés (données comprises) — ex. Pré Haltéro quitte Moss,
+     Upper/Core/Lower quittent Souad. Les programmes importés/persos ne
+     sont jamais touchés.                                                */
+  (function migrateAssign(){
     try{
       if(CLOUD) return;
-      if(localStorage.getItem("perflab.mig.prehaltero")) return;
-      const key = Kp("moss","programs");
-      const progs = readLS(key, null);
-      if(progs && progs.some(p=>p.id==="prehaltero")){
-        writeLS(key, progs.filter(p=>p.id!=="prehaltero"));
+      if(localStorage.getItem("perflab.mig.assign1")) return;
+      P.PROFILES.forEach(pr=>{
+        const banned = DEFAULT_PROGRAMS.filter(d=>d.assign && !d.assign.includes(pr.id)).map(d=>d.id);
+        if(!banned.length) return;
+        const key = Kp(pr.id,"programs");
+        const progs = readLS(key, null);
+        if(progs && progs.some(p=>banned.includes(p.id))){
+          writeLS(key, progs.filter(p=>!banned.includes(p.id)));
+        }
         ["progress","weeks","progression"].forEach(n=>{
-          const v = readLS(Kp("moss",n), null);
-          if(v && v.prehaltero !== undefined){ delete v.prehaltero; writeLS(Kp("moss",n), v); }
+          const v = readLS(Kp(pr.id,n), null);
+          if(!v) return;
+          let changed=false;
+          banned.forEach(id=>{ if(v[id]!==undefined){ delete v[id]; changed=true; } });
+          if(changed) writeLS(Kp(pr.id,n), v);
         });
-      }
-      localStorage.setItem("perflab.mig.prehaltero","1");
+      });
+      localStorage.setItem("perflab.mig.assign1","1");
     }catch(e){}
   })();
 

@@ -19,6 +19,11 @@
     { id:"legacy-prog", title:"LEGACY", sessions:[{ id:"s1", blocks:[] }] }
   ]));
   localStorage.setItem("perflab.weeks", JSON.stringify({ "legacy-prog": 2 }));
+  // espace Souad pollué par un seed antérieur aux assignations : upper doit en être retiré
+  localStorage.setItem("perflab.p.souad.programs", JSON.stringify([
+    { id:"upper", title:"UPPER", sessions:[{ id:"s1", blocks:[] }] },
+    { id:"prehaltero", title:"PRÉ", sessions:[{ id:"s1", blocks:[] }] }
+  ]));
   window.confirm = () => true; // pas de dialogues bloquants en headless
 </script>
 <script src="../config.js"></script>
@@ -56,6 +61,8 @@
        !!document.querySelector('[data-go="pullup"]') &&
        !!document.querySelector('[data-go="prehaltero"]') &&
        !document.querySelector('[data-go="legacy-prog"]'));
+    ok("migration : upper (seed pré-assignation) retiré de chez Souad",
+       !document.querySelector('[data-go="upper"]'));
 
     /* 2b. programme Pull-Up Lab : paliers + RPE fonctionnels chez Souad */
     await goto("p/pullup");

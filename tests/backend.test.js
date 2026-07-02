@@ -87,22 +87,37 @@ t("chaque profil a sa propre bibliothèque et ses semaines", async () => {
   Backend.setProfile("moss");
   assert.equal(Backend.getWeek("lower"), 3);
 });
-t("migration : Pré Haltéro retiré de l'espace Moss existant", async () => {
+t("migration assignations : chaque profil perd les défauts des autres, garde le reste", async () => {
   const { Backend, ls } = boot({
+    // Moss pollué par Pré Haltéro, Souad polluée par les programmes de Moss (seed d'avant l'assignation)
     "perflab.p.moss.programs": JSON.stringify([
       { id: "prehaltero", title: "PRÉ", sessions: [{ blocks: [] }] },
       { id: "custom", title: "C", sessions: [{ blocks: [] }] }
     ]),
-    "perflab.p.moss.progress": JSON.stringify({ prehaltero: { w1: {} }, custom: { w1: {} } }),
-    "perflab.p.moss.weeks": JSON.stringify({ prehaltero: 2, custom: 3 })
+    "perflab.p.moss.weeks": JSON.stringify({ prehaltero: 2, custom: 3 }),
+    "perflab.p.souad.programs": JSON.stringify([
+      { id: "upper", title: "U", sessions: [{ blocks: [] }] },
+      { id: "core", title: "C", sessions: [{ blocks: [] }] },
+      { id: "lower", title: "L", sessions: [{ blocks: [] }] },
+      { id: "prehaltero", title: "PRÉ", sessions: [{ blocks: [] }] },
+      { id: "souad-perso", title: "SP", sessions: [{ blocks: [] }] }
+    ]),
+    "perflab.p.souad.progression": JSON.stringify({ upper: { wpu: {} }, prehaltero: {} })
   });
-  const r = await Backend.loadAll();
-  const ids = r.programs.map(p => p.id);
-  assert.ok(!ids.includes("prehaltero"), "Pré Haltéro absent chez Moss");
-  assert.ok(ids.includes("custom"), "programme perso conservé");
-  assert.equal(JSON.parse(ls.getItem("perflab.p.moss.weeks")).prehaltero, undefined);
+  const moss = await Backend.loadAll();
+  assert.ok(!moss.programs.some(p => p.id === "prehaltero"), "Pré Haltéro absent chez Moss");
+  assert.ok(moss.programs.some(p => p.id === "custom"), "programme perso de Moss conservé");
   assert.equal(JSON.parse(ls.getItem("perflab.p.moss.weeks")).custom, 3);
-  assert.equal(ls.getItem("perflab.mig.prehaltero"), "1", "migration marquée faite");
+  Backend.setProfile("souad");
+  const souad = await Backend.loadAll();
+  const sids = souad.programs.map(p => p.id);
+  ["upper", "core", "lower"].forEach(id => assert.ok(!sids.includes(id), id + " retiré de chez Souad"));
+  assert.ok(sids.includes("prehaltero") && sids.includes("souad-perso") && sids.includes("pullup"),
+    "Souad garde Pré Haltéro, son programme perso, et reçoit Pull-Up Lab");
+  const spr = JSON.parse(ls.getItem("perflab.p.souad.progression"));
+  assert.equal(spr.upper, undefined, "progression du programme retiré purgée");
+  assert.ok(spr.prehaltero, "progression des programmes légitimes conservée");
+  assert.equal(ls.getItem("perflab.mig.assign1"), "1", "migration marquée faite");
 });
 t("progression RPE isolée par profil", () => {
   const { Backend } = boot();
