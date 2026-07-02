@@ -3,42 +3,91 @@
    - LOCAL : localStorage uniquement (si CONFIG vide).
    - CLOUD : Supabase (auth + Postgres), avec localStorage comme cache offline
              et une file d'attente pour les écritures faites hors-ligne.
+
+   Multi-profils (LOCAL) : chaque profil (Moss, Souad) a son propre espace
+   de stockage — programmes, progression hebdo, paliers RPE. Le profil actif
+   est persistant. En mode CLOUD le compte fait office de profil : le
+   sélecteur est masqué et l'espace « moss » sert de cache local.
    ========================================================================== */
 const Backend = (() => {
   const CFG = window.CONFIG || {};
   const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
-  const LS = {
-    programs: "perflab.programs",
-    progress: "perflab.progress",
-    queue:    "perflab.queue",
-    removed:  "perflab.removed"
-  };
-  let client = null, currentUser = null, authCb = null;
+  const P = window.PLProgression;
+
+  /* ---- profils ---- */
+  const PROFILE_KEY = "perflab.profile";
+  let profile = null;
+  function activeProfile(){
+    if(CLOUD) return P.DEFAULT_PROFILE;
+    if(!profile){
+      const saved = localStorage.getItem(PROFILE_KEY);
+      profile = P.PROFILES.some(p=>p.id===saved) ? saved : P.DEFAULT_PROFILE;
+    }
+    return profile;
+  }
+  function setProfile(id){
+    if(!P.PROFILES.some(p=>p.id===id)) return;
+    profile = id;
+    try{ localStorage.setItem(PROFILE_KEY, id); }catch(e){}
+  }
+  function profiles(){ return P.PROFILES; }
+
+  /* ---- clés namespacées par profil ---- */
+  const K = name => `perflab.p.${activeProfile()}.${name}`;
+  const Kp = (pid, name) => `perflab.p.${pid}.${name}`;
 
   /* ---- cache local ---- */
   const readLS = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch(e){ return d; } };
   const writeLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
 
+  /* ---- migration silencieuse des clés legacy (mono-profil) → Moss ----
+     Ancien stockage : perflab.programs / .progress / .weeks / .removed / .queue
+     Une seule fois : si une clé legacy existe et que l'espace Moss est vierge,
+     tout est déplacé vers Moss puis les clés legacy sont supprimées.         */
+  (function migrateLegacy(){
+    try{
+      const names = ["programs","progress","weeks","removed","queue"];
+      const hasLegacy = names.some(n => localStorage.getItem("perflab."+n) !== null);
+      const mossEmpty = names.every(n => localStorage.getItem(Kp("moss",n)) === null);
+      if(hasLegacy && mossEmpty){
+        names.forEach(n=>{
+          const v = localStorage.getItem("perflab."+n);
+          if(v !== null){ localStorage.setItem(Kp("moss",n), v); localStorage.removeItem("perflab."+n); }
+        });
+      }
+    }catch(e){}
+  })();
+
+  let client = null, currentUser = null, authCb = null;
+
   function cacheProgress(progId, week, state){
-    const all = readLS(LS.progress, {});
+    const all = readLS(K("progress"), {});
     all[progId] = all[progId] || {};
     all[progId]["w"+week] = state;
-    writeLS(LS.progress, all);
+    writeLS(K("progress"), all);
   }
-  function cacheProgramsList(list){ writeLS(LS.programs, list); }
+  function cacheProgramsList(list){ writeLS(K("programs"), list); }
+
+  /* ---- semaines courantes par programme ---- */
+  function getWeek(pid){ return (readLS(K("weeks"), {})[pid] || 1); }
+  function setWeek(pid, n){ const w = readLS(K("weeks"), {}); w[pid] = n; writeLS(K("weeks"), w); }
+
+  /* ---- état de progression RPE (paliers) — local par profil ---- */
+  function loadProgression(){ return readLS(K("progression"), {}); }
+  function saveProgression(pr){ writeLS(K("progression"), pr); }
 
   /* ---- file d'attente offline (cloud) ---- */
-  function enqueue(op){ const q = readLS(LS.queue, []); q.push(op); writeLS(LS.queue, q); }
+  function enqueue(op){ const q = readLS(K("queue"), []); q.push(op); writeLS(K("queue"), q); }
   async function flushQueue(){
     if(!CLOUD || !currentUser) return;
-    let q = readLS(LS.queue, []);
+    let q = readLS(K("queue"), []);
     if(!q.length) return;
     const rest = [];
     for(const op of q){
       try{ await applyOp(op); }
       catch(e){ rest.push(op); }
     }
-    writeLS(LS.queue, rest);
+    writeLS(K("queue"), rest);
   }
   async function applyOp(op){
     if(op.t==="progress"){
@@ -102,7 +151,7 @@ const Backend = (() => {
      de futurs programmes par défaut automatique sans toucher
      aux programmes importés / à la progression. */
   function mergeDefaults(programs){
-    const removed = readLS(LS.removed, []);
+    const removed = readLS(K("removed"), []);
     const have = new Set(programs.map(p=>p.id));
     let added = false;
     DEFAULT_PROGRAMS.forEach(d=>{
@@ -114,11 +163,11 @@ const Backend = (() => {
   /* ---- chargement de toute la bibliothèque + progression ---- */
   async function loadAll(){
     if(!CLOUD){
-      let programs = readLS(LS.programs, null);
+      let programs = readLS(K("programs"), null);
       if(!programs || !programs.length){ programs = DEFAULT_PROGRAMS.slice(); }
       const m = mergeDefaults(programs); programs = m.programs;
       cacheProgramsList(programs);
-      return { programs, progress: readLS(LS.progress, {}) };
+      return { programs, progress: readLS(K("progress"), {}) };
     }
     // cloud : tente le réseau, sinon cache
     try{
@@ -136,7 +185,7 @@ const Backend = (() => {
       // fusion des programmes par défaut manquants (hors supprimés)
       const m = mergeDefaults(programs);
       if(m.added){
-        const removed = readLS(LS.removed, []);
+        const removed = readLS(K("removed"), []);
         const existing = new Set(progs.map(r=>r.id));
         const newSeed = DEFAULT_PROGRAMS
           .filter(d=>!existing.has(d.id) && !removed.includes(d.id))
@@ -151,14 +200,14 @@ const Backend = (() => {
       if(e2) throw e2;
       const progress = {};
       (rows||[]).forEach(r=>{ progress[r.program_id]=progress[r.program_id]||{}; progress[r.program_id]["w"+r.week]=r.state; });
-      writeLS(LS.progress, progress);
+      writeLS(K("progress"), progress);
       return { programs, progress };
     }catch(e){
       // offline / erreur : on sert le cache
-      let programs = readLS(LS.programs, null) || DEFAULT_PROGRAMS.slice();
+      let programs = readLS(K("programs"), null) || DEFAULT_PROGRAMS.slice();
       programs = mergeDefaults(programs).programs;
       cacheProgramsList(programs);
-      return { programs, progress: readLS(LS.progress, {}), offline:true };
+      return { programs, progress: readLS(K("progress"), {}), offline:true };
     }
   }
 
@@ -171,7 +220,7 @@ const Backend = (() => {
     catch(e){ enqueue(op); }
   }
   async function upsertProgram(p, sort){
-    const list = readLS(LS.programs, []);
+    const list = readLS(K("programs"), []);
     const i = list.findIndex(x=>x.id===p.id);
     if(i>=0) list[i]=p; else list.push(p);
     cacheProgramsList(list);
@@ -180,14 +229,24 @@ const Backend = (() => {
     try{ if(!navigator.onLine) throw 0; await applyOp(op); }
     catch(e){ enqueue(op); }
   }
+  /* upsert dans un profil précis (import ancien format → toujours Moss) */
+  async function upsertProgramFor(pid, p){
+    if(CLOUD || pid === activeProfile()) return upsertProgram(p);
+    const key = Kp(pid, "programs");
+    const list = readLS(key, []);
+    const i = list.findIndex(x=>x.id===p.id);
+    if(i>=0) list[i]=p; else list.push(p);
+    writeLS(key, list);
+  }
   async function deleteProgram(id){
-    const list = readLS(LS.programs, []).filter(x=>x.id!==id);
+    const list = readLS(K("programs"), []).filter(x=>x.id!==id);
     cacheProgramsList(list);
-    const prog = readLS(LS.progress, {}); delete prog[id]; writeLS(LS.progress, prog);
+    const prog = readLS(K("progress"), {}); delete prog[id]; writeLS(K("progress"), prog);
+    const pr = loadProgression(); delete pr[id]; saveProgression(pr);
     // si c'est un programme par défaut, on le mémorise pour ne pas le ré-ajouter
     if(DEFAULT_PROGRAMS.some(d=>d.id===id)){
-      const removed = readLS(LS.removed, []);
-      if(!removed.includes(id)){ removed.push(id); writeLS(LS.removed, removed); }
+      const removed = readLS(K("removed"), []);
+      if(!removed.includes(id)){ removed.push(id); writeLS(K("removed"), removed); }
     }
     if(!CLOUD) return;
     const op = { t:"delprogram", id };
@@ -195,6 +254,45 @@ const Backend = (() => {
     catch(e){ enqueue(op); }
   }
 
+  /* ---- export / import global multi-profils (schéma v2) ---- */
+  function exportAll(){
+    const P0 = window.PLProgression;
+    return {
+      schema: "perflab-profiles-v1",
+      exported_at: new Date().toISOString(),
+      profiles: P0.PROFILES.map(p=>({
+        id: p.id, name: p.name,
+        programs:    readLS(Kp(p.id,"programs"), []),
+        progress:    readLS(Kp(p.id,"progress"), {}),
+        weeks:       readLS(Kp(p.id,"weeks"), {}),
+        progression: readLS(Kp(p.id,"progression"), {})
+      }))
+    };
+  }
+  function importProfilesDoc(doc){
+    const state = {};
+    window.PLProgression.PROFILES.forEach(p=>{
+      state[p.id] = {
+        programs:    readLS(Kp(p.id,"programs"), []),
+        progress:    readLS(Kp(p.id,"progress"), {}),
+        weeks:       readLS(Kp(p.id,"weeks"), {}),
+        progression: readLS(Kp(p.id,"progression"), {})
+      };
+    });
+    window.PLProgression.mergeProfilesDoc(state, doc);
+    Object.keys(state).forEach(pid=>{
+      // profils inconnus du sélecteur : ignorés silencieusement
+      if(!window.PLProgression.PROFILES.some(p=>p.id===pid)) return;
+      writeLS(Kp(pid,"programs"),    state[pid].programs);
+      writeLS(Kp(pid,"progress"),    state[pid].progress);
+      writeLS(Kp(pid,"weeks"),       state[pid].weeks);
+      writeLS(Kp(pid,"progression"), state[pid].progression);
+    });
+  }
+
   return { init, isCloud, signUp, signIn, signOut, user, onAuth,
-           loadAll, saveProgress, upsertProgram, deleteProgram };
+           loadAll, saveProgress, upsertProgram, upsertProgramFor, deleteProgram,
+           activeProfile, setProfile, profiles,
+           getWeek, setWeek, loadProgression, saveProgression,
+           exportAll, importProfilesDoc };
 })();

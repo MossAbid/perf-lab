@@ -21,14 +21,14 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"BLOC A — EVERY 2′ × 6", timer:120, note:"Qualité de contraction > échec. Garde 1 rep en réserve sur les tractions.",
           ex:[
-            {k:"wpu",name:"Traction stricte lestée",reps:"3 reps",anim:"pullup",load:true,sets:6,tempo:["X","0","2","0"],key:0,
+            {k:"wpu",name:"Traction stricte lestée",reps:"3 reps",anim:"pullup",load:true,sets:6,tempo:["X","0","2","0"],key:0,tiers:{u:"kg",steps:[0,2.5,5,7.5,10,12.5,15,17.5,20],start:2},
              cue:"Scapulas engagées AVANT de tirer. Montée explosive, descente 2″. ~80-85 % du max lesté.",yt:YT("weighted pull up strict form")},
-            {k:"wdip",name:"Dips lestées",reps:"4 reps",anim:"dip",load:true,sets:6,tempo:["3","0","1","0"],key:0,
+            {k:"wdip",name:"Dips lestées",reps:"4 reps",anim:"dip",load:true,sets:6,tempo:["3","0","1","0"],key:0,tiers:{u:"kg",steps:[0,5,10,15,20,25,30],start:2},
              cue:"Épaules basses, pas de rebond en bas. Buste légèrement penché = plus de pec.",yt:YT("weighted dips strict")}
           ]},
         { label:"FINISHER — 3 séries", note:"Habitue le corps au lest sous tension longue.",
           ex:[
-            {k:"hang",name:"Dead hang lesté",reps:"max",anim:"hang",load:true,sets:3,timer:true,
+            {k:"hang",name:"Dead hang lesté",reps:"max",anim:"hang",load:true,sets:3,timer:true,tiers:{u:"kg",steps:[0,5,10,15,20,25],start:1},
              cue:"Grip ferme, gainage actif, épaules engagées. Renforce la prise pour les tractions lourdes.",yt:YT("weighted dead hang")}
           ]}
       ]},
@@ -37,7 +37,7 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"EMOM 14′ — alternance / minute", emom:14, note:"Repos réel entre efforts. Vitesse > fatigue : si la vitesse chute, baisse les reps.",
           ex:[
-            {k:"expull",name:"Traction explosive (C2B / high pull)",reps:"3 reps · min impaires",anim:"explo",load:true,sets:7,
+            {k:"expull",name:"Traction explosive (C2B / high pull)",reps:"3 reps · min impaires",anim:"explo",load:true,sets:7,tiers:{u:"kg",steps:[0,2.5,5,7.5,10],start:2},
              cue:"Intention vitesse MAX, barre vers le bas du sternum. Lest léger (5-10 kg) pour le contraste.",yt:YT("explosive chest to bar pull up")},
             {k:"expush",name:"Pompe pliométrique",reps:"5 reps · min paires",anim:"dip",sets:7,
              cue:"Pousse fort, contact court. Sur élévation si le clap n'est pas là. Pas d'affaissement lombaire.",yt:YT("plyometric clapping push up")}
@@ -53,14 +53,14 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET A — 4 tours", note:"Charge sub-maximale (RPE 8), tempo contrôlé, on cherche la congestion.",
           ex:[
-            {k:"row",name:"Rowing haltère 1 bras (appui au banc)",reps:"8-10 reps",anim:"row",load:true,sets:4,tempo:["2","1","1","0"],key:2,target:"24-26 kg / haltère",
+            {k:"row",name:"Rowing haltère 1 bras (appui au banc)",reps:"8-10 reps",anim:"row",load:true,sets:4,tempo:["2","1","1","0"],key:2,target:"24-26 kg / haltère",tiers:{u:"kg",steps:[18,20,22,24,26,28,30,32],start:3},
              cue:"Genou et main en appui sur le banc, dos à plat. 1″ de pause en haut, coude vers la hanche.",yt:YT("one arm dumbbell row bench form")},
-            {k:"bench",name:"Développé couché (ou DB bench)",reps:"8-10 reps",anim:"bench",load:true,sets:4,tempo:["3","1","1","0"],key:0,target:"55-60 kg",
+            {k:"bench",name:"Développé couché (ou DB bench)",reps:"8-10 reps",anim:"bench",load:true,sets:4,tempo:["3","1","1","0"],key:0,target:"55-60 kg",tiers:{u:"kg",steps:[45,50,55,60,65,70,75],start:2},
              cue:"Descente 3″ contrôlée, omoplates serrées. Amplitude complète.",yt:YT("barbell bench press form")}
           ]},
         { label:"FINISHER BRAS B — 3 tours",
           ex:[
-            {k:"curl",name:"Curl barre / haltères",reps:"10-12 reps",anim:"curl",load:true,sets:3,tempo:["2","0","2","0"],key:2,target:"28-30 kg",
+            {k:"curl",name:"Curl barre / haltères",reps:"10-12 reps",anim:"curl",load:true,sets:3,tempo:["2","0","2","0"],key:2,target:"28-30 kg",tiers:{u:"kg",steps:[22,24,26,28,30,32,34],start:3},
              cue:"Coudes fixes, pas d'élan. Squeeze en haut.",yt:YT("barbell biceps curl form")},
             {k:"tri",name:"Extension triceps (skull / banded)",reps:"max",anim:"curl",load:true,sets:3,target:"poids du corps / élastique — RPE 9",
              cue:"Coudes serrés et fixes, extension complète. Jusqu'à la chauffe.",yt:YT("barbell skullcrusher triceps")}
@@ -71,14 +71,14 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"BLOC A — EVERY 2′ × 5", timer:120, note:"Gainage, pas de cambrure lombaire sur le pressing.",
           ex:[
-            {k:"zpress",name:"Z-press (ou strict press)",reps:"6 reps",anim:"press",load:true,sets:5,tempo:["2","0","1","0"],key:0,
+            {k:"zpress",name:"Z-press (ou strict press)",reps:"6 reps",anim:"press",load:true,sets:5,tempo:["2","0","1","0"],key:0,tiers:{u:"kg",steps:[20,25,30,35,40,45,50],start:2},
              cue:"Assis jambes tendues = zéro triche. Verrouille en haut, abdos serrés.",yt:YT("z press strict overhead")},
             {k:"tpu",name:"Traction stricte (poids du corps)",reps:"5-8 reps",anim:"pullup",sets:5,tempo:["3","0","X","1"],key:0,
              cue:"Descente lente : ici on travaille la QUALITÉ de mouvement, sans lest.",yt:YT("strict pull up tempo")}
           ]},
         { label:"PRÉVENTION B — 3 tours", note:"Le filet de sécurité. Léger, propre, sans douleur.",
           ex:[
-            {k:"kb",name:"KB bottom-up press hold",reps:"20″ / bras",anim:"press",sets:3,timer:true,
+            {k:"kb",name:"KB bottom-up press hold",reps:"20″ / bras",anim:"press",sets:3,timer:true,tiers:{u:"s",steps:[15,20,25,30,40],start:1},
              cue:"Rotation externe ++, kettlebell à l'envers. Stabilité d'épaule sous charge instable.",yt:YT("kettlebell bottom up press hold")},
             {k:"er",name:"Rotation externe élastique",reps:"12 / bras",anim:"curl",sets:3,
              cue:"Coude collé au corps, mouvement lent. Coiffe des rotateurs.",yt:YT("band external rotation shoulder")},
@@ -104,14 +104,14 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET — 5 tours", note:"Charge réelle, pas de reps infinies. Le tronc se travaille comme un muscle.",
           ex:[
-            {k:"situp",name:"Sit-up lesté (plaque bras tendus au-dessus de la tête)",reps:"8-10 reps",anim:"crunch",load:true,sets:5,
+            {k:"situp",name:"Sit-up lesté (plaque bras tendus au-dessus de la tête)",reps:"8-10 reps",anim:"crunch",load:true,sets:5,tiers:{u:"kg",steps:[5,10,15,20,25],start:1},
              cue:"Plaque verrouillée bras tendus, déroule la colonne vertèbre par vertèbre.",yt:YT("weighted sit up plate overhead")},
-            {k:"t2b",name:"Strict toes-to-bar (ou strict hanging leg raise)",reps:"5-8 reps",anim:"raise",sets:5,tempo:["3","0","X","0"],key:0,
+            {k:"t2b",name:"Strict toes-to-bar (ou strict hanging leg raise)",reps:"5-8 reps",anim:"raise",sets:5,tempo:["3","0","X","0"],key:0,tiers:{u:"reps",steps:[5,6,8,10],start:0},
              cue:"Descente 3″ contrôlée, pas de balancier. Strict avant tout.",yt:YT("strict toes to bar")}
           ]},
         { label:"FINISHER — 3 minutes",
           ex:[
-            {k:"hollow",name:"Hollow rock",reps:"30-45 s",anim:"hold",sets:3,timer:true,
+            {k:"hollow",name:"Hollow rock",reps:"30-45 s",anim:"hold",sets:3,timer:true,tiers:{u:"s",steps:[30,35,40,45,60],start:0},
              cue:"Lombaires plaquées au sol, exagère la fermeture.",yt:YT("hollow rock crossfit")}
           ]}
       ]},
@@ -120,14 +120,14 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET — 5 tours", note:"À distance de tes jours de deadlift/squat lourds. Coupe à la moindre gêne lombaire.",
           ex:[
-            {k:"rollout",name:"Ab-wheel rollout (ou rollout barre chargée)",reps:"6-8 reps",anim:"roll",load:true,sets:5,
+            {k:"rollout",name:"Ab-wheel rollout (ou rollout barre chargée)",reps:"6-8 reps",anim:"roll",load:true,sets:5,tiers:{u:"reps",steps:[6,8,10,12],start:0},
              cue:"Progression genoux → debout. Bassin rétroversé, jamais de cambrure.",yt:YT("ab wheel rollout progression")},
-            {k:"plank",name:"Planche longue / lestée",reps:"30-40 s",anim:"hold",load:true,sets:5,timer:true,
+            {k:"plank",name:"Planche longue / lestée",reps:"30-40 s",anim:"hold",load:true,sets:5,timer:true,tiers:{u:"s",steps:[30,40,45,60,75],start:0},
              cue:"Ligne tête-talons, fessiers serrés. Pose une plaque sur le dos pour charger.",yt:YT("weighted plank")}
           ]},
         { label:"FINISHER — 3 minutes",
           ex:[
-            {k:"deadbug",name:"Dead bug lesté (ultra-lent)",reps:"10 / côté",anim:"raise",load:true,sets:3,
+            {k:"deadbug",name:"Dead bug lesté (ultra-lent)",reps:"10 / côté",anim:"raise",load:true,sets:3,tiers:{u:"reps",steps:[8,10,12,15],start:1},
              cue:"Lombaires plaquées en permanence, mouvement très lent et contrôlé.",yt:YT("weighted dead bug slow")}
           ]}
       ]},
@@ -138,14 +138,14 @@ const DEFAULT_PROGRAMS = [
           ex:[
             {k:"pallof",name:"Pallof press élastique (ou front-rack carry KB unilatéral)",reps:"10 / côté",anim:"rotate",sets:5,
              cue:"Résiste à la traction latérale, bras tendus stables. Sans élastique : carry KB 20 m/côté.",yt:YT("pallof press anti rotation")},
-            {k:"sideplank",name:"Side plank lesté",reps:"30 s / côté",anim:"hold",load:true,sets:5,timer:true,
+            {k:"sideplank",name:"Side plank lesté",reps:"30 s / côté",anim:"hold",load:true,sets:5,timer:true,tiers:{u:"s",steps:[30,35,40,45,60],start:0},
              cue:"Hanche haute, corps en ligne. Plaque sur la hanche pour charger.",yt:YT("weighted side plank")},
-            {k:"suitcase",name:"Suitcase carry KB lourd",reps:"30-40 m",anim:"carry",load:true,sets:5,
+            {k:"suitcase",name:"Suitcase carry KB lourd",reps:"30-40 m",anim:"carry",load:true,sets:5,tiers:{u:"kg",steps:[16,20,24,28,32],start:1},
              cue:"Une seule charge, reste vertical sans pencher. Anti-flexion latérale pure.",yt:YT("suitcase carry kettlebell")}
           ]},
         { label:"FINISHER",
           ex:[
-            {k:"twist",name:"Russian twist plaque / KB",reps:"20 reps",anim:"rotate",load:true,sets:3,
+            {k:"twist",name:"Russian twist plaque / KB",reps:"20 reps",anim:"rotate",load:true,sets:3,tiers:{u:"kg",steps:[5,10,15,20],start:1},
              cue:"Rotation contrôlée, pas de vitesse. Le tronc travaille, pas l'élan.",yt:YT("russian twist plate")}
           ]}
       ]},
@@ -162,6 +162,75 @@ const DEFAULT_PROGRAMS = [
              cue:"Kipping autorisé ici (capacité), reste rythmé.",yt:YT("toes to bar crossfit")},
             {k:"taps",name:"Plank shoulder taps",reps:"20 reps · min 4",anim:"hold",sets:3,
              cue:"Bassin immobile, ne laisse pas les hanches osciller.",yt:YT("plank shoulder taps")}
+          ]}
+      ]}
+  ]
+},
+
+/* ============================== LOWER LAB ==============================
+   Rééducation genou & bas du corps. Progression conditionnelle par RPE :
+   RPE ≤ 6 sur toutes les séries → palier supérieur à la séance suivante,
+   RPE 7-8 → maintien, RPE ≥ 9 ou douleur → palier précédent.            */
+{
+  id:"lower",
+  title:"LOWER", title2:"LAB",
+  tag:"Bas du corps · Genou",
+  accent:"#a78bfa",
+  blurb:"Rééducation genou : force excentrique + yielding isométrique. Progression pilotée par le RPE.",
+  meta:["2 séances","~30 min","Rééduc / Force"],
+  intro:"J1 excentrique (chaîne postérieure & tolérance flexion), J2 yielding iso (tenir sous charge). Après chaque exercice, note ton RPE : ≤6 monte d'un palier, 7-8 maintient, ≥9 ou douleur redescend.",
+  sessions:[
+    { id:"j1", t:"J1", t2:"EXCENTRIQUE", sub:"Chaîne postérieure · contrôle", accent:"#a78bfa", pill:"~30 MIN",
+      focus:"Force excentrique et stabilisation du genou : descentes lentes, remontées propres. Charge réelle mais jamais dans la douleur.",
+      blocks:[
+        { label:"BLOC A — Chaîne postérieure · EVERY 2′", timer:120, note:"Hanches vers l'arrière, contrôle total en descente, remontée explosive. Renforce la chaîne postérieure → stabilise le genou indirectement.",
+          ex:[
+            {k:"rdl",name:"RDL / Back Squat",reps:"6 reps",anim:"explo",load:true,sets:3,tempo:["3","0","X","0"],key:0,tiers:{u:"kg",steps:[40,50,60,70,80,90,100],start:2},
+             cue:"3″ de descente hanches en arrière, zéro pause en bas, remontée explosive en poussant dans le sol, fessiers actifs.",yt:YT("romanian deadlift eccentric control form")}
+          ]},
+        { label:"BLOC B — Tolérance flexion genou · superset", timer:120, note:"Apprend au genou à tolérer la flexion sans stress excessif. Hauteur de box basse au début.",
+          ex:[
+            {k:"goblet",name:"Goblet Squat Box",reps:"6 reps",anim:"dip",load:true,sets:3,tempo:["4","1","1","0"],key:0,tiers:{u:"kg",steps:[8,12,16,20,24,28,32],start:2},
+             cue:"4″ de descente, se poser sur la box sans écraser, remonter sans élan. Le tempo est l'exercice.",yt:YT("goblet box squat tempo")},
+            {k:"stepup",name:"Step-Up bas contrôlé",reps:"8 reps / jambe",anim:"raise",load:true,sets:3,tempo:["3","1","1","1"],key:0,tiers:{u:"kg",steps:[0,4,8,12,16,20],start:0},
+             cue:"Talon entier sur la box, 1″ de stabilisation en haut, 3″ de descente — la phase clé. Sans rebond en bas.",yt:YT("step up eccentric control knee")}
+          ]},
+        { label:"BLOC C — Fessiers & contrôle latéral · superset", timer:120, note:"Fessiers = stabilisateurs majeurs du genou. Contrôle et activation, pas la charge.",
+          ex:[
+            {k:"bridge",name:"Hip Bridge barre lourde",reps:"6 reps",anim:"raise",load:true,sets:3,tempo:["1","1","3","3"],key:2,tiers:{u:"kg",steps:[40,50,60,70,80,90],start:1},
+             cue:"Montée en 3″, 3″ de contraction en haut, redescente contrôlée. Squeeze maximal des fessiers.",yt:YT("barbell hip thrust glute bridge")},
+            {k:"abd",name:"Abduction hanche (élastique / machine)",reps:"8-15 / côté",anim:"rotate",sets:3,tempo:["2","1","2","1"],key:0,tiers:{u:"reps",steps:[8,10,12,15],start:0},
+             cue:"Mouvement lent, bassin stable. Moyen fessier = anti-valgus du genou.",yt:YT("hip abduction band glute medius")}
+          ]},
+        { label:"FINISHER — Isométrique", note:"Dos au mur, cuisses parallèles au sol. Monte en temps quand le RPE le permet.",
+          ex:[
+            {k:"wallsit",name:"Wall Sit",reps:"tenue chronométrée",anim:"hold",sets:3,timer:true,tiers:{u:"s",steps:[30,35,40,45,50,60],start:0},
+             cue:"Dos plaqué au mur, genoux à 90°, poids dans les talons. Respire, ne bloque pas.",yt:YT("wall sit form knee")}
+          ]}
+      ]},
+    { id:"j2", t:"J2", t2:"YIELDING ISO", sub:"Tenir sous charge · tendon", accent:"#4dd2ff", pill:"~30 MIN",
+      focus:"Isométrie yielding : tenir une position sous charge jusqu'au palier cible. Le tendon et le genou apprennent à encaisser — intensité pilotée par le RPE, jamais par la douleur.",
+      blocks:[
+        { label:"BLOC A — Quadriceps yielding · EVERY 90″", timer:90, note:"Les tenues longues à intensité modérée calment le tendon et construisent la tolérance. Douleur > 3/10 = redescendre d'un palier.",
+          ex:[
+            {k:"spsquat",name:"Spanish Squat iso (élastique derrière les genoux)",reps:"tenue / palier",anim:"hold",sets:3,timer:true,tiers:{u:"s",steps:[20,30,40,45,60],start:1},
+             cue:"Élastique fort derrière les genoux, tibias verticaux, s'asseoir dans la sangle. Quadriceps en tension constante, buste droit.",yt:YT("spanish squat isometric knee tendon")},
+            {k:"wallsit2",name:"Wall Sit profond (lesté si facile)",reps:"tenue / palier",anim:"hold",load:true,sets:3,timer:true,tiers:{u:"s",steps:[30,40,45,60,75,90],start:0},
+             cue:"Plus profond qu'en J1 si toléré. Plaque sur les cuisses pour charger quand le RPE passe sous 6.",yt:YT("weighted wall sit deep")}
+          ]},
+        { label:"BLOC B — Unilatéral · superset", timer:120, note:"Une jambe à la fois : le côté opéré/faible dicte le palier. Symétrie avant intensité.",
+          ex:[
+            {k:"splitiso",name:"Split Squat iso (bas de fente)",reps:"tenue / jambe",anim:"hold",sets:3,timer:true,tiers:{u:"s",steps:[15,20,25,30,40,45],start:1},
+             cue:"Genou arrière à 2-3 cm du sol, tibia avant vertical. Tenir immobile, bassin droit.",yt:YT("split squat isometric hold bottom")},
+            {k:"calfiso",name:"Calf Raise iso (mi-hauteur, unilatéral)",reps:"tenue / jambe",anim:"hold",sets:3,timer:true,tiers:{u:"s",steps:[20,30,40,45,60],start:0},
+             cue:"Sur une jambe, talon à mi-hauteur, immobile. Le soléaire protège le genou à la réception.",yt:YT("single leg calf raise isometric hold")}
+          ]},
+        { label:"BLOC C — Chaîne postérieure iso + accessoire", note:"Finir par l'arrière de la jambe et le verrouillage du genou en extension.",
+          ex:[
+            {k:"hamiso",name:"Hamstring Bridge iso (talons surélevés)",reps:"tenue / palier",anim:"raise",sets:3,timer:true,tiers:{u:"s",steps:[20,30,40,45,60],start:1},
+             cue:"Talons sur une box basse, hanches hautes, tenir. Ischio-jambiers = frein du genou.",yt:YT("hamstring bridge isometric hold heels elevated")},
+            {k:"tke",name:"Terminal Knee Extension (élastique)",reps:"répétitions / palier",anim:"curl",sets:3,tiers:{u:"reps",steps:[12,15,20,25],start:1},
+             cue:"Élastique derrière le genou, verrouiller en extension complète, 2″ de squeeze du quadriceps. Léger et propre.",yt:YT("terminal knee extension band tke")}
           ]}
       ]}
   ]

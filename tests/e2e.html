@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Perf Lab — e2e</title>
+<!-- Harnais e2e : charge la vraie app et déroule le parcours complet.
+     Lancer :  python3 -m http.server 8741  (racine du repo) puis
+     chrome --headless=new --dump-dom "http://localhost:8741/tests/e2e.html"
+     → chaque ligne de #results commence par E2E-PASS ou E2E-FAIL. -->
+</head>
+<body>
+<div id="app"></div>
+<div class="dock" style="display:none">
+  <div class="dock-in">
+    <div class="clock" id="clock">00:00</div>
+    <div class="dock-c"></div>
+    <div class="dmode" id="dmode">PRÊT</div>
+  </div>
+</div>
+<pre id="results"></pre>
+
+<script>
+  // état vierge + pré-seed d'anciennes clés mono-profil pour tester la migration
+  localStorage.clear();
+  localStorage.setItem("perflab.programs", JSON.stringify([
+    { id:"legacy-prog", title:"LEGACY", sessions:[{ id:"s1", blocks:[] }] }
+  ]));
+  localStorage.setItem("perflab.weeks", JSON.stringify({ "legacy-prog": 2 }));
+  window.confirm = () => true; // pas de dialogues bloquants en headless
+</script>
+<script src="../config.js"></script>
+<script src="../programs.js"></script>
+<script src="../progression.js"></script>
+<script src="../backend.js"></script>
+<script src="../app.js"></script>
+
+<script>
+(async () => {
+  const out = [];
+  const ok = (name, cond) => out.push((cond ? "E2E-PASS " : "E2E-FAIL ") + name);
+  const tick = (ms = 60) => new Promise(r => setTimeout(r, ms));
+  const goto = async h => { location.hash = h; await tick(); };
+
+  try {
+    await tick(300); // boot()
+
+    /* 1. bibliothèque : programmes par défaut + programme legacy migré + sélecteur */
+    ok("bibliothèque rendue", document.querySelectorAll(".card[data-go]").length === 5);
+    ok("LOWER LAB présent", !!document.querySelector('[data-go="lower"]'));
+    ok("programme legacy migré vers Moss", !!document.querySelector('[data-go="legacy-prog"]'));
+    ok("clé legacy supprimée", localStorage.getItem("perflab.programs") === null);
+    ok("semaine legacy migrée", Backend.getWeek("legacy-prog") === 2);
+    ok("sélecteur profils Moss/Souad", document.querySelectorAll(".profbtn").length === 2);
+    ok("profil actif par défaut : Moss", Backend.activeProfile() === "moss");
+
+    /* 2. bascule Souad : bibliothèque indépendante */
+    document.querySelector('[data-prof="souad"]').click();
+    await tick(200);
+    ok("Souad actif après clic", Backend.activeProfile() === "souad");
+    ok("Souad : seulement les 4 programmes par défaut",
+       document.querySelectorAll(".card[data-go]").length === 4 &&
+       !document.querySelector('[data-go="legacy-prog"]'));
+
+    /* 3. import ancien format pendant que Souad est actif → rattaché à Moss, silencieusement */
+    await goto("add");
+    document.getElementById("jsonin").value = JSON.stringify(
+      { id:"import-test", title:"IMPORT", sessions:[{ id:"s1", blocks:[] }] });
+    document.getElementById("import").click();
+    await tick(200);
+    const mossProgs = JSON.parse(localStorage.getItem("perflab.p.moss.programs") || "[]");
+    const souadProgs = JSON.parse(localStorage.getItem("perflab.p.souad.programs") || "[]");
+    ok("ancien format → profil Moss", mossProgs.some(p => p.id === "import-test"));
+    ok("ancien format ∉ Souad", !souadProgs.some(p => p.id === "import-test"));
+
+    /* 4. import format profiles v2 */
+    await goto("add");
+    document.getElementById("jsonin").value = JSON.stringify({
+      schema:"perflab-profiles-v1",
+      profiles:[{ id:"souad", programs:[{ id:"souad-prog", title:"SP", sessions:[{ id:"s1", blocks:[] }] }] }]
+    });
+    document.getElementById("import").click();
+    await tick(200);
+    ok("format profiles importé chez Souad",
+       JSON.parse(localStorage.getItem("perflab.p.souad.programs") || "[]").some(p => p.id === "souad-prog"));
+
+    /* 5. LOWER LAB : paliers + RPE + douleur */
+    await goto("p/lower");
+    ok("J1/J2 en onglets", document.querySelectorAll(".tab").length === 2);
+    const tierBadges = document.querySelectorAll(".target.tier");
+    ok("paliers affichés sur J1", tierBadges.length >= 5);
+    ok("palier RDL initial 60 kg", tierBadges[0] && tierBadges[0].textContent.includes("60 kg"));
+    const rpe = document.querySelector('.rpe[data-rk="rdl"]');
+    ok("saisie RPE présente", !!rpe);
+    // toutes les séries du RDL + RPE 5 → doit proposer le palier supérieur (70 kg)
+    document.querySelectorAll('.setbtn[data-k="rdl"]').forEach(b => b.click());
+    rpe.value = "5"; rpe.dispatchEvent(new Event("change"));
+    await tick();
+    const next = document.querySelector('[data-nk="rdl"]');
+    ok("RPE 5 + séries faites → propose 70 kg", next.textContent.includes("70 kg"));
+    // douleur → retour au palier précédent (50 kg)
+    document.querySelector('.painbtn[data-pk="rdl"]').click();
+    await tick();
+    ok("douleur → retour à 50 kg", next.textContent.includes("50 kg"));
+    // état persistant
+    const prog = Backend.loadProgression();
+    ok("progression persistée (hist)", prog.lower && prog.lower.rdl && prog.lower.rdl.hist.length === 1);
+    // semaine suivante : palier appliqué
+    document.getElementById("wup").click();
+    await tick();
+    ok("semaine 2 : palier 50 kg appliqué",
+       document.querySelector(".target.tier").textContent.includes("50 kg"));
+
+    /* 6. profil Moss intact après tout ça */
+    await goto("");
+    document.querySelector('[data-prof="moss"]').click();
+    await tick(200);
+    ok("retour Moss : bibliothèque avec legacy + import",
+       !!document.querySelector('[data-go="legacy-prog"]') && !!document.querySelector('[data-go="import-test"]'));
+    ok("progression Souad invisible chez Moss", !("lower" in Backend.loadProgression()));
+  } catch (e) {
+    out.push("E2E-FAIL exception : " + (e && e.stack || e));
+  }
+  document.getElementById("results").textContent = out.join("\n");
+  document.title = out.every(l => l.startsWith("E2E-PASS")) ? "E2E-ALL-PASS" : "E2E-HAS-FAILURES";
+})();
+</script>
+</body>
+</html>
