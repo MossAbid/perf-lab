@@ -194,17 +194,23 @@ const Backend = (() => {
     return DEFAULT_PROGRAMS.filter(d=>!d.assign || d.assign.includes(pid));
   }
 
-  /* ---- fusion des programmes par défaut manquants ----
+  /* ---- fusion des programmes par défaut manquants ou mis à jour ----
      Ajoute tout programme par défaut du profil dont l'id n'existe pas
-     déjà ET qui n'a pas été supprimé volontairement. Rend l'ajout
-     de futurs programmes par défaut automatique sans toucher
-     aux programmes importés / à la progression. */
+     déjà ET qui n'a pas été supprimé volontairement. Si un programme
+     par défaut porte un champ `v` plus récent que la copie stockée,
+     la copie est rafraîchie (la progression, stockée à part, est
+     conservée). Les programmes importés sous un autre id ne sont
+     jamais touchés. */
   function mergeDefaults(programs){
     const removed = readLS(K("removed"), []);
     const have = new Set(programs.map(p=>p.id));
     let added = false;
     defaultsFor(activeProfile()).forEach(d=>{
-      if(!have.has(d.id) && !removed.includes(d.id)){ programs.push(d); added = true; }
+      if(!have.has(d.id)){
+        if(!removed.includes(d.id)){ programs.push(d); added = true; }
+      } else if((d.v||0) > (programs.find(x=>x.id===d.id).v||0)){
+        programs[programs.findIndex(x=>x.id===d.id)] = d; added = true;
+      }
     });
     return { programs, added };
   }

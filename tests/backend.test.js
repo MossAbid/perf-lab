@@ -78,7 +78,7 @@ t("profil par défaut Moss, bascule persistante vers Souad", () => {
 t("chaque profil a sa propre bibliothèque et ses semaines", async () => {
   const { Backend } = boot();
   const moss = await Backend.loadAll();
-  assert.deepEqual(moss.programs.map(p => p.id), ["upper", "core", "lower"], "Moss : ses 3 programmes, sans Pré Haltéro");
+  assert.deepEqual(moss.programs.map(p => p.id), ["upper", "core", "lower", "hyrox"], "Moss : ses 4 programmes, sans Pré Haltéro");
   Backend.setWeek("lower", 3);
   Backend.setProfile("souad");
   const souad = await Backend.loadAll();
@@ -126,6 +126,21 @@ t("progression RPE isolée par profil", () => {
   assert.deepEqual(Backend.loadProgression(), {});
   Backend.setProfile("moss");
   assert.equal(Backend.loadProgression().lower.rdl.next, 3);
+});
+
+t("mergeDefaults : une copie stockée obsolète est rafraîchie par la version v supérieure", async () => {
+  const { Backend } = boot({
+    "perflab.p.moss.programs": JSON.stringify([
+      { id: "core", title: "VIEUX CORE", sessions: [{ id: "s1", blocks: [] }] },
+      { id: "perso", title: "PERSO", sessions: [{ id: "s1", blocks: [] }] }
+    ])
+  });
+  const r = await Backend.loadAll();
+  const core = r.programs.find(p => p.id === "core");
+  assert.ok(core.v >= 2, "copie core remplacée par la v2");
+  const ks = core.sessions.flatMap(s => s.blocks.flatMap(b => (b.ex || []).map(e => e.k)));
+  assert.ok(ks.includes("kncrunch"), "le correctif sit-up → crunch câble est propagé");
+  assert.equal(r.programs.find(p => p.id === "perso").title, "PERSO", "programme perso intouché");
 });
 
 /* ---- import ancien format vers Moss depuis Souad ---- */

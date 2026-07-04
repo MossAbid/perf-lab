@@ -91,7 +91,7 @@ const DEFAULT_PROGRAMS = [
 
 /* ============================== CORE LAB ============================== */
 {
-  id:"core", assign:["moss"],
+  id:"core", assign:["moss"], v:2,
   title:"CORE", title2:"LAB",
   tag:"Chaîne abdominale",
   accent:"#4dd2ff",
@@ -104,8 +104,8 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET — 5 tours", note:"Charge réelle, pas de reps infinies. Le tronc se travaille comme un muscle.",
           ex:[
-            {k:"situp",name:"Sit-up lesté (plaque bras tendus au-dessus de la tête)",reps:"8-10 reps",anim:"crunch",load:true,sets:5,tiers:{u:"kg",steps:[5,10,15,20,25],start:1},
-             cue:"Plaque verrouillée bras tendus, déroule la colonne vertèbre par vertèbre.",yt:YT("weighted sit up plate overhead")},
+            {k:"kncrunch",name:"Crunch câble / élastique à genoux",reps:"8-10 reps",anim:"crunch",load:true,sets:5,tiers:{u:"kg",steps:[10,15,20,25,30],start:1},
+             cue:"À genoux, corde derrière la nuque. Enroule le THORAX vers le bas, bassin immobile — les lombaires ne bougent pas, zéro douleur de dos. Remplace le sit-up lesté.",yt:YT("kneeling cable crunch form")},
             {k:"t2b",name:"Strict toes-to-bar (ou strict hanging leg raise)",reps:"5-8 reps",anim:"raise",sets:5,tempo:["3","0","X","0"],key:0,tiers:{u:"reps",steps:[5,6,8,10],start:0},
              cue:"Descente 3″ contrôlée, pas de balancier. Strict avant tout.",yt:YT("strict toes to bar")}
           ]},
@@ -231,6 +231,91 @@ const DEFAULT_PROGRAMS = [
              cue:"Talons sur une box basse, hanches hautes, tenir. Ischio-jambiers = frein du genou.",yt:YT("hamstring bridge isometric hold heels elevated")},
             {k:"tke",name:"Terminal Knee Extension (élastique)",reps:"répétitions / palier",anim:"curl",sets:3,tiers:{u:"reps",steps:[12,15,20,25],start:1},
              cue:"Élastique derrière le genou, verrouiller en extension complète, 2″ de squeeze du quadriceps. Léger et propre.",yt:YT("terminal knee extension band tke")}
+          ]}
+      ]}
+  ]
+},
+
+/* ============================== HYROX LAB ==============================
+   Préparation Hyrox, phase de base (échéance 4-6 mois). Point faible
+   ciblé : la course — allure actuelle 5:00-5:30/km, objectif en faire
+   une arme et une récupération active entre les stations. 3 séances :
+   base aérobie, seuil, hybride course+stations (compromised running). */
+{
+  id:"hyrox", assign:["moss"],
+  title:"HYROX", title2:"LAB",
+  tag:"Hybride · Course",
+  accent:"#4de0a6",
+  blurb:"Transformer la course en point fort : base aérobie, seuil, et courir vite sur jambes mortes.",
+  meta:["3 séances","40-60 min","Hyrox / Engine"],
+  intro:"Phase de base : du volume facile avant l'intensité. S1 construit le moteur (Z2 — plus lent que ta moyenne, c'est voulu), S2 fait descendre la moyenne (seuil), S3 t'apprend à courir après les stations. RPE ≤6 monte d'un palier, 7-8 maintient, ≥9 ou douleur descend.",
+  sessions:[
+    { id:"s1", t:"BASE", t2:"AÉROBIE", sub:"Z2 · strides · pied", accent:"#4de0a6", pill:"~50 MIN",
+      focus:"Le moteur diesel : courir FACILE, longtemps. C'est cette séance qui rendra les courses de l'Hyrox confortables — et fera de la course ta récupération active.",
+      blocks:[
+        { label:"BLOC A — Footing Z2", note:"Allure conversation : 6:00-6:30/km pour toi. Oui, bien plus lent que ta moyenne — si tu peux parler en phrases complètes, c'est la bonne allure. Le RPE se juge sur la FIN de la sortie.",
+          ex:[
+            {k:"footz2",name:"Footing Z2 continu",reps:"durée / palier",anim:"carry",sets:1,timer:true,tiers:{u:"min",steps:[30,35,40,45,50,60],start:1},
+             cue:"Nez qui respire, foulée courte et fréquente (~170-180 pas/min). Si tu accélères sans t'en rendre compte, ralentis : la Z2 se gagne en discipline.",yt:YT("zone 2 running base training")}
+          ]},
+        { label:"BLOC B — Strides", note:"De la vitesse gratuite en fin de footing : jambes fraîches en mémoire, zéro fatigue ajoutée.",
+          ex:[
+            {k:"strides",name:"Lignes droites progressives (20″)",reps:"accélérations / palier",anim:"explo",sets:1,tiers:{u:"reps",steps:[4,6,8,10],start:1},
+             cue:"Accélère progressivement jusqu'à ~90 % sur 20″, marche 60″ entre chaque. Grande foulée relâchée, bras actifs.",yt:YT("running strides technique")}
+          ]},
+        { label:"BLOC C — Pied & mollets", note:"Le pied encaisse tout à l'Hyrox. 5 minutes qui évitent les blessures.",
+          ex:[
+            {k:"rope",name:"Corde à sauter (pied élastique)",reps:"tenue / palier",anim:"pulse",sets:3,timer:true,tiers:{u:"s",steps:[60,90,120,150],start:0},
+             cue:"Rebonds bas et rapides sur l'avant-pied, talons qui frôlent le sol. Souple, silencieux.",yt:YT("jump rope boxer skip footwork")}
+          ]}
+      ]},
+    { id:"s2", t:"SEUIL", t2:"TEMPO", sub:"Faire descendre la moyenne", accent:"#ffb02e", pill:"~45 MIN",
+      focus:"La séance qui transforme 5:15/km en 4:50/km : des blocs soutenus mais contrôlés, jamais à fond. C'est inconfortable-stable, pas la guerre.",
+      blocks:[
+        { label:"ÉCHAUFFEMENT — 12 min", note:"Toujours complet avant le seuil : 10 min footing progressif + gammes.",
+          ex:[
+            {k:"warm2",name:"Footing progressif + gammes (montées de genoux, talons-fesses)",reps:"10 min + 2×30 m de chaque",anim:"carry",sets:1,
+             cue:"Termine l'échauffement proche de l'allure seuil sur la dernière minute.",yt:YT("running warm up drills")}
+          ]},
+        { label:"BLOC SEUIL — 5 min / bloc · récup 90″", note:"Allure cible 4:50-5:05/km (à ajuster : tu dois pouvoir dire 3-4 mots, pas plus). Coche une case par bloc réalisé — le palier fixe le nombre de blocs du jour.",
+          ex:[
+            {k:"thresh",name:"Intervalles seuil 5 min",reps:"blocs / palier",anim:"explo",sets:6,tiers:{u:"reps",steps:[3,4,5,6],start:0},
+             cue:"Régularité absolue : le dernier bloc à la même allure que le premier. Si l'allure s'effondre, arrête — le RPE le dira.",yt:YT("threshold interval running workout")}
+          ]},
+        { label:"RETOUR AU CALME — 10 min",
+          ex:[
+            {k:"cool2",name:"Footing Z1 très facile",reps:"10 min",anim:"carry",sets:1,
+             cue:"Trot lent, relâché. C'est ici que tu t'entraînes à récupérer en courant — le réflexe Hyrox.",yt:YT("cool down jog recovery")}
+          ]}
+      ]},
+    { id:"s3", t:"HYBRIDE", t2:"COMPROMIS", sub:"Courir après les stations", accent:"#ff5a7a", pill:"~50 MIN",
+      focus:"La signature Hyrox : courir vite sur des jambes détruites par le sled. On répète le geste jusqu'à ce qu'il devienne normal.",
+      blocks:[
+        { label:"ÉCHAUFFEMENT ERG — 8 min", note:"Monte en température sans entamer les jambes.",
+          ex:[
+            {k:"erg",name:"SkiErg + rameur alternés (2 × 500 m chaque, facile)",reps:"8 min",anim:"row",sets:1,
+             cue:"Cadence tranquille, technique propre. Fin d'échauffement : 200 m un peu plus appuyés.",yt:YT("skierg technique basics")}
+          ]},
+        { label:"BLOC A — Sled + course · 4 tours", note:"Le cœur de la séance : sled lourd puis course IMMÉDIATE à allure Hyrox (5:15-5:30/km). Le RPE se juge sur la qualité de la course, pas sur le sled.",
+          ex:[
+            {k:"sled",name:"Sled push lourd (15-20 m)",reps:"1 poussée / tour",anim:"carry",load:true,sets:4,tiers:{u:"kg",steps:[40,60,80,100,120],start:1},
+             cue:"Bras tendus ou fléchis mais dos long, pas de sautillement — des appuis qui poussent. Lourd mais continu.",yt:YT("sled push technique hyrox")},
+            {k:"runpost",name:"Course post-sled (allure Hyrox, régulière)",reps:"distance / palier · par tour",anim:"explo",sets:4,tiers:{u:"m",steps:[200,300,400,600],start:2},
+             cue:"Départ dans les 10″ après le sled. Les 100 premiers mètres sont horribles : raccourcis la foulée, monte la fréquence, l'allure revient.",yt:YT("compromised running hyrox training")}
+          ]},
+        { label:"BLOC B — Stations · superset 3 tours", note:"Enchaîné, récup 60-90″ entre les tours.",
+          ex:[
+            {k:"wb",name:"Wall balls",reps:"reps / palier",anim:"press",sets:3,tiers:{u:"reps",steps:[15,20,25,30],start:1},
+             cue:"Squat complet, cible haute, rythme métronome — casse les séries avant d'y être obligé.",yt:YT("wall ball efficiency hyrox")},
+            {k:"bbj",name:"Burpee broad jumps",reps:"reps / palier",anim:"explo",sets:3,tiers:{u:"reps",steps:[8,10,12,15],start:0},
+             cue:"Saute loin plutôt que haut, retombe amorti. Rythme régulier, respiration calée.",yt:YT("burpee broad jump technique")}
+          ]},
+        { label:"FINISHER — Porté + fentes", note:"Les deux dernières stations de l'Hyrox, sur jambes cuites.",
+          ex:[
+            {k:"fcarry",name:"Farmer carry 2 KB (2 × 100 m / tour)",reps:"200 m / tour",anim:"carry",load:true,sets:3,tiers:{u:"kg",steps:[16,20,24,28,32],start:1},
+             cue:"Épaules basses, pas rapides et courts. Le grip lâche ? Pose, secoue 5″, repars.",yt:YT("farmer carry hyrox kettlebell")},
+            {k:"lunge",name:"Fentes marchées sandbag (épaules)",reps:"20 pas / tour",anim:"raise",load:true,sets:3,tiers:{u:"kg",steps:[10,15,20,25,30],start:1},
+             cue:"Genou arrière qui frôle le sol, buste droit sous le sac. Des pas mesurés, pas des chutes.",yt:YT("sandbag walking lunge hyrox")}
           ]}
       ]}
   ]

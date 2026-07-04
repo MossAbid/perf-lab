@@ -138,7 +138,7 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
   const src = require("fs").readFileSync(path.join(__dirname, "..", "programs.js"), "utf8");
   const DEFAULT_PROGRAMS = new Function(src + "; return DEFAULT_PROGRAMS;")();
   const ids = DEFAULT_PROGRAMS.map(p => p.id);
-  assert.deepEqual(ids, ["upper", "core", "lower", "pullup", "prehaltero"]);
+  assert.deepEqual(ids, ["upper", "core", "lower", "hyrox", "pullup", "prehaltero"]);
   DEFAULT_PROGRAMS.forEach(P.validateProgram);
   const lower = DEFAULT_PROGRAMS.find(p => p.id === "lower");
   assert.equal(lower.sessions.length, 2);
@@ -148,7 +148,7 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
     if (ex.tiers) {
       withTiers++;
       assert.ok(Array.isArray(ex.tiers.steps) && ex.tiers.steps.length >= 2, ex.name);
-      assert.ok(["kg", "s", "reps"].includes(ex.tiers.u), ex.name);
+      assert.ok(["kg", "s", "reps", "min", "m"].includes(ex.tiers.u), ex.name);
       const st = ex.tiers.start | 0;
       assert.ok(st >= 0 && st < ex.tiers.steps.length, ex.name + " : start hors bornes");
       const numeric = ex.tiers.steps.every(v => typeof v === "number");
@@ -165,12 +165,22 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
   // la séance TEST porte un exercice jalon
   const testEx = pu.sessions[3].blocks.flatMap(b => b.ex).find(ex => ex.test);
   assert.ok(testEx, "exercice test:true dans la séance TEST");
+  // Core Lab v2 : le sit-up lesté (douleur de dos) a laissé place au crunch câble
+  const core = DEFAULT_PROGRAMS.find(p => p.id === "core");
+  assert.ok(core.v >= 2, "core versionné");
+  const coreExs = core.sessions.flatMap(s => s.blocks.flatMap(b => b.ex.map(e => e.k)));
+  assert.ok(!coreExs.includes("situp"), "sit-up lesté retiré");
+  assert.ok(coreExs.includes("kncrunch"), "crunch câble présent");
+  // Hyrox : 3 séances, course post-sled présente
+  const hy = DEFAULT_PROGRAMS.find(p => p.id === "hyrox");
+  assert.equal(hy.sessions.length, 3);
+  assert.ok(hy.sessions[2].blocks.some(b => b.ex.some(e => e.k === "runpost")), "compromised running présent");
   const ph = DEFAULT_PROGRAMS.find(p => p.id === "prehaltero");
   ph.sessions.forEach(s => s.blocks.forEach(b => b.ex.forEach(ex => assert.ok(!ex.tiers, ex.name))));
   assert.ok(withTiers >= 30, "au moins 30 exercices avec paliers (trouvé " + withTiers + ")");
   // assignation par profil : Moss = entraînements, Souad = pull-up + pré-haltéro
   const byProfile = pid => DEFAULT_PROGRAMS.filter(p => !p.assign || p.assign.includes(pid)).map(p => p.id);
-  assert.deepEqual(byProfile("moss"), ["upper", "core", "lower"]);
+  assert.deepEqual(byProfile("moss"), ["upper", "core", "lower", "hyrox"]);
   assert.deepEqual(byProfile("souad"), ["pullup", "prehaltero"]);
 });
 

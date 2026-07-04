@@ -43,7 +43,8 @@
     await tick(300); // boot()
 
     /* 1. bibliothèque : programmes par défaut + programme legacy migré + sélecteur */
-    ok("bibliothèque rendue (3 défauts Moss + legacy)", document.querySelectorAll(".card[data-go]").length === 4);
+    ok("bibliothèque rendue (4 défauts Moss + legacy)", document.querySelectorAll(".card[data-go]").length === 5);
+    ok("HYROX LAB présent chez Moss", !!document.querySelector('[data-go="hyrox"]'));
     ok("Pré Haltéro absent chez Moss", !document.querySelector('[data-go="prehaltero"]'));
     ok("LOWER LAB présent", !!document.querySelector('[data-go="lower"]'));
     ok("programme legacy migré vers Moss", !!document.querySelector('[data-go="legacy-prog"]'));
