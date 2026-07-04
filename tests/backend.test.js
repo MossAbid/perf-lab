@@ -139,7 +139,7 @@ t("mergeDefaults : une copie stockée obsolète est rafraîchie par la version v
   const core = r.programs.find(p => p.id === "core");
   assert.ok(core.v >= 2, "copie core remplacée par la v2");
   const ks = core.sessions.flatMap(s => s.blocks.flatMap(b => (b.ex || []).map(e => e.k)));
-  assert.ok(ks.includes("kncrunch"), "le correctif sit-up → crunch câble est propagé");
+  assert.ok(ks.includes("plcrunch"), "le correctif sit-up → crunch au sol est propagé");
   assert.equal(r.programs.find(p => p.id === "perso").title, "PERSO", "programme perso intouché");
 });
 

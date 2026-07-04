@@ -170,7 +170,7 @@ t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
   assert.ok(core.v >= 2, "core versionné");
   const coreExs = core.sessions.flatMap(s => s.blocks.flatMap(b => b.ex.map(e => e.k)));
   assert.ok(!coreExs.includes("situp"), "sit-up lesté retiré");
-  assert.ok(coreExs.includes("kncrunch"), "crunch câble présent");
+  assert.ok(coreExs.includes("plcrunch"), "crunch au sol présent");
   // Hyrox : 3 séances, course post-sled présente
   const hy = DEFAULT_PROGRAMS.find(p => p.id === "hyrox");
   assert.equal(hy.sessions.length, 3);

@@ -91,7 +91,7 @@ const DEFAULT_PROGRAMS = [
 
 /* ============================== CORE LAB ============================== */
 {
-  id:"core", assign:["moss"], v:2,
+  id:"core", assign:["moss"], v:3,
   title:"CORE", title2:"LAB",
   tag:"Chaîne abdominale",
   accent:"#4dd2ff",
@@ -104,8 +104,8 @@ const DEFAULT_PROGRAMS = [
       blocks:[
         { label:"SUPERSET — 5 tours", note:"Charge réelle, pas de reps infinies. Le tronc se travaille comme un muscle.",
           ex:[
-            {k:"kncrunch",name:"Crunch câble / élastique à genoux",reps:"8-10 reps",anim:"crunch",load:true,sets:5,tiers:{u:"kg",steps:[10,15,20,25,30],start:1},
-             cue:"À genoux, corde derrière la nuque. Enroule le THORAX vers le bas, bassin immobile — les lombaires ne bougent pas, zéro douleur de dos. Remplace le sit-up lesté.",yt:YT("kneeling cable crunch form")},
+            {k:"plcrunch",name:"Crunch lesté au sol (jambes 90/90)",reps:"8-10 reps",anim:"crunch",load:true,sets:5,tiers:{u:"kg",steps:[5,10,15,20,25],start:1},
+             cue:"Allongé, hanches et genoux à 90°, plaque serrée sur la poitrine. Enroule le THORAX seulement — amplitude courte, lombaires collées au sol du début à la fin. Zéro traction sur le dos, zéro matériel de poulie.",yt:YT("weighted floor crunch legs elevated")},
             {k:"t2b",name:"Strict toes-to-bar (ou strict hanging leg raise)",reps:"5-8 reps",anim:"raise",sets:5,tempo:["3","0","X","0"],key:0,tiers:{u:"reps",steps:[5,6,8,10],start:0},
              cue:"Descente 3″ contrôlée, pas de balancier. Strict avant tout.",yt:YT("strict toes to bar")}
           ]},
@@ -242,13 +242,13 @@ const DEFAULT_PROGRAMS = [
    une arme et une récupération active entre les stations. 3 séances :
    base aérobie, seuil, hybride course+stations (compromised running). */
 {
-  id:"hyrox", assign:["moss"],
+  id:"hyrox", assign:["moss"], v:2,
   title:"HYROX", title2:"LAB",
   tag:"Hybride · Course",
   accent:"#4de0a6",
-  blurb:"Transformer la course en point fort : base aérobie, seuil, et courir vite sur jambes mortes.",
+  blurb:"Après le 1h19 en binôme au Grand Palais : transformer la course en point fort, en protégeant le pied droit.",
   meta:["3 séances","40-60 min","Hyrox / Engine"],
-  intro:"Phase de base : du volume facile avant l'intensité. S1 construit le moteur (Z2 — plus lent que ta moyenne, c'est voulu), S2 fait descendre la moyenne (seuil), S3 t'apprend à courir après les stations. RPE ≤6 monte d'un palier, 7-8 maintient, ≥9 ou douleur descend.",
+  intro:"Phase de base : du volume facile avant l'intensité. S1 construit le moteur (Z2 — plus lent que ta moyenne, c'est voulu), S2 fait descendre la moyenne (seuil), S3 t'apprend à courir après les stations. ⚠️ Pied droit (5ᵉ métatarsien consolidé + plateau tibial) : toute gêne au pied, à la cheville ou au genou droit = bouton DOULEUR, le palier redescend. Le volume ne monte que si le pied reste silencieux.",
   sessions:[
     { id:"s1", t:"BASE", t2:"AÉROBIE", sub:"Z2 · strides · pied", accent:"#4de0a6", pill:"~50 MIN",
       focus:"Le moteur diesel : courir FACILE, longtemps. C'est cette séance qui rendra les courses de l'Hyrox confortables — et fera de la course ta récupération active.",
@@ -256,17 +256,19 @@ const DEFAULT_PROGRAMS = [
         { label:"BLOC A — Footing Z2", note:"Allure conversation : 6:00-6:30/km pour toi. Oui, bien plus lent que ta moyenne — si tu peux parler en phrases complètes, c'est la bonne allure. Le RPE se juge sur la FIN de la sortie.",
           ex:[
             {k:"footz2",name:"Footing Z2 continu",reps:"durée / palier",anim:"carry",sets:1,timer:true,tiers:{u:"min",steps:[30,35,40,45,50,60],start:1},
-             cue:"Nez qui respire, foulée courte et fréquente (~170-180 pas/min). Si tu accélères sans t'en rendre compte, ralentis : la Z2 se gagne en discipline.",yt:YT("zone 2 running base training")}
+             cue:"Nez qui respire, foulée courte et fréquente (~170-180 pas/min) — la cadence haute réduit la charge sur le métatarse. Le volume ne monte que si le pied droit reste muet 48 h après la sortie.",yt:YT("zone 2 running base training")}
           ]},
         { label:"BLOC B — Strides", note:"De la vitesse gratuite en fin de footing : jambes fraîches en mémoire, zéro fatigue ajoutée.",
           ex:[
             {k:"strides",name:"Lignes droites progressives (20″)",reps:"accélérations / palier",anim:"explo",sets:1,tiers:{u:"reps",steps:[4,6,8,10],start:1},
              cue:"Accélère progressivement jusqu'à ~90 % sur 20″, marche 60″ entre chaque. Grande foulée relâchée, bras actifs.",yt:YT("running strides technique")}
           ]},
-        { label:"BLOC C — Pied & mollets", note:"Le pied encaisse tout à l'Hyrox. 5 minutes qui évitent les blessures.",
+        { label:"BLOC C — Pied & mollets (reconstruction)", note:"Ton pied droit sort d'une fracture du 5ᵉ métatarsien : on le RECONSTRUIT avant de le faire rebondir. Le renfo lent d'abord, la corde seulement quand tout est silencieux.",
           ex:[
-            {k:"rope",name:"Corde à sauter (pied élastique)",reps:"tenue / palier",anim:"pulse",sets:3,timer:true,tiers:{u:"s",steps:[60,90,120,150],start:0},
-             cue:"Rebonds bas et rapides sur l'avant-pied, talons qui frôlent le sol. Souple, silencieux.",yt:YT("jump rope boxer skip footwork")}
+            {k:"calfslow",name:"Calf raise lent unilatéral (marche d'escalier)",reps:"reps / palier · par jambe",anim:"hold",sets:3,tempo:["3","1","2","1"],key:0,tiers:{u:"reps",steps:[8,10,12,15,20],start:1},
+             cue:"Sur une marche, descente 3″ sous l'horizontale, montée contrôlée. Commence TOUJOURS par le pied droit : c'est lui qui fixe la dose du gauche.",yt:YT("single leg calf raise eccentric slow")},
+            {k:"rope",name:"Corde à sauter (optionnelle, pied silencieux uniquement)",reps:"tenue / palier",anim:"pulse",sets:2,timer:true,tiers:{u:"s",steps:[30,45,60,90,120],start:0},
+             cue:"Seulement si zéro gêne au 5ᵉ métatarsien et à la cheville droite ce jour-là. Rebonds BAS, souples, silencieux — au moindre signal, stop et bouton douleur.",yt:YT("jump rope boxer skip footwork")}
           ]}
       ]},
     { id:"s2", t:"SEUIL", t2:"TEMPO", sub:"Faire descendre la moyenne", accent:"#ffb02e", pill:"~45 MIN",
@@ -307,8 +309,8 @@ const DEFAULT_PROGRAMS = [
           ex:[
             {k:"wb",name:"Wall balls",reps:"reps / palier",anim:"press",sets:3,tiers:{u:"reps",steps:[15,20,25,30],start:1},
              cue:"Squat complet, cible haute, rythme métronome — casse les séries avant d'y être obligé.",yt:YT("wall ball efficiency hyrox")},
-            {k:"bbj",name:"Burpee broad jumps",reps:"reps / palier",anim:"explo",sets:3,tiers:{u:"reps",steps:[8,10,12,15],start:0},
-             cue:"Saute loin plutôt que haut, retombe amorti. Rythme régulier, respiration calée.",yt:YT("burpee broad jump technique")}
+            {k:"bbj",name:"Burpee broad jumps (réception amortie)",reps:"reps / palier",anim:"explo",sets:3,tiers:{u:"reps",steps:[6,8,10,12,15],start:0},
+             cue:"Saute loin plutôt que haut, réception fléchie et SILENCIEUSE — c'est le pied droit qui décide du volume. Option sans saut si sensible : burpee step-back + grand pas marché.",yt:YT("burpee broad jump technique")}
           ]},
         { label:"FINISHER — Porté + fentes", note:"Les deux dernières stations de l'Hyrox, sur jambes cuites.",
           ex:[
