@@ -1,0 +1,97 @@
+{
+  "id": "epaule-mobilite",
+  "assign": ["souad"],
+  "title": "MOBILITÉ",
+  "title2": "ÉPAULE",
+  "tag": "Mobilité",
+  "accent": "#5ecbb0",
+  "blurb": "Mobilité et stabilité d'épaule, poids du corps et bande élastique, deux séances courtes.",
+  "meta": ["2 séances", "~15 min", "Mobilité"],
+  "intro": "Réveille et stabilise l'épaule sans charge lourde. Séance 1 : mobilité articulaire et activation. Séance 2 : stabilité sous tension légère + tenue chargée. Test d'amplitude toutes les 2 semaines pour suivre la progression.",
+  "sessions": [
+    {
+      "id": "s1",
+      "t": "MOBILITÉ",
+      "t2": "ARTICULAIRE",
+      "sub": "Réveil + activation",
+      "accent": "#5ecbb0",
+      "pill": "~15 MIN",
+      "focus": "Mobilise l'épaule dans toutes les amplitudes puis active les stabilisateurs (coiffe des rotateurs, rhomboïdes).",
+      "blocks": [
+        {
+          "label": "BLOC A — EVERY 60″ × 4",
+          "timer": 60,
+          "note": "Pas de charge, amplitude complète. Une minute = un exercice, ne bâcle pas la dernière rep.",
+          "ex": [
+            {"k": "dislo", "name": "Band dislocations", "reps": "10 reps", "anim": "press", "sets": 4,
+             "cue": "Bande tendue, bras longs. Passe d'avant à arrière sans plier les coudes. Amplitude complète, va aussi loin que possible sans douleur.",
+             "yt": "https://www.youtube.com/results?search_query=band%20dislocations%20shoulder%20mobility"},
+            {"k": "arm-circ", "name": "Arm circles (petits puis grands)", "reps": "10 / sens", "anim": "rotate", "sets": 4,
+             "cue": "Bras tendus à l'horizontale. Petits cercles 10 reps, puis grands cercles 10 reps, deux sens. Réveille l'articulation.",
+             "yt": "https://www.youtube.com/results?search_query=arm%20circles%20shoulder%20warm%20up"},
+            {"k": "thorax", "name": "Thoracic rotations (à 4 pattes)", "reps": "5 / côté", "anim": "rotate", "sets": 4,
+             "cue": "Main derrière la tête, ouvre la poitrine en rotation vers le plafond. Regarde ta main qui tourne. Mobilise le haut du dos, pas juste l'épaule.",
+             "yt": "https://www.youtube.com/results?search_query=thoracic%20rotation%20mobility%20shoulder"},
+            {"k": "wallslide", "name": "Wall slides", "reps": "10 reps", "anim": "raise", "sets": 4,
+             "cue": "Dos et bras contre le mur, coudes et poignets collés. Monte les bras sans décoller le dos. Si le bas du dos décolle, réduis l'amplitude.",
+             "yt": "https://www.youtube.com/results?search_query=wall%20slides%20shoulder%20mobility"}
+          ]
+        },
+        {
+          "label": "BLOC B — Activation, 3 tours",
+          "note": "Flow continu, pas de repos chronométré entre les exercices.",
+          "ex": [
+            {"k": "pullapart", "name": "Band pull-aparts", "reps": "15-20 reps", "anim": "row", "sets": 3,
+             "cue": "Bande tendue devant à hauteur d'épaule. Tire des deux côtés, serre les omoplates 1 sec en fin de mouvement.",
+             "yt": "https://www.youtube.com/results?search_query=band%20pull%20aparts%20rear%20deltoid"},
+            {"k": "scap-pu", "name": "Scapula push-ups", "reps": "10-12 reps", "anim": "curl", "sets": 3,
+             "cue": "Position planche, bras tendus. Ne plie pas les coudes : seules les omoplates bougent (protraction/rétraction).",
+             "yt": "https://www.youtube.com/results?search_query=scapula%20push%20ups"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "t": "STABILITÉ",
+      "t2": "SOUS TENSION",
+      "sub": "Bande élastique + tenue chargée",
+      "accent": "#4dd2ff",
+      "pill": "~15 MIN",
+      "focus": "Stabilise l'épaule dans les positions à risque (bras haut, rotation externe) et construit l'endurance de tenue.",
+      "blocks": [
+        {
+          "label": "BLOC A — 3 séries",
+          "note": "Contrôle avant vitesse. Si tu compenses avec le dos, réduis la tension de la bande.",
+          "ex": [
+            {"k": "rotext", "name": "Rotation externe avec bande", "reps": "12 reps / côté", "anim": "rotate", "sets": 3,
+             "cue": "Coude collé au corps à 90°, bande fixée devant. Tourne l'avant-bras vers l'extérieur, coude ne bouge pas.",
+             "yt": "https://www.youtube.com/results?search_query=band%20external%20rotation%20shoulder"},
+            {"k": "yraise", "name": "Y-raises avec bande", "reps": "10 reps", "anim": "raise", "sets": 3,
+             "cue": "Bras en Y au-dessus de la tête, pouces vers le haut. Monte lentement, contrôle la descente (3 secondes).",
+             "yt": "https://www.youtube.com/results?search_query=band%20Y%20raises%20shoulder"}
+          ]
+        },
+        {
+          "label": "FINISHER — tenue chargée, 3 séries",
+          "note": "La tenue construit l'endurance des stabilisateurs. Palier progressif par la durée de maintien.",
+          "ex": [
+            {"k": "wallhold", "name": "Wall slide hold (bras hauts, dos au mur)", "reps": "maintien", "anim": "hold", "sets": 3, "timer": true,
+             "tiers": {"u": "s", "steps": [15, 20, 25, 30, 40, 50, 60], "start": 1},
+             "cue": "Bras en position wall slide haute, dos plaqué au mur. Tiens la position sans laisser le bas du dos décoller.",
+             "yt": "https://www.youtube.com/results?search_query=wall%20slide%20hold%20shoulder%20stability"}
+          ]
+        },
+        {
+          "label": "JALON — toutes les 2 semaines",
+          "note": "Zéro charge, juste la mesure. Compare à la dernière fois, pas à un chiffre absolu.",
+          "ex": [
+            {"k": "romtest", "name": "Test amplitude flexion épaule (photo ou goniomètre)", "reps": "1 mesure", "anim": "raise", "sets": 1, "test": true,
+             "cue": "Bras tendu, monte au maximum devant toi sans cambrer le dos. Prends une photo de profil ou mesure l'angle. Note le chiffre, compare dans 2 semaines.",
+             "yt": "https://www.youtube.com/results?search_query=shoulder%20flexion%20range%20of%20motion%20test"}
+          ]
+        }
+      ]
+    }
+  ]
+}
