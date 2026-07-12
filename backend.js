@@ -99,18 +99,23 @@ const Backend = (() => {
 
   /* ---- semaines courantes par programme ---- */
   function getWeek(pid){ return (readLS(K("weeks"), {})[pid] || 1); }
-  function setWeek(pid, n){ const w = readLS(K("weeks"), {}); w[pid] = n; writeLS(K("weeks"), w); }
+  async function setWeek(pid, n){
+    const w = readLS(K("weeks"), {}); w[pid] = n; writeLS(K("weeks"), w);
+    await syncState("weeks", w);
+  }
 
   /* ---- état de progression RPE (paliers) — local par profil ---- */
   function loadProgression(){ return readLS(K("progression"), {}); }
-  function saveProgression(pr){ writeLS(K("progression"), pr); }
+  async function saveProgression(pr){ writeLS(K("progression"), pr); await syncState("progression", pr); }
 
   /* ---- journal de séances (assiduité) — local par profil ----
      entrées {d:"AAAA-MM-JJ", prog, s, w} ; une par (jour, prog, séance). */
   function getLog(){ return readLS(K("log"), []); }
-  function addLog(entry){
+  async function addLog(entry){
     const log = getLog().filter(e=>!(e.d===entry.d && e.prog===entry.prog && e.s===entry.s));
-    log.push(entry); writeLS(K("log"), log); return log;
+    log.push(entry); writeLS(K("log"), log);
+    await syncState("log", log);
+    return log;
   }
 
   /* ---- horodatage de la dernière sauvegarde (export) — global ---- */
@@ -148,7 +153,21 @@ const Backend = (() => {
       const { error } = await client.from("programs").delete()
         .eq("user_id", currentUser.id).eq("id", op.id);
       if(error) throw error;
+    } else if(op.t==="state"){
+      const { error } = await client.from("state").upsert({
+        user_id: currentUser.id, key: op.key, value: op.value,
+        updated_at: new Date().toISOString()
+      });
+      if(error) throw error;
     }
+  }
+  /* écrit un blob d'état ("progression" | "weeks" | "log") en cache local
+     puis, en CLOUD, le pousse (file d'attente si hors-ligne/échec).      */
+  async function syncState(key, value){
+    if(!CLOUD) return;
+    const op = { t:"state", key, value };
+    try{ if(!navigator.onLine) throw 0; await applyOp(op); }
+    catch(e){ enqueue(op); }
   }
 
   /* ---- init ---- */
@@ -256,6 +275,17 @@ const Backend = (() => {
       const progress = {};
       (rows||[]).forEach(r=>{ progress[r.program_id]=progress[r.program_id]||{}; progress[r.program_id]["w"+r.week]=r.state; });
       writeLS(K("progress"), progress);
+
+      // paliers RPE / semaine courante / journal — un blob par clé
+      const { data: stateRows, error: e3 } = await client.from("state")
+        .select("*").eq("user_id", currentUser.id);
+      if(e3) throw e3;
+      const byKey = {};
+      (stateRows||[]).forEach(r=>{ byKey[r.key] = r.value; });
+      writeLS(K("progression"), byKey.progression || {});
+      writeLS(K("weeks"), byKey.weeks || {});
+      writeLS(K("log"), byKey.log || []);
+
       return { programs, progress };
     }catch(e){
       // offline / erreur : on sert le cache

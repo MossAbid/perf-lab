@@ -178,4 +178,112 @@ t("exportAll → importProfilesDoc : aller-retour fidèle (journal inclus)", asy
   assert.equal(b.Backend.getLog().length, 1, "journal de séances restauré");
 });
 
+/* ---- mode CLOUD : sync des blobs d'état (progression/weeks/log) ----
+   Mock minimal du client Supabase (select/eq/order/upsert/delete, tous
+   thenables comme le vrai client) + un stub d'auth avec session fixe. */
+function makeMockClient(store, session) {
+  function makeChain(execute) {
+    const filters = [];
+    const chain = {
+      eq: (col, val) => { filters.push([col, val]); return chain; },
+      order: () => chain,
+      then: (resolve, reject) => { try { resolve(execute(filters)); } catch (e) { reject(e); } }
+    };
+    return chain;
+  }
+  const PK = { programs: ["user_id", "id"], progress: ["user_id", "program_id", "week"], state: ["user_id", "key"] };
+  function from(table) {
+    return {
+      select: () => makeChain(filters => ({ data: store[table].filter(r => filters.every(([c, v]) => r[c] === v)), error: null })),
+      upsert: async rows => {
+        const arr = Array.isArray(rows) ? rows : [rows];
+        const pk = PK[table];
+        arr.forEach(row => {
+          const i = store[table].findIndex(r => pk.every(k => r[k] === row[k]));
+          if (i >= 0) store[table][i] = row; else store[table].push(row);
+        });
+        return { error: null };
+      },
+      delete: () => makeChain(filters => { store[table] = store[table].filter(r => !filters.every(([c, v]) => r[c] === v)); return { error: null }; })
+    };
+  }
+  return {
+    auth: {
+      getSession: async () => ({ data: { session } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe(){} } } }),
+      signOut: async () => {}
+    },
+    from
+  };
+}
+function bootCloud(store, session, seedLS) {
+  const ls = makeLocalStorage(seedLS);
+  const onlineHandlers = [];
+  const sandbox = {
+    window: { addEventListener: (evt, cb) => { if (evt === "online") onlineHandlers.push(cb); } },
+    localStorage: ls, navigator: { onLine: true },
+    console, JSON, Math, Date, Array, Object, Set, String, Number, Boolean, Promise
+  };
+  sandbox.window.localStorage = ls;
+  sandbox.window.CONFIG = { SUPABASE_URL: "https://x.supabase.co", SUPABASE_ANON_KEY: "anon" };
+  sandbox.window.supabase = { createClient: () => makeMockClient(store, session) };
+  const code = `
+    const window = __sandbox.window;
+    const localStorage = __sandbox.localStorage;
+    const navigator = __sandbox.navigator;
+    ${src("programs.js")}
+    ${src("progression.js")}
+    ${src("backend.js")}
+    return { Backend };
+  `;
+  const r = new Function("__sandbox", code)(sandbox);
+  return { Backend: r.Backend, ls, sandbox, onlineHandlers };
+}
+
+t("CLOUD : loadAll hydrate progression/weeks/log depuis les lignes 'state'", async () => {
+  const store = {
+    programs: [], progress: [], state: [
+      { user_id: "u1", key: "progression", value: { lower: { rdl: { week: 2, tier: 1, next: 2, hist: [] } } } },
+      { user_id: "u1", key: "weeks", value: { lower: 3 } },
+      { user_id: "u1", key: "log", value: [{ d: "2026-07-02", prog: "lower", s: "s1", w: 3 }] }
+    ]
+  };
+  const { Backend } = bootCloud(store, { user: { id: "u1", email: "t@t.com" } });
+  await Backend.init();
+  await Backend.loadAll();
+  assert.equal(Backend.loadProgression().lower.rdl.next, 2);
+  assert.equal(Backend.getWeek("lower"), 3);
+  assert.equal(Backend.getLog().length, 1);
+});
+
+t("CLOUD : saveProgression/setWeek/addLog poussent vers 'state' en ligne", async () => {
+  const store = { programs: [], progress: [], state: [] };
+  const { Backend } = bootCloud(store, { user: { id: "u1", email: "t@t.com" } });
+  await Backend.init();
+  await Backend.loadAll();
+  await Backend.saveProgression({ core: { situp: { week: 1, tier: 0, next: 1, hist: [] } } });
+  await Backend.setWeek("core", 2);
+  await Backend.addLog({ d: "2026-07-02", prog: "core", s: "s1", w: 2 });
+  const row = k => store.state.find(r => r.user_id === "u1" && r.key === k);
+  assert.equal(row("progression").value.core.situp.next, 1);
+  assert.equal(row("weeks").value.core, 2);
+  assert.equal(row("log").value.length, 1);
+});
+
+t("CLOUD : écriture hors-ligne mise en file, poussée au retour du réseau", async () => {
+  const store = { programs: [], progress: [], state: [] };
+  const { Backend, sandbox, onlineHandlers } = bootCloud(store, { user: { id: "u1", email: "t@t.com" } });
+  await Backend.init();
+  await Backend.loadAll();
+  sandbox.navigator.onLine = false;
+  await Backend.addLog({ d: "2026-07-02", prog: "core", s: "s1", w: 1 });
+  assert.ok(!store.state.some(r => r.key === "log"), "rien poussé pendant la coupure");
+  sandbox.navigator.onLine = true;
+  assert.equal(onlineHandlers.length, 1, "flushQueue enregistré sur l'event online");
+  await onlineHandlers[0]();
+  const row = store.state.find(r => r.user_id === "u1" && r.key === "log");
+  assert.ok(row, "journal synchronisé après le flush");
+  assert.equal(row.value.length, 1);
+});
+
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });

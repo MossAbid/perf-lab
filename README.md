@@ -100,6 +100,11 @@ le fusionne profil par profil (programmes remplacés par `id`, états remplacés
 La clé *anon* est publique : la sécurité vient des règles **RLS** (chaque utilisateur ne
 voit que ses propres lignes), déjà définies dans `schema.sql`.
 
+En mode CLOUD, tout est synchronisé : programmes, séries/charges (`progress`), **et**
+paliers RPE, semaine courante et journal de séances (table `state`, un blob JSON par
+clé). Compte créé avant l'ajout de la table `state` ? Recolle juste ce bloc de
+`schema.sql` dans le SQL Editor, rien d'autre à migrer.
+
 ## Déployer + installer sur iPhone (plein écran, offline, icône)
 Une PWA doit être servie en **HTTPS** (le `file://` ne permet ni l'offline ni le plein écran).
 1. https://app.netlify.com/drop → **glisse le dossier** entier. (ou GitHub → Pages.)
