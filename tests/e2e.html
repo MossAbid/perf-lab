@@ -29,6 +29,7 @@
 <script src="../config.js"></script>
 <script src="../programs.js"></script>
 <script src="../progression.js"></script>
+<script src="../micro.js"></script>
 <script src="../backend.js"></script>
 <script src="../app.js"></script>
 
@@ -158,6 +159,86 @@
     document.querySelector('[data-prof="souad"]').click();
     await tick(200);
     ok("progression Moss (lower) invisible chez Souad", !("lower" in Backend.loadProgression()));
+    ok("micro-programme masqué chez Souad", !document.querySelector("[data-micro]"));
+
+    /* 7. MICRO-PROGRAM (Moss) : sélection WYS → génération → enregistrement */
+    document.querySelector('[data-prof="moss"]').click();
+    await tick(200);
+    ok("carte Micro Program dans la bibliothèque de Moss", !!document.querySelector("[data-micro]"));
+    ok("les 4 programmes de Moss sont toujours là (carte micro non comptée)",
+       document.querySelectorAll(".card[data-go]").length === 6); // 4 défauts + legacy + import-test
+
+    document.querySelector("[data-micro]").click();
+    await tick(150);
+    ok("vue micro rendue", !!document.getElementById("gen"));
+    ok("16 catégories WYS proposées", document.querySelectorAll("[data-tag]").length === 16);
+    ok("3 niveaux de fatigue + 4 durées",
+       document.querySelectorAll("[data-fat]").length === 3 && document.querySelectorAll("[data-min]").length === 4);
+    ok("dashboard Skill Progress : 4 skills", document.querySelectorAll(".skrow").length === 4);
+
+    /* 7a. séance chargée en tirage : ni BMU ni HSW proposés */
+    document.querySelector('[data-tag="heavy_pull"]').click();
+    document.querySelector('[data-tag="hspu"]').click();
+    document.querySelector('[data-fat="green"]').click();
+    document.querySelector('[data-min="10"]').click();
+    document.getElementById("gen").click();
+    await tick(120);
+    ok("micro-session générée", document.querySelectorAll(".mitem").length > 0);
+    const badges = [...document.querySelectorAll(".mi-badge")].map(b => b.textContent);
+    ok("BMU retiré (WYS = heavy pulling)", !badges.some(b => b.startsWith("BMU")));
+    ok("HSW retiré (WYS = HSPU)", !badges.some(b => b.startsWith("HSW")));
+    const totalMin = [...document.querySelectorAll(".mi-min")].reduce((a, e) => a + parseInt(e.textContent, 10), 0);
+    ok("budget de 10 min respecté", totalMin <= 10);
+    ok("jamais un 2e entraînement (≤ 3 blocs)", document.querySelectorAll(".mitem").length <= 3);
+
+    /* 7b. enregistrement d'un résultat → historique + progression du palier */
+    const ubIn = document.querySelector('[data-rk][data-rm="ub"]');
+    ok("champs de suivi présents (best unbroken)", !!ubIn);
+    const skillTracked = ubIn.dataset.rk;
+    ubIn.value = "99";                       // cible largement dépassée
+    document.getElementById("mrpe").value = "5";
+    document.getElementById("msave").click();
+    await tick(200);
+    const microLS = JSON.parse(localStorage.getItem("perflab.p.moss.micro") || "null");
+    ok("micro-session persistée en localStorage", !!microLS && microLS.history.length === 1);
+    ok("résultat enregistré", microLS.history[0].res[skillTracked].ub === 99);
+    ok("palier monté (cible atteinte + RPE 5)", !!microLS.skills[skillTracked] && microLS.skills[skillTracked].next > microLS.skills[skillTracked].tier);
+    ok("historique affiché", document.querySelectorAll(".mhrow").length === 1);
+    ok("dashboard mis à jour (current renseigné)",
+       [...document.querySelectorAll(".skn1 b")].some(b => b.textContent.trim() !== "–"));
+
+    /* 7c. fatigue rouge après un metcon → NO ADDITIONAL WORK */
+    document.querySelector('[data-tag="metcon"]').click();
+    document.querySelector('[data-tag="heavy_pull"]').click();
+    document.querySelector('[data-fat="red"]').click();
+    document.getElementById("gen").click();
+    await tick(120);
+    ok("fatigue rouge + metcon → NO ADDITIONAL WORK",
+       !!document.querySelector(".mnone") && document.querySelector(".mnone-t").textContent.includes("NO ADDITIONAL WORK"));
+
+    /* 7d. fatigue rouge seule → mobilité courte uniquement */
+    document.querySelector('[data-tag="metcon"]').click();   // décoche
+    document.querySelector('[data-tag="heavy_pull"]').click(); // décoche
+    document.querySelector('[data-tag="overhead"]').click();
+    document.getElementById("gen").click();
+    await tick(120);
+    ok("fatigue rouge → un seul bloc léger", document.querySelectorAll(".mitem").length === 1);
+    ok("fatigue rouge → mobilité, aucun skill",
+       document.querySelector(".mi-badge").textContent.includes("MOBILITY"));
+    ok("fatigue rouge → 5 min maximum",
+       parseInt(document.querySelector(".mi-min").textContent, 10) <= 5);
+
+    /* 7e. l'export global embarque le micro-programme */
+    const exp = Backend.exportAll();
+    const mossExp = exp.profiles.find(p => p.id === "moss");
+    ok("export : micro-programme inclus", !!mossExp.micro && mossExp.micro.history.length === 1);
+    ok("export : le reste du schéma est intact",
+       Array.isArray(mossExp.programs) && !!mossExp.progression && Array.isArray(mossExp.log));
+
+    /* 7f. les programmes classiques fonctionnent toujours après tout ça */
+    await goto("p/lower");
+    ok("LOWER LAB toujours fonctionnel après le micro-programme",
+       document.querySelectorAll(".tab").length === 2 && !!document.querySelector(".target.tier"));
   } catch (e) {
     out.push("E2E-FAIL exception : " + (e && e.stack || e));
   }

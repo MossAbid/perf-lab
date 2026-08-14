@@ -118,6 +118,14 @@ const Backend = (() => {
     return log;
   }
 
+  /* ---- micro-programme adaptatif — local par profil ----
+     Blob opaque { v, start, skills, history } écrit tel quel : le backend
+     ne connaît pas sa structure (elle vit dans micro.js). Même transport
+     que progression/weeks/log — une clé de plus dans la table `state`,
+     donc aucun changement de schéma SQL.                                */
+  function getMicro(){ return readLS(K("micro"), null); }
+  async function saveMicro(m){ writeLS(K("micro"), m); await syncState("micro", m); }
+
   /* ---- horodatage de la dernière sauvegarde (export) — global ---- */
   const EXPORT_KEY = "perflab.lastExport";
   function lastExport(){ const v = localStorage.getItem(EXPORT_KEY); return v ? +v : null; }
@@ -285,6 +293,7 @@ const Backend = (() => {
       writeLS(K("progression"), byKey.progression || {});
       writeLS(K("weeks"), byKey.weeks || {});
       writeLS(K("log"), byKey.log || []);
+      if(byKey.micro) writeLS(K("micro"), byKey.micro);
 
       return { programs, progress };
     }catch(e){
@@ -351,7 +360,8 @@ const Backend = (() => {
         progress:    readLS(Kp(p.id,"progress"), {}),
         weeks:       readLS(Kp(p.id,"weeks"), {}),
         progression: readLS(Kp(p.id,"progression"), {}),
-        log:         readLS(Kp(p.id,"log"), [])
+        log:         readLS(Kp(p.id,"log"), []),
+        micro:       readLS(Kp(p.id,"micro"), null)
       }))
     };
   }
@@ -363,7 +373,8 @@ const Backend = (() => {
         progress:    readLS(Kp(p.id,"progress"), {}),
         weeks:       readLS(Kp(p.id,"weeks"), {}),
         progression: readLS(Kp(p.id,"progression"), {}),
-        log:         readLS(Kp(p.id,"log"), [])
+        log:         readLS(Kp(p.id,"log"), []),
+        micro:       readLS(Kp(p.id,"micro"), null)
       };
     });
     window.PLProgression.mergeProfilesDoc(state, doc);
@@ -375,6 +386,8 @@ const Backend = (() => {
       writeLS(Kp(pid,"weeks"),       state[pid].weeks);
       writeLS(Kp(pid,"progression"), state[pid].progression);
       writeLS(Kp(pid,"log"),         state[pid].log || []);
+      // sauvegardes antérieures au micro-programme : clé absente → on garde l'existant
+      if(state[pid].micro) writeLS(Kp(pid,"micro"), state[pid].micro);
     });
   }
 
@@ -382,6 +395,6 @@ const Backend = (() => {
            loadAll, saveProgress, upsertProgram, upsertProgramFor, deleteProgram,
            activeProfile, setProfile, profiles,
            getWeek, setWeek, loadProgression, saveProgression,
-           getLog, addLog, lastExport, markExported,
+           getLog, addLog, getMicro, saveMicro, lastExport, markExported,
            exportAll, importProfilesDoc };
 })();

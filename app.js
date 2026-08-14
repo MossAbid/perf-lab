@@ -39,7 +39,9 @@ function softBeep(){ try{ const c=new (window.AudioContext||window.webkitAudioCo
 
 /* ---- state ---- */
 const PL = window.PLProgression;
+const M  = window.PLMicro || null;   // absent = micro-programme masqué, app intacte
 let LIBRARY=[], PROGRESS={}, PROGRESSION={}, CUR=null, activeSession=null;
+let MICRO=null;   // état du micro-programme adaptatif (blob micro.js)
 const getWeek = pid => Backend.getWeek(pid);
 const setWeek = (pid,n)=> Backend.setWeek(pid,n);
 function weekState(pid,wk){ PROGRESS[pid]=PROGRESS[pid]||{}; PROGRESS[pid]["w"+wk]=PROGRESS[pid]["w"+wk]||{}; return PROGRESS[pid]["w"+wk]; }
@@ -65,8 +67,10 @@ async function hydrate(){
     const r = await Backend.loadAll();
     LIBRARY = r.programs || []; PROGRESS = r.progress || {};
     PROGRESSION = Backend.loadProgression();
+    if(M) MICRO = M.normalizeState(Backend.getMicro(), today());
     if(r.offline) toast("Hors-ligne — données locales");
-  }catch(e){ LIBRARY = DEFAULT_PROGRAMS.slice(); PROGRESS = {}; PROGRESSION = {}; }
+  }catch(e){ LIBRARY = DEFAULT_PROGRAMS.slice(); PROGRESS = {}; PROGRESSION = {};
+    if(M) MICRO = M.normalizeState(null, today()); }
 }
 
 /* ---- ROUTER ---- */
@@ -74,6 +78,7 @@ function route(){
   const h = location.hash.replace(/^#\/?/,"");
   if(Backend.isCloud() && !Backend.user()){ renderAuth(); return; }
   if(h==="add"){ renderAdd(); return; }
+  if(h==="micro" && M){ renderMicro(); return; }
   if(h.startsWith("p/")){
     const prog = LIBRARY.find(p=>p.id===h.slice(2));
     if(prog){ renderProgram(prog); return; }
@@ -120,6 +125,19 @@ function renderLibrary(){
       <div class="cmeta">${(p.meta||[]).map(m=>`<span>${esc(m)}</span>`).join("")}</div>
     </div>`).join("");
   const prof = Backend.activeProfile();
+  /* micro-programme adaptatif : quotidien, complément de la programmation WYS60 (Moss) */
+  const microOn = !!M && prof === "moss";
+  const mstats = microOn ? M.skillStats(MICRO, today()) : null;
+  const mvol = microOn ? M.weeklyVolume(MICRO, today()) : null;
+  const microCard = microOn ? `
+    <div class="card mcard" data-micro style="--c-accent:#ff4d3d">
+      <div class="tag">⚡ Quotidien</div><div class="dot"></div>
+      <div class="ct">MICRO <em>PROGRAM</em></div>
+      <div class="cb">3-10 min après ta séance WYS — la dose est choisie d'après ce que tu viens de faire.</div>
+      <div class="cmeta">${["bmu","du","ttb","hsw"].map(k=>
+        `<span>${esc(M.SKILLS[k].short)} ${mstats[k].cur!=null?esc(mstats[k].cur):"–"}</span>`).join("")}</div>
+      <div class="cs">${mvol.sessions} session${mvol.sessions>1?"s":""} · ${mvol.minutes} min / 7 j</div>
+    </div>` : "";
   const profSel = cloud ? "" : `<div class="profsel">${Backend.profiles().map(p=>
     `<button class="profbtn${p.id===prof?" active":""}" data-prof="${esc(p.id)}">${esc(p.name)}</button>`).join("")}</div>`;
   /* assiduité : 14 derniers jours du journal de séances du profil */
@@ -152,6 +170,7 @@ function renderLibrary(){
       ${assidHtml}
       ${backupHtml}
       <div class="lib">
+        ${microCard}
         ${cards}
         <div class="card add" data-add>
           <div class="plus">＋</div>
@@ -163,6 +182,7 @@ function renderLibrary(){
   </div></div>`;
   app.querySelectorAll("[data-go]").forEach(c=> c.onclick=()=> location.hash="#/p/"+c.dataset.go );
   app.querySelector("[data-add]").onclick=()=> location.hash="#/add";
+  const mc=app.querySelector("[data-micro]"); if(mc) mc.onclick=()=> location.hash="#/micro";
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
     if(b.dataset.prof===Backend.activeProfile()) return;
     Backend.setProfile(b.dataset.prof);
@@ -174,6 +194,214 @@ function renderLibrary(){
     Backend.markExported(); toast("Sauvegarde téléchargée."); renderLibrary();
   };
   window.scrollTo(0,0);
+}
+
+/* ============================ MICRO-PROGRAM ============================
+   Complément quotidien de 3-10 min à la programmation WYS60. L'utilisateur
+   déclare ce que contenait sa séance, le moteur (micro.js) choisit la plus
+   petite dose utile — ou répond « rien aujourd'hui ».
+   Ce n'est jamais un 2e entraînement.                                     */
+const MUI_KEY = "perflab.micro.ui";
+let MSEL = null, MGEN = null;
+
+function microSel(){
+  const d = today();
+  if(MSEL && MSEL.d === d) return MSEL;
+  const saved = rLS(MUI_KEY, {});   // fatigue + temps mémorisés : moins de taps le lendemain
+  MSEL = { d, tags: [], fatigue: M.FATIGUE.some(f=>f.id===saved.fatigue) ? saved.fatigue : "yellow",
+           min: M.TIMES.includes(saved.min) ? saved.min : 5 };
+  return MSEL;
+}
+function microUnit(id){ return M.SKILLS[id].tiers.u === "m" ? " m" : ""; }
+
+/* ---- dashboard « Skill Progress » ---- */
+function microDash(){
+  const st = M.skillStats(MICRO, today());
+  const vol = M.weeklyVolume(MICRO, today());
+  const rows = M.SKILL_IDS.map(id=>{
+    const s = st[id], u = microUnit(id);
+    const spark = PL.sparklineSVG(s.hist, M.SKILLS[id].tiers);
+    const pct = s.cur!=null && s.final ? Math.min(100, Math.round(s.cur/s.final*100)) : 0;
+    return `<div class="skrow" style="--c-accent:${esc(s.accent)}">
+      <div class="skhead"><span class="skdot"></span>
+        <div class="skn">${esc(s.name)}</div>
+        <div class="skph">${esc(s.phase)}</div></div>
+      <div class="sknums">
+        <div class="skn1"><span class="l">Current</span><b>${s.cur!=null?esc(s.cur)+u:"–"}</b></div>
+        <div class="skn1"><span class="l">Best</span><b>${s.best!=null?esc(s.best)+u:"–"}</b></div>
+        <div class="skn1"><span class="l">Target</span><b class="tg">${esc(s.target)+u}</b></div>
+        <div class="skn1"><span class="l">7 jours</span><b>${esc(s.week7)+u}</b></div>
+      </div>
+      <div class="skbar"><div class="skfill" style="width:${pct}%"></div></div>
+      ${spark?`<div class="sparkrow">${spark}<span class="sparklab">palier · objectif final ${esc(s.final)+u}</span></div>`:""}
+    </div>`;
+  }).join("");
+  return `<div class="blk"><div class="blk-h"><div class="bl">Skill Progress</div><div class="line"></div></div>
+    <div class="skgrid">${rows}</div>
+    <div class="blk-note">Volume 7 jours : ${vol.sessions} micro-session${vol.sessions>1?"s":""} · ${vol.minutes} min au total.</div>
+  </div>`;
+}
+
+/* ---- rendu d'une micro-séance générée ---- */
+function microOut(gen){
+  if(!gen) return "";
+  if(gen.none){
+    return `<div class="mnone">
+      <div class="mnone-t">NO ADDITIONAL WORK TODAY</div>
+      <div class="mnone-b">${esc(gen.why)}</div></div>`;
+  }
+  const total = gen.items.reduce((a,i)=>a+i.min,0);
+  const items = gen.items.map((it,ix)=>{
+    const sk = M.SKILLS[it.skill];
+    const badge = sk ? sk.short : (it.skill==="mob" ? "MOBILITY" : (it.famLabel||"STRENGTH"));
+    const col = sk ? sk.accent : (it.skill==="mob" ? "#8b929c" : "#b6f24e");
+    return `<div class="mitem" style="--c-accent:${esc(col)}">
+      <div class="mi-top">
+        <div class="anim a-${esc(it.anim)} go">${figFor(it.anim)}</div>
+        <div class="mi-id">
+          <div class="mi-badge">${esc(badge)}${it.reduced?` · <span class="red">dose réduite</span>`:""}</div>
+          <div class="mi-name">${esc(it.name)}</div>
+          <div class="mi-scheme">${esc(it.sets)} × ${esc(it.scheme)}</div>
+        </div>
+        <div class="mi-min">${esc(it.min)}′</div>
+      </div>
+      <div class="cue">${esc(it.cue)}</div>
+      ${it.tip?`<div class="mi-tip">${esc(it.tip)}</div>`:""}
+      ${sk?`<div class="mi-res">
+        ${sk.metrics.map(m=>`<label class="mres1"><span>${esc(m.label)}</span>
+          <input class="load" type="number" inputmode="numeric" min="0"${m.max?` max="${m.max}"`:""}
+                 placeholder="${esc(m.ph)}" data-rk="${esc(it.skill)}" data-rm="${esc(m.k)}"></label>`).join("")}
+      </div>`:`<label class="mdone"><input type="checkbox" data-mdone="${ix}"> Fait</label>`}
+    </div>`;
+  }).join("");
+  const notes = (gen.notes||[]).map(n=>`<div class="mnote">${esc(n)}</div>`).join("");
+  return `<div class="msession">
+    <div class="msess-h"><div class="bl">Micro-session · ${esc(total)} min</div>
+      <div class="msess-w">Semaine ${esc(gen.week)}/8 · cycle ${esc(gen.cycle)}</div></div>
+    ${notes}
+    ${items}
+    <div class="setlab" style="margin-top:14px">RPE global de la micro-session — ≤6 monte le palier · 7-8 maintient · ≥9 ou douleur descend</div>
+    <div class="rpe-row">
+      <input class="load rpe" id="mrpe" type="number" inputmode="numeric" min="0" max="10" placeholder="–">
+      <button class="painbtn" id="mpain">⚡ Douleur</button>
+      <span class="rpe-next" id="mnext"></span>
+    </div>
+    <button class="donebtn" id="msave">✓ Enregistrer la micro-session</button>
+  </div>`;
+}
+
+/* ---- historique récent ---- */
+function microHist(){
+  const h = (MICRO.history||[]).slice(-6).reverse();
+  if(!h.length) return "";
+  const rows = h.map(e=>{
+    const f = M.FATIGUE.find(x=>x.id===e.fatigue) || M.FATIGUE[1];
+    const what = (e.items||[]).map(i=>{
+      const sk = M.SKILLS[i.skill];
+      return esc((sk?sk.short:(i.skill==="mob"?"MOB":"RENF")) + " " + (i.scheme||""));
+    }).join(" · ") || "repos";
+    const res = M.SKILL_IDS.filter(id=>e.res && e.res[id] && e.res[id].ub!=null && e.res[id].ub!=="")
+      .map(id=>`<span class="tres win">${esc(M.SKILLS[id].short)} ${esc(e.res[id].ub)}${microUnit(id)}</span>`).join("");
+    return `<div class="mhrow">
+      <div class="mh-d">${esc(e.d.slice(5).split("-").reverse().join("/"))}
+        <span class="mh-f" style="background:${esc(f.dot)}" title="${esc(f.label)}"></span></div>
+      <div class="mh-w">${what}</div>
+      <div class="mh-r">${res}${e.rpe!=null?`<span class="tres">RPE ${esc(e.rpe)}</span>`:""}${e.pain?`<span class="tres pain">⚡</span>`:""}</div>
+    </div>`;
+  }).join("");
+  return `<div class="blk"><div class="blk-h"><div class="bl">Micro-session history</div><div class="line"></div></div>
+    ${rows}</div>`;
+}
+
+function renderMicro(){
+  setAccent("#ff4d3d");
+  const sel = microSel();
+  const wk = M.microWeek(MICRO, today());
+  const groups = [];
+  M.TAGS.forEach(t=>{ let g=groups.find(x=>x.g===t.g); if(!g){ g={g:t.g,items:[]}; groups.push(g); } g.items.push(t); });
+  const chips = groups.map(g=>`<div class="tgroup"><div class="tglab">${esc(g.g)}</div>
+    <div class="tgchips">${g.items.map(t=>
+      `<button class="chip${sel.tags.includes(t.id)?" on":""}" data-tag="${esc(t.id)}">${esc(t.label)}</button>`).join("")}</div></div>`).join("");
+  const fat = M.FATIGUE.map(f=>`<button class="fbtn${sel.fatigue===f.id?" on":""}" data-fat="${esc(f.id)}"
+      style="--c-accent:${esc(f.dot)}"><span class="fdot"></span><b>${esc(f.label)}</b><i>${esc(f.sub)}</i></button>`).join("");
+  const tim = M.TIMES.map(n=>`<button class="tbtn${sel.min===n?" on":""}" data-min="${n}">${n}′</button>`).join("");
+
+  app.innerHTML = `<div class="view"><div class="wrap">
+    <header>
+      <div class="topbar"><div class="kicker">Perf Lab · Micro-Program</div>
+        <button class="back" id="back">◂ Bibliothèque</button></div>
+      <h1>MICRO<br><em>PROGRAM</em></h1>
+      <p class="lede">Complément de <b>WYS60</b> — semaine <b>${wk.week}/8</b> (cycle ${wk.cycle}).
+        Minimum effective dose, maximum consistency. Jamais un 2ᵉ entraînement.</p>
+    </header>
+    ${microDash()}
+    <div class="blk"><div class="blk-h"><div class="bl">Today's WYS</div><div class="line"></div></div>
+      <div class="blk-note">Coche ce que ta séance contenait vraiment — 3 à 5 cases suffisent.</div>
+      <div class="tags">${chips}</div>
+    </div>
+    <div class="blk"><div class="blk-h"><div class="bl">Fatigue &amp; temps</div><div class="line"></div></div>
+      <div class="fatrow">${fat}</div>
+      <div class="setlab" style="margin-top:14px">Available time</div>
+      <div class="timerow">${tim}</div>
+    </div>
+    <button class="genbtn" id="gen">Generate micro-session</button>
+    <div id="mout">${microOut(MGEN)}</div>
+    ${microHist()}
+    <footer>Micro-Program · ${Backend.isCloud()?"synchronisé":"local"} · dose minimale efficace</footer>
+  </div></div>`;
+
+  $("#back").onclick=()=> location.hash="#/";
+  app.querySelectorAll("[data-tag]").forEach(b=> b.onclick=()=>{
+    const id=b.dataset.tag, i=sel.tags.indexOf(id);
+    if(i>=0) sel.tags.splice(i,1); else sel.tags.push(id);
+    b.classList.toggle("on", i<0);
+  });
+  app.querySelectorAll("[data-fat]").forEach(b=> b.onclick=()=>{
+    sel.fatigue=b.dataset.fat; wLS(MUI_KEY,{fatigue:sel.fatigue,min:sel.min});
+    app.querySelectorAll("[data-fat]").forEach(x=>x.classList.toggle("on", x===b));
+  });
+  app.querySelectorAll("[data-min]").forEach(b=> b.onclick=()=>{
+    sel.min=+b.dataset.min; wLS(MUI_KEY,{fatigue:sel.fatigue,min:sel.min});
+    app.querySelectorAll("[data-min]").forEach(x=>x.classList.toggle("on", x===b));
+  });
+  $("#gen").onclick=()=>{
+    MGEN = M.generate({ tags:sel.tags, fatigue:sel.fatigue, minutes:sel.min, todayISO:today(), state:MICRO });
+    $("#mout").innerHTML = microOut(MGEN);
+    bindMicroOut();
+    $("#mout").scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  bindMicroOut();
+  window.scrollTo(0,0);
+}
+
+function bindMicroOut(){
+  const out=$("#mout"); if(!out || !MGEN || MGEN.none) return;
+  let pain=false;
+  const pb=$("#mpain"); if(pb) pb.onclick=()=>{ pain=!pain; pb.classList.toggle("on",pain); };
+  const rp=$("#mrpe"); if(rp) rp.onchange=()=>{
+    if(rp.value==="") return;
+    rp.value = Math.max(0,Math.min(10,Math.round(+rp.value)));
+  };
+  const sv=$("#msave"); if(!sv) return;
+  sv.onclick=async()=>{
+    const res={};
+    out.querySelectorAll("[data-rk]").forEach(inp=>{
+      if(inp.value==="") return;
+      const k=inp.dataset.rk;
+      res[k]=res[k]||{};
+      res[k][inp.dataset.rm]= Math.max(0, +inp.value);
+    });
+    const session = {
+      d: today(), tags: microSel().tags.slice(), fatigue: microSel().fatigue,
+      min: MGEN.items.reduce((a,i)=>a+i.min,0), items: MGEN.items, res,
+      rpe: rp && rp.value!=="" ? +rp.value : null, pain
+    };
+    MICRO = M.recordSession(MICRO, session, today());
+    await Backend.saveMicro(MICRO);
+    MGEN = null;
+    toast("Micro-session enregistrée.");
+    renderMicro();
+  };
 }
 
 /* ---- ADD / MANAGE ---- */

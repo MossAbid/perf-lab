@@ -178,6 +178,56 @@ t("exportAll → importProfilesDoc : aller-retour fidèle (journal inclus)", asy
   assert.equal(b.Backend.getLog().length, 1, "journal de séances restauré");
 });
 
+/* ---- micro-programme adaptatif : blob opaque, isolé par profil ---- */
+const MICRO_SAMPLE = {
+  v: 1, start: "2026-08-01",
+  skills: { du: { week: 2, tier: 1, next: 2, hist: [{ w: 2, rpe: 5, pain: false, tier: 1 }] } },
+  history: [{ d: "2026-08-10", tags: ["metcon"], fatigue: "yellow", min: 5,
+              items: [{ skill: "du", drill: "du_submax" }], res: { du: { ub: 26, total: 78 } }, rpe: 5, pain: false }]
+};
+
+t("micro : écrit dans l'espace du profil actif, invisible depuis l'autre", async () => {
+  const { Backend, ls } = boot();
+  await Backend.loadAll();
+  assert.equal(Backend.getMicro(), null, "aucun micro-programme au départ");
+  await Backend.saveMicro(MICRO_SAMPLE);
+  assert.equal(Backend.getMicro().history.length, 1);
+  assert.ok(ls.getItem("perflab.p.moss.micro"), "stocké sous la clé namespacée Moss");
+  Backend.setProfile("souad");
+  assert.equal(Backend.getMicro(), null, "le micro-programme de Moss ne fuit pas chez Souad");
+  Backend.setProfile("moss");
+  assert.equal(Backend.getMicro().skills.du.next, 2);
+});
+
+t("micro : aller-retour export → import fidèle", async () => {
+  const a = boot();
+  await a.Backend.loadAll();
+  await a.Backend.saveMicro(MICRO_SAMPLE);
+  const doc = a.Backend.exportAll();
+  require(path.join(__dirname, "..", "progression.js")).validateProfilesDoc(doc);
+  const b = boot();
+  b.Backend.importProfilesDoc(doc);
+  const m = b.Backend.getMicro();
+  assert.equal(m.history[0].res.du.ub, 26);
+  assert.equal(m.skills.du.next, 2);
+  assert.equal(m.start, "2026-08-01");
+});
+
+t("micro : une sauvegarde antérieure (sans clé micro) n'efface pas l'existant", async () => {
+  const { Backend } = boot();
+  await Backend.loadAll();
+  await Backend.saveMicro(MICRO_SAMPLE);
+  // backup d'avant la fonctionnalité : aucune clé `micro` sur les profils
+  const legacyDoc = {
+    schema: "perflab-profiles-v1",
+    profiles: [{ id: "moss", name: "Moss", programs: [], progress: {}, weeks: { core: 2 }, progression: {}, log: [] }]
+  };
+  Backend.importProfilesDoc(legacyDoc);
+  assert.ok(Backend.getMicro(), "le micro-programme doit survivre à l'import d'un ancien backup");
+  assert.equal(Backend.getMicro().history.length, 1);
+  assert.equal(Backend.getWeek("core"), 2, "le reste de l'ancien backup est bien appliqué");
+});
+
 /* ---- mode CLOUD : sync des blobs d'état (progression/weeks/log) ----
    Mock minimal du client Supabase (select/eq/order/upsert/delete, tous
    thenables comme le vrai client) + un stub d'auth avec session fixe. */
@@ -284,6 +334,36 @@ t("CLOUD : écriture hors-ligne mise en file, poussée au retour du réseau", as
   const row = store.state.find(r => r.user_id === "u1" && r.key === "log");
   assert.ok(row, "journal synchronisé après le flush");
   assert.equal(row.value.length, 1);
+});
+
+t("CLOUD : le micro-programme transite par la table 'state' (clé 'micro')", async () => {
+  const store = { programs: [], progress: [], state: [] };
+  const { Backend } = bootCloud(store, { user: { id: "u1", email: "t@t.com" } });
+  await Backend.init();
+  await Backend.loadAll();
+  await Backend.saveMicro(MICRO_SAMPLE);
+  const row = store.state.find(r => r.user_id === "u1" && r.key === "micro");
+  assert.ok(row, "aucune ligne 'micro' poussée");
+  assert.equal(row.value.history[0].res.du.ub, 26);
+  // relecture depuis un appareil vierge
+  const b = bootCloud(store, { user: { id: "u1", email: "t@t.com" } });
+  await b.Backend.init();
+  await b.Backend.loadAll();
+  assert.equal(b.Backend.getMicro().skills.du.next, 2);
+});
+
+t("CLOUD : micro écrit hors-ligne → file d'attente, poussé au retour du réseau", async () => {
+  const store = { programs: [], progress: [], state: [] };
+  const { Backend, sandbox, onlineHandlers } = bootCloud(store, { user: { id: "u1", email: "t@t.com" } });
+  await Backend.init();
+  await Backend.loadAll();
+  sandbox.navigator.onLine = false;
+  await Backend.saveMicro(MICRO_SAMPLE);
+  assert.ok(!store.state.some(r => r.key === "micro"), "rien poussé pendant la coupure");
+  assert.ok(Backend.getMicro(), "mais lisible localement — la micro-session reste utilisable hors-ligne");
+  sandbox.navigator.onLine = true;
+  await onlineHandlers[0]();
+  assert.ok(store.state.some(r => r.key === "micro"), "synchronisé après le flush");
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });

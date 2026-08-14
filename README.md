@@ -101,9 +101,10 @@ La clé *anon* est publique : la sécurité vient des règles **RLS** (chaque ut
 voit que ses propres lignes), déjà définies dans `schema.sql`.
 
 En mode CLOUD, tout est synchronisé : programmes, séries/charges (`progress`), **et**
-paliers RPE, semaine courante et journal de séances (table `state`, un blob JSON par
-clé). Compte créé avant l'ajout de la table `state` ? Recolle juste ce bloc de
-`schema.sql` dans le SQL Editor, rien d'autre à migrer.
+paliers RPE, semaine courante, journal de séances et micro-programme (table `state`, un
+blob JSON par clé). Compte créé avant l'ajout de la table `state` ? Recolle juste ce bloc
+de `schema.sql` dans le SQL Editor, rien d'autre à migrer. Le micro-programme n'a demandé
+**aucun changement de schéma** : c'est une clé `micro` de plus dans la table `state`.
 
 ## Déployer + installer sur iPhone (plein écran, offline, icône)
 Une PWA doit être servie en **HTTPS** (le `file://` ne permet ni l'offline ni le plein écran).
@@ -127,6 +128,39 @@ Il est sauvegardé côté backend et apparaît sur **tous tes appareils**.
   et colle sa réponse dans la zone d'import.
 
 Animations dispo : `pullup explo dip press row bench curl hang crunch raise hold roll rotate carry` (défaut `pulse`).
+
+## Micro-Program (complément quotidien de WYS60)
+Carte **⚡ MICRO PROGRAM** de la bibliothèque (profil Moss) → `#/micro`.
+
+Le principe : *minimum effective dose, maximum consistency*. Tu déclares ce que ta séance
+WYS contenait vraiment, ta fatigue et le temps dispo ; le moteur choisit la plus petite
+dose utile — et répond **NO ADDITIONAL WORK TODAY** quand c'est la bonne réponse.
+Ce n'est jamais un 2ᵉ entraînement : budget temps et nombre de blocs sont plafonnés
+(3 min → 1 bloc, 5-7 min → 2, 10 min → 3).
+
+**Parcours (30-45 s)** : cocher 3-5 caractéristiques WYS → fatigue → temps → *Generate*.
+Fatigue et temps sont mémorisés d'une fois sur l'autre.
+
+**Objectifs suivis** : Bar Muscle-Up, Double Unders, Toes-to-Bar, Handstand Walk, plus du
+renforcement de longévité (épaules/scapulas, chaîne postérieure, gainage, tirage,
+unilatéral, grip). Chacun suit un bloc de **8 semaines** qui se recycle.
+
+**Adaptation** : `micro.js` porte une table de conflit déclarative (`CONFLICTS`) — chaque
+catégorie WYS applique une pénalité aux cibles concernées (1 = dose réduite, 2 = retiré du
+jour). Ex. *Heavy Pulling* retire le BMU, *HSPU* retire le HSW, *High Grip* réduit
+BMU/TTB/DU. Fatigue **rouge** = 5 min maximum de mobilité, ou rien du tout après une
+séance dure.
+
+**Progression** : elle réutilise **la règle RPE existante** (`progression.js`), pas une
+règle parallèle. Un palier ne monte que si la cible du jour est atteinte **et** RPE ≤ 6
+**et** aucune douleur (et, pour le BMU, qualité ≥ 3/5). RPE ≥ 9 ou douleur → palier
+précédent. La montée se fait toujours d'un seul cran (ex. DU : 20 → 25 → 30 → 35 → 40 →
+50 → 60 → 75 → 100).
+
+**Stockage** : un seul blob `perflab.p.<profil>.micro` = `{ v, start, skills, history }`.
+`skills` a exactement la forme de `progression[progId]`, `history` est plafonné à 400
+entrées. Inclus dans l'export/import de profils ; une sauvegarde antérieure (sans clé
+`micro`) n'efface rien.
 
 ## Offline & sync
 - Les données s'affichent immédiatement depuis le cache local.

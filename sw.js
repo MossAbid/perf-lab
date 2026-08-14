@@ -1,7 +1,7 @@
 /* Perf Lab — service worker
    Bump CACHE quand tu modifies la coque (pas nécessaire pour programs.js
    grâce au network-first ci-dessous, mais conseillé après gros changements). */
-const CACHE = "perflab-v9";
+const CACHE = "perflab-v10";
 
 const SHELL = [
   "./",
@@ -12,6 +12,7 @@ const SHELL = [
   "./config.js",
   "./programs.js",
   "./progression.js",
+  "./micro.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
