@@ -23,7 +23,7 @@ Deux parties :
 - `progression.js` : règle RPE, paliers, validation & migration du schéma (logique pure, testée en Node)
 - `cycle.js` (`PLCycle`) : format `perflab-cycle-v1`, validation, max et charges, semaine/file/rattraper-passer, scores (logique pure, testée en Node)
 - `cyclestore.js` (`CycleStore`) : données de la Programmation, LOCAL ou CLOUD (tables `cycles`/`cycle_athletes`, blob `state` clé `cycle`), cache offline, file d'une opération
-- `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Séance, Tes max, Importer un cycle, connexion
+- `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Ton mois, Ton programme, Séance, Fiches mouvement, Tes max, Importer un cycle, connexion
 - `backend.js` : couche local/cloud des bibliothèques — profils, auth, sync, cache offline, file d'attente
 - `programs.js` : programmes par défaut (semés à la première utilisation), champ `assign` pour le routage par profil
 - `config.js` : clés Supabase (vide = mode LOCAL), `SUPABASE_*` pour les bibliothèques, `CYCLE_SUPABASE_*` pour la Programmation
@@ -51,7 +51,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - **Tests unitaires** : `node tests/progression.test.js && node tests/backend.test.js && node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js`.
 - **Tests e2e** : `python3 tools/serve.py 8741` à la racine, puis `chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"` → aucune ligne `E2E-FAIL` dans `#results`. (Avec `python3 -m http.server`, la file de 5 connexions fait échouer des scripts au hasard.)
 - **Vérifier un cycle** : `node tools/validate-cycle.js content/cycle-1.json`.
-- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v12`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
+- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v13`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
 
 ## Schéma des données
 Aucun fichier `.json` de schéma dans le dépôt :
@@ -68,4 +68,4 @@ Aucun fichier `.json` de schéma dans le dépôt :
 - Prioriser la simplicité offline-first (PWA).
 
 ## Notes
-Le cahier des charges de la Programmation est un Claude Doc privé de Moss ; le plan d'implémentation v1 est dans `docs/superpowers/plans/` (local, non commité). Prochaines étapes prévues : v1.1 (Ton mois, Ton programme, fiches mouvement + vidéos), passe esthétique, préparation multi-athlètes.
+Le cahier des charges de la Programmation est un Claude Doc privé de Moss ; le plan d'implémentation v1 est dans `docs/superpowers/plans/` (local, non commité). Prochaines étapes prévues : passe esthétique, préparation multi-athlètes.

@@ -273,6 +273,29 @@
     ok("mois : précédent désactivé à la borne", today().slice(0, 7) !== b9.min || document.getElementById("cfprev").disabled);
     PLCycle.unmarkDone(a9.logs["cycle-1"], "w1s2"); await CycleStore.saveAthlete(a9);
 
+    /* 9d. PROGRAMMATION : Ton programme */
+    await goto("cf");
+    ok("pied de page : Ton programme", !!document.querySelector('.cf-foot a[href="#/cf/programme"]'));
+    await goto("cf/programme");
+    ok("programme : objectifs du cycle", document.querySelectorAll(".cf-goal").length === 2);
+    ok("programme : 2 semaines", document.querySelectorAll("[data-week]").length === 2);
+    ok("programme : semaine en cours choisie", document.querySelector('[data-week][aria-pressed="true"]').dataset.week === "0");
+    ok("programme : charge calculée", /Back squat · 4 × 3 à 80 % · 95 kg/.test(document.querySelector('[data-psess="w1s1"]').textContent));
+    ok("programme : séance faite", /faite/.test(document.querySelector('[data-psess="w1s1"]').textContent));
+    document.querySelector('[data-week="1"]').click(); await tick();
+    ok("programme : semaine 2", /Semaine 2/.test(document.querySelector(".cf").textContent) && !!document.querySelector('[data-psess="w2s1"]'));
+    document.querySelector('[data-psess="w2s1"]').click(); await tick();
+    ok("programme : séance ouvrable", location.hash === "#/cf/s/w2s1");
+    await goto("cf/programme");
+    ok("programme : lien vers les fiches", !!document.querySelector('a[href="#/cf/m"]'));
+    const bare = makeSampleCycle(mon); delete bare.goals; delete bare.movements;
+    bare.weeks.forEach(w => [...w.sessions, w.bonus].forEach(s => s.blocks.forEach(b => delete b.moves)));
+    await CycleStore.importCycle(bare); await goto("cf"); await goto("cf/programme");
+    ok("programme sans objectifs ni fiches", !document.querySelector(".cf-goal") && !document.querySelector('a[href="#/cf/m"]'));
+    await goto("cf/s/w1s1");
+    ok("séance sans fiches : pas de rangée", !document.querySelector(".cf-moves"));
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";

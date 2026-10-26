@@ -412,3 +412,22 @@ div.cf-bh{cursor:default}
 .cf-ditem b{font-size:15px;font-weight:600}
 .cf-ditem small{font-size:12px;color:var(--muted)}
 .cf-ditem a{align-self:flex-start;min-height:44px;display:flex;align-items:center;color:var(--accent);font-size:14px;font-weight:600;text-decoration:none}
+/* ton programme */
+.cf-mt{margin-top:22px}
+.cf-goals{margin-top:18px;border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.cf-goal{display:flex;gap:12px;align-items:baseline;font-size:14px;line-height:1.4}
+.cf-glab{width:64px;flex:none;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cf-strip{display:flex;gap:4px;margin-top:10px;overflow-x:auto;padding-bottom:2px}
+.cf-wk{all:unset;box-sizing:border-box;width:44px;flex:none;height:56px;padding:8px 0 7px;border-radius:10px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:space-between;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700}
+.cf-wk[aria-pressed="true"]{border-color:var(--accent);background:rgba(215,242,90,.08)}
+.cf-wbar{display:inline-block;width:22px;height:4px;border-radius:2px}
+.cf-plegend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px;color:var(--muted)}
+.cf-plegend>span{display:flex;align-items:center;gap:6px}
+.cf-plegend .cf-wbar{width:14px}
+.cf-whead{margin-top:20px;display:flex;flex-direction:column;gap:4px}
+.cf-wdates{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.cf-pcards{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.cf-pcard{all:unset;box-sizing:border-box;display:flex;align-items:flex-start;gap:10px;width:100%;min-height:56px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);cursor:pointer}
+.cf-pbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cf-pbody b{font-size:15px;font-weight:600}
+.cf-pbody span{font-size:13px;color:var(--muted);line-height:1.4}

@@ -3,6 +3,7 @@
      #/cf           Ta semaine (file ordonnée de 4 séances + bonus + team WOD)
      #/cf/s/<sid>   une séance
      #/cf/mois      ton mois (calendrier des séances faites)
+     #/cf/programme ton programme (objectifs, semaines, charges)
      #/cf/max       tes max
      #/cf/import    importer un cycle
      #/cf/m         fiches mouvement (index)
@@ -245,6 +246,54 @@ const CycleUI = (() => {
     bindFooter();
   }
 
+  /* ---- Ton programme : le cycle, ses objectifs, chaque semaine en charges ---- */
+  const PHASE_COLOR = { base: "#8ab4ff", montee: "#d7f25a", surcharge: "#ffb25b", decharge: "#9ba1ac", test: "#ff7a7a" };
+  let PS = { wi: 0 };
+  function progLine(l){
+    if(l.kind === "strength") return `<span>${esc(l.name)} · ${l.test
+      ? `test ${esc(l.test)} · ${l.maxKg != null ? "max actuel " + fmtKg(l.maxKg) : "pas encore de max"}`
+      : `${esc(l.scheme)} · ${l.kg != null ? fmtKg(l.kg) : "saisis ton max"}`}</span>`;
+    if(l.kind === "skill") return `<span>${esc(l.title)} · ${esc(l.text)}</span>`;
+    return `<span>Metcon · ${esc(l.title)}</span>`;
+  }
+
+  function renderProgramme(){
+    const cycle = CycleStore.getCycle();
+    if(!cycle){ location.hash = "#/cf"; return; }
+    const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle);
+    const p = C.programmeWeek(cycle, athlete.maxes, PS.wi), nW = cycle.weeks.length;
+    const goals = (cycle.goals || []).length ? `<div class="cf-goals"><div class="cf-lab">Objectifs du cycle</div>
+      ${cycle.goals.map(g => `<div class="cf-goal"><span class="cf-glab">${esc(g.label)}</span><span>${esc(g.text)}</span></div>`).join("")}</div>` : "";
+    const strip = cycle.weeks.map((w, i) => `<button class="cf-wk" data-week="${i}" aria-pressed="${i === PS.wi}"
+        aria-label="Semaine ${i + 1}, ${esc(PHASE[w.phase] || w.phase)}"><span>${i + 1}</span>
+        <span class="cf-wbar" style="background:${PHASE_COLOR[w.phase] || "#9ba1ac"}"></span></button>`).join("");
+    const legend = Object.keys(PHASE).map(k => `<span><span class="cf-wbar" style="background:${PHASE_COLOR[k]}"></span>${PHASE[k]}</span>`).join("");
+    const card = (sid, head, body, st) => `<button class="cf-pcard" data-psess="${esc(sid)}">
+        <span class="cf-pbody"><b>${head}</b>${body}</span>${st ? `<span class="cf-bdate">${st}</span>` : ""}</button>`;
+    const status = sid => log.done[sid] ? `faite ${ddmm(log.done[sid])}` : (log.skipped || []).includes(sid) ? "passée" : "";
+    const cards = p.sessions.map(s => card(s.id, `Séance ${s.n} · ${esc(s.title)}`, s.lines.map(progLine).join(""), status(s.id))).join("")
+      + (p.bonus ? card(p.bonus.id, `Bonus · ${esc(p.bonus.title.replace(/^Bonus · /, ""))}`, `<span>Facultatif</span>`,
+          (log.bonus || {})[p.bonus.id] ? `fait ${ddmm(log.bonus[p.bonus.id])}` : "") : "");
+    shell("Programmation", "TON <em>PROGRAMME</em>", `
+      <p class="lede">${esc(cycle.title)} · ${nW} semaines · ${ddmm(cycle.start)} → ${ddmm(C.cycleEnd(cycle))}</p>
+      ${goals}
+      <div class="cf-lab cf-mt">Les ${nW} semaines</div>
+      <div class="cf-strip">${strip}</div>
+      <div class="cf-plegend">${legend}</div>
+      <div class="cf-whead">
+        <div class="cf-lab" style="color:${PHASE_COLOR[p.phase] || "#9ba1ac"}">Semaine ${p.n} · ${esc(PHASE[p.phase] || p.phase)}${p.bloc && p.phase !== "test" ? ` · Bloc ${esc(p.bloc)}` : ""}</div>
+        <div class="cf-wdates">${ddmm(p.start)} → ${ddmm(p.end)}</div>
+        ${p.intent ? `<p class="cf-p">${esc(p.intent)}</p>` : ""}
+      </div>
+      <div class="cf-pcards">${cards}</div>
+      <p class="cf-rest cf-mt">Charges calculées sur tes max, arrondies à 2,5 kg. Elles se recalculent dès qu'un max change.</p>
+      ${Object.keys(cycle.movements || {}).length ? `<a class="cf-flink cf-mt" href="#/cf/m">Fiches mouvement</a>` : ""}
+      ${footer()}`, ["Ta semaine", "#/cf"]);
+    app.querySelectorAll("[data-week]").forEach(b => b.onclick = () => { PS.wi = +b.dataset.week; renderProgramme(); });
+    app.querySelectorAll("[data-psess]").forEach(b => b.onclick = () => location.hash = "#/cf/s/" + encodeURIComponent(b.dataset.psess));
+    bindFooter();
+  }
+
   /* état de la synchro (CLOUD) : envoi en attente ou refusé, jamais silencieux */
   function syncLine(){
     if(!CycleStore.isCloud()) return "";
@@ -256,6 +305,7 @@ const CycleUI = (() => {
   function footer(){
     const u = CycleStore.isCloud() && CycleStore.user();
     return `${syncLine()}<div class="cf-foot">
+      <a class="dbtn" href="#/cf/programme">Ton programme</a>
       <a class="dbtn" href="#/cf/max">Tes max</a>
       <a class="dbtn" href="#/cf/import">Importer un cycle</a>
       ${u ? `<button class="dbtn" id="cfout">${esc(u.email || "compte")} · sortir</button>` : ""}
@@ -582,6 +632,11 @@ const CycleUI = (() => {
     else if(mv) renderFiche(decodeURIComponent(mv[1]));
     else if(h === "cf/m") renderMoves();
     else if(h === "cf/mois"){ MS = { ym: today().slice(0, 7), sel: today() }; renderMonth(); }
+    else if(h === "cf/programme"){
+      const c = CycleStore.getCycle();   // semaine affichée par Ta semaine (0 avant le début)
+      PS = { wi: c ? C.weekView(c, logFor(CycleStore.getAthlete(), c), today()).weekIndex : 0 };
+      renderProgramme();
+    }
     else if(h === "cf/max"){ editLift = null; renderMax(); }
     else if(h === "cf/import") renderImport();
     else renderWeek();
