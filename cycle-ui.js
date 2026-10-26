@@ -2,6 +2,7 @@
    Module réservé au profil Moss. Routes :
      #/cf           Ta semaine (file ordonnée de 4 séances + bonus + team WOD)
      #/cf/s/<sid>   une séance
+     #/cf/mois      ton mois (calendrier des séances faites)
      #/cf/max       tes max
      #/cf/import    importer un cycle
      #/cf/m         fiches mouvement (index)
@@ -140,6 +141,7 @@ const CycleUI = (() => {
       <span class="cf-bdate">${dayLabel(addDays(cycle.start, Math.max(0, C.calendarWeek(cycle, today())) * 7 + 6))}</span></div>`;
 
     shell("Programmation", "TA <em>SEMAINE</em>", `
+      ${segHtml("week")}
       <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length}${w.bloc && w.phase !== "test" ? ` · Bloc ${esc(w.bloc)}` : ""} · ${esc(PHASE[w.phase] || w.phase)}
         · ${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}${w.intent ? `<br>${esc(w.intent)}` : ""}</p>
       ${banner}
@@ -164,6 +166,82 @@ const CycleUI = (() => {
       toast("Bonus noté.");
       renderWeek();
     });
+    bindFooter();
+  }
+
+  /* bascule Semaine / Mois */
+  const segHtml = active => `<nav class="cf-seg" aria-label="Vue">
+      <a href="#/cf"${active === "week" ? ' aria-current="page"' : ""}>Semaine</a>
+      <a href="#/cf/mois"${active === "month" ? ' aria-current="page"' : ""}>Mois</a></nav>`;
+
+  /* ---- Ton mois : séances faites à leur date, team WOD le dimanche ---- */
+  let MS = { ym: null, sel: null };
+  const shiftYm = (ym, d) => {
+    let [y, m] = ym.split("-").map(Number);
+    m += d; if(m < 1){ m = 12; y--; } if(m > 12){ m = 1; y++; }
+    return `${y}-${String(m).padStart(2, "0")}`;
+  };
+  const ITEM_ARIA = { session: it => `séance ${it.n} faite`, bonus: () => "bonus fait", wod: () => "team WOD" };
+
+  function dayDetail(cycle, log, cell, td){
+    const rows = cell.items.map(it => {
+      if(it.type === "wod") return `<div class="cf-ditem"><b>Team WOD à la salle · compté dans ta semaine.</b></div>`;
+      const link = `<a href="#/cf/s/${encodeURIComponent(it.id)}">Revoir la séance</a>`;
+      if(it.type === "bonus") return `<div class="cf-ditem"><b>Bonus · ${esc(it.title.replace(/^Bonus · /, ""))}</b>${link}</div>`;
+      const sc = log.scores[it.id];
+      return `<div class="cf-ditem"><b>Séance ${it.n} · ${esc(it.title)}</b>
+        <small>Semaine ${it.wi + 1} · ${sc ? "score : " + esc(sc.text) : "pas de score"}</small>${link}</div>`;
+    });
+    if(!rows.length){
+      const iso = cell.iso, v = C.weekView(cycle, log, td);
+      let msg = "Repos.", link = "";
+      if(iso < cycle.start) msg = `Avant le début du cycle (${dayLabel(cycle.start)}).`;
+      else if(iso > C.cycleEnd(cycle)) msg = "Après la fin du cycle.";
+      else if(iso === td && v.nextId){
+        const i = v.week.sessions.findIndex(s => s.id === v.nextId);
+        msg = `Prochaine séance : Séance ${i + 1} · ${esc(v.week.sessions[i].title)}.`;
+        link = `<a href="#/cf">Voir ta semaine</a>`;
+      } else if(iso > td) msg = "À venir : tes séances se placent ici le jour où tu les fais.";
+      rows.push(`<div class="cf-ditem"><p>${msg}</p>${link}</div>`);
+    }
+    return `<div class="cf-dday"><div class="cf-lab">${dayLabel(cell.iso)}</div>${rows.join("")}</div>`;
+  }
+
+  function renderMonth(){
+    const cycle = CycleStore.getCycle();
+    if(!cycle){ location.hash = "#/cf"; return; }
+    const log = logFor(CycleStore.getAthlete(), cycle), td = today();
+    const b = C.monthBounds(cycle, td), [y, mo] = MS.ym.split("-").map(Number);
+    const g = C.monthGrid(cycle, log, y, mo, td), all = g.weeks.flat();
+    const chip = it => `<span class="cf-chip c-${it.type}${it.past ? " past" : ""}">${it.chip}</span>`;
+    const cells = all.map(c => `<button class="cf-day${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.iso === MS.sel ? " sel" : ""}"
+        data-day="${c.iso}"${c.inMonth ? "" : " disabled"}
+        aria-label="${dayLabel(c.iso)}${c.items.map(it => ", " + ITEM_ARIA[it.type](it)).join("")}">
+        <span class="cf-dn">${c.day}</span><span class="cf-chips">${c.items.map(chip).join("")}</span></button>`).join("");
+    const sel = MS.sel && all.find(c => c.iso === MS.sel && c.inMonth);
+    shell("Programmation", "TON <em>MOIS</em>", `
+      ${segHtml("month")}
+      <div class="cf-mnav">
+        <button class="dbtn" id="cfprev" aria-label="Mois précédent"${MS.ym <= b.min ? " disabled" : ""}>‹</button>
+        <div class="cf-mlabel">${g.label}</div>
+        <button class="dbtn" id="cfnext" aria-label="Mois suivant"${MS.ym >= b.max ? " disabled" : ""}>›</button>
+      </div>
+      <div class="cf-cal">
+        <div class="cf-dow" aria-hidden="true">${["L", "M", "M", "J", "V", "S", "D"].map(d => `<span>${d}</span>`).join("")}</div>
+        <div class="cf-grid">${cells}</div>
+      </div>
+      <div class="cf-legend">
+        <span><span class="cf-chip c-session">S1</span>séance faite</span>
+        <span><span class="cf-chip c-bonus">B</span>bonus</span>
+        <span><span class="cf-chip c-wod">T</span>team WOD</span>
+        <span><span class="cf-todaykey"></span>aujourd'hui</span>
+      </div>
+      ${sel ? dayDetail(cycle, log, sel, td) : `<div class="cf-dday"><p>Touche un jour.</p></div>`}
+      ${footer()}`);
+    const go = d => { MS.ym = shiftYm(MS.ym, d); MS.sel = td.slice(0, 7) === MS.ym ? td : null; renderMonth(); };
+    $("#cfprev").onclick = () => go(-1);
+    $("#cfnext").onclick = () => go(1);
+    app.querySelectorAll(".cf-day:not([disabled])").forEach(btn => btn.onclick = () => { MS.sel = btn.dataset.day; renderMonth(); });
     bindFooter();
   }
 
@@ -503,6 +581,7 @@ const CycleUI = (() => {
     else if(m){ SS = { sid: null }; renderSession(decodeURIComponent(m[1])); }   // écran neuf à chaque arrivée
     else if(mv) renderFiche(decodeURIComponent(mv[1]));
     else if(h === "cf/m") renderMoves();
+    else if(h === "cf/mois"){ MS = { ym: today().slice(0, 7), sel: today() }; renderMonth(); }
     else if(h === "cf/max"){ editLift = null; renderMax(); }
     else if(h === "cf/import") renderImport();
     else renderWeek();

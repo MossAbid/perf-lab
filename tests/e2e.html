@@ -258,6 +258,21 @@
     ok("fiche : contenu échappé", !document.getElementById("xss") && /<img/.test(document.querySelector("h1").textContent));
     await CycleStore.importCycle(makeSampleCycle(mon));
 
+    /* 9c. PROGRAMMATION : Ton mois */
+    await goto("cf");
+    ok("semaine : bascule vers le mois", !!document.querySelector('.cf-seg a[href="#/cf/mois"]'));
+    const a9 = CycleStore.getAthlete(); PLCycle.markDone(a9.logs["cycle-1"], "w1s2", today()); await CycleStore.saveAthlete(a9);
+    await goto("cf/mois");
+    const todayCell = document.querySelector(`.cf-day[data-day="${today()}"]`);
+    ok("mois : deux séances faites aujourd'hui", [...todayCell.querySelectorAll(".cf-chip.c-session")].map(e => e.textContent).join(",") === "S1,S2");
+    ok("mois : détail du jour, lien vers la séance", !!document.querySelector('.cf-dday a[href="#/cf/s/w1s1"]'));
+    ok("mois : team WOD le dimanche de la semaine", /T/.test(document.querySelector(`.cf-day[data-day="${sunCal}"]`).textContent));
+    const fut = [...document.querySelectorAll(".cf-day[data-day]")].find(b => b.dataset.day > sunCal && !b.disabled && b.dataset.day.slice(0, 7) === today().slice(0, 7));
+    if (fut) { fut.click(); await tick(); ok("mois : jour à venir", /À venir|Après la fin du cycle/.test(document.querySelector(".cf-dday").textContent)); }
+    const b9 = PLCycle.monthBounds(CycleStore.getCycle(), today());
+    ok("mois : précédent désactivé à la borne", today().slice(0, 7) !== b9.min || document.getElementById("cfprev").disabled);
+    PLCycle.unmarkDone(a9.logs["cycle-1"], "w1s2"); await CycleStore.saveAthlete(a9);
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";
