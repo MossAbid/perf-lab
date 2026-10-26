@@ -25,13 +25,17 @@
 
 <div id="app"></div>
 
-<!-- ordre important : config → programmes par défaut → client supabase → backend → moteur -->
+<!-- ordre important : config → programmes par défaut → logique → client supabase → données → écrans → moteur
+     (cycle-ui.js avant app.js : boot() route dès le chargement) -->
 <script src="config.js"></script>
 <script src="programs.js"></script>
 <script src="progression.js"></script>
+<script src="cycle.js"></script>
 <script src="micro.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="backend.js"></script>
+<script src="cyclestore.js"></script>
+<script src="cycle-ui.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

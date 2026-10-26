@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Perf Lab — e2e</title>
 <!-- Harnais e2e : charge la vraie app et déroule le parcours complet.
-     Lancer :  python3 -m http.server 8741  (racine du repo) puis
-     chrome --headless=new --dump-dom "http://localhost:8741/tests/e2e.html"
+     Lancer :  python3 tools/serve.py 8741  (racine du repo) puis
+     chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"
      → chaque ligne de #results commence par E2E-PASS ou E2E-FAIL. -->
 </head>
 <body>
@@ -29,8 +29,12 @@
 <script src="../config.js"></script>
 <script src="../programs.js"></script>
 <script src="../progression.js"></script>
+<script src="../cycle.js"></script>
 <script src="../micro.js"></script>
 <script src="../backend.js"></script>
+<script src="../cyclestore.js"></script>
+<script src="fixtures/cycle-sample.js"></script>
+<script src="../cycle-ui.js"></script>
 <script src="../app.js"></script>
 
 <script>
@@ -160,6 +164,7 @@
     await tick(200);
     ok("progression Moss (lower) invisible chez Souad", !("lower" in Backend.loadProgression()));
     ok("micro-programme masqué chez Souad", !document.querySelector("[data-micro]"));
+    ok("pas de carte Programmation chez Souad", !document.querySelector("[data-cf]"));
 
     /* 7. MICRO-PROGRAM (Moss) : sélection WYS → génération → enregistrement */
     document.querySelector('[data-prof="moss"]').click();
@@ -239,6 +244,23 @@
     await goto("p/lower");
     ok("LOWER LAB toujours fonctionnel après le micro-programme",
        document.querySelectorAll(".tab").length === 2 && !!document.querySelector(".target.tier"));
+
+    /* 8. PROGRAMMATION (Moss) : carte, semaine, rattraper ou passer */
+    const isoUTC = d => d.toISOString().slice(0, 10);
+    const [ty, tm, td] = today().split("-").map(Number);
+    const t0 = Date.UTC(ty, tm - 1, td), dow = (new Date(t0).getUTCDay() + 6) % 7; // 0 = lundi
+    const mon = isoUTC(new Date(t0 - dow * 864e5)), prevMon = isoUTC(new Date(t0 - (dow + 7) * 864e5));
+    await CycleStore.importCycle(makeSampleCycle(prevMon, "cycle-past")); await goto("cf");
+    ok("semaine passée non faite → bandeau de décision", !!document.querySelector("[data-decide='skip']"));
+    document.querySelector("[data-decide='skip']").click(); await tick();
+    ok("passer → w2s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w2s1");
+    await CycleStore.importCycle(makeSampleCycle(mon)); await goto("");
+    ok("carte Programmation chez Moss", !!document.querySelector("[data-cf]"));
+    await goto("cf");
+    ok("semaine : 4 séances", document.querySelectorAll(".cf-sess").length === 4);
+    ok("w1s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s1");
+    ok("bonus présent", !!document.querySelector(".cf-bonus"));
+    ok("pas de carte micro-programme", !document.querySelector("[data-micro]"));
   } catch (e) {
     out.push("E2E-FAIL exception : " + (e && e.stack || e));
   }

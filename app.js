@@ -40,6 +40,7 @@ function softBeep(){ try{ const c=new (window.AudioContext||window.webkitAudioCo
 /* ---- state ---- */
 const PL = window.PLProgression;
 const M  = window.PLMicro || null;   // absent = micro-programme masqué, app intacte
+const CF = typeof CycleUI !== "undefined" ? CycleUI : null;   // module Programmation (Moss)
 let LIBRARY=[], PROGRESS={}, PROGRESSION={}, CUR=null, activeSession=null;
 let MICRO=null;   // état du micro-programme adaptatif (blob micro.js)
 const getWeek = pid => Backend.getWeek(pid);
@@ -55,6 +56,7 @@ function toast(msg){ let t=$("#toast"); if(!t){ t=document.createElement("div");
 async function boot(){
   let res;
   try{ res = await Backend.init(); }catch(e){ res={mode:"local",needAuth:false}; }
+  if(CF){ try{ await CycleStore.init(); }catch(e){} }
   Backend.onAuth(async u=>{
     if(u){ await hydrate(); route(); }
     else { renderAuth(); }
@@ -69,6 +71,7 @@ async function hydrate(){
     PROGRESSION = Backend.loadProgression();
     if(M) MICRO = M.normalizeState(Backend.getMicro(), today());
     if(r.offline) toast("Hors-ligne — données locales");
+    if(CF){ try{ await CycleStore.refresh(); }catch(e){} }
   }catch(e){ LIBRARY = DEFAULT_PROGRAMS.slice(); PROGRESS = {}; PROGRESSION = {};
     if(M) MICRO = M.normalizeState(null, today()); }
 }
@@ -78,6 +81,7 @@ function route(){
   const h = location.hash.replace(/^#\/?/,"");
   if(Backend.isCloud() && !Backend.user()){ renderAuth(); return; }
   if(h==="add"){ renderAdd(); return; }
+  if(h.startsWith("cf") && CF && CF.route(h)) return;
   if(h==="micro" && M){ renderMicro(); return; }
   if(h.startsWith("p/")){
     const prog = LIBRARY.find(p=>p.id===h.slice(2));
@@ -170,6 +174,7 @@ function renderLibrary(){
       ${assidHtml}
       ${backupHtml}
       <div class="lib">
+        ${CF ? CF.libraryCard() : ""}
         ${microCard}
         ${cards}
         <div class="card add" data-add>
@@ -183,6 +188,7 @@ function renderLibrary(){
   app.querySelectorAll("[data-go]").forEach(c=> c.onclick=()=> location.hash="#/p/"+c.dataset.go );
   app.querySelector("[data-add]").onclick=()=> location.hash="#/add";
   const mc=app.querySelector("[data-micro]"); if(mc) mc.onclick=()=> location.hash="#/micro";
+  const cfc=app.querySelector("[data-cf]"); if(cfc) cfc.onclick=()=> location.hash="#/cf";
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
     if(b.dataset.prof===Backend.activeProfile()) return;
     Backend.setProfile(b.dataset.prof);

@@ -333,3 +333,46 @@ footer{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;
   .mh-r{justify-content:flex-start}
   .mh-w{white-space:normal}
 }
+
+/* ===== Programmation ===== */
+.cf .lede{margin-top:6px}
+.cf-lab{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.cf-note{margin-top:18px;border:1px dashed var(--line);background:var(--panel);border-radius:14px;padding:14px 16px;font-size:14px}
+.cf-empty{margin-top:22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:var(--muted)}
+.cf-empty .dbtn,.cf-foot .dbtn{text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
+/* bandeau « la semaine a débordé » */
+.cf-decide{margin-top:18px;border:1px solid #ffb25b;background:#241c12;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.cf-decide .cf-lab{color:#ffb25b}
+.cf-dt{font-family:'Anton',sans-serif;font-size:22px;line-height:1.05;text-transform:uppercase;letter-spacing:.3px}
+.cf-decide p{font-size:13px;color:var(--muted);line-height:1.5}
+.cf-dbtns{display:flex;gap:8px;margin-top:6px}
+.cf-dbtns .dbtn{flex:1;min-height:44px}
+/* progression de la semaine */
+.cf-prog{display:flex;align-items:center;gap:12px;margin-top:18px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.06em}
+.cf-bar{flex:1;height:6px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.cf-bar div{height:100%;background:var(--accent);transition:width .4s}
+/* prochaine séance */
+.cf-next{margin-top:16px;border:1px solid var(--accent);background:linear-gradient(160deg,rgba(215,242,90,.10),var(--panel) 60%);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.cf-nt{font-family:'Anton',sans-serif;font-size:clamp(24px,7vw,32px);line-height:1;text-transform:uppercase;letter-spacing:.4px}
+.cf-nm{font-size:12px;color:var(--muted);line-height:1.45}
+.cf-next .dbtn.go{align-self:flex-start;min-height:44px;padding:0 22px;margin-top:6px}
+.cf-next.cf-closed{border-color:var(--line);background:var(--panel)}
+/* file de la semaine */
+.cf-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel)}
+.cf-sess,.cf-bopen{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px;cursor:pointer;width:100%}
+.cf-sess+.cf-sess,.cf-bonus,.cf-wod{border-top:1px solid var(--line)}
+.cf-num{width:28px;height:28px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;background:var(--panel2);color:var(--muted)}
+.cf-st{display:flex;flex-direction:column;min-width:0;flex:1}
+.cf-st b{font-weight:600;font-size:14px}
+.cf-st small{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cf-sess.st-next .cf-num{background:var(--accent);color:var(--bg)}
+.cf-sess.st-next small{color:var(--accent)}
+.cf-sess.st-done .cf-num{background:rgba(215,242,90,.16);color:var(--accent)}
+.cf-sess.st-done b,.cf-sess.st-skipped b,.cf-sess.st-locked b{color:var(--muted)}
+.cf-sess.st-skipped b{text-decoration:line-through}
+.cf-bonus{display:flex;align-items:center;gap:8px;padding-right:14px;border-top-style:dashed}
+.cf-bonus .cf-num{background:transparent;border:1px dashed var(--line)}
+.cf-bonus .dbtn{min-height:36px}
+.cf-wod{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px}
+.cf-bdate{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.cf-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
