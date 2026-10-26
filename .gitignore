@@ -1,0 +1,3 @@
+# Contenu des cycles de programmation : jamais dans le dépôt (public).
+# Il vit dans Supabase (tables cycles / cycle_athletes) et le cache local.
+content/

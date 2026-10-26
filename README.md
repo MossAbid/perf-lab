@@ -13,10 +13,15 @@ Coque multi-programmes : **Upper Power Lab**, **Core Lab**, **Lower Lab** (Moss)
 - `app.js` · moteur (routeur, rendu, écran d'ajout, timer)
 - `progression.js` · règle RPE, paliers, validation & migration du schéma JSON (logique pure, testée en Node)
 - `backend.js` · couche local/cloud (profils + auth + sync + cache offline + file d'attente)
-- `config.js` · **tes clés Supabase** (vide = local)
+- `cycle.js` · programmation : format de cycle, charges, semaine, scores (logique pure, testée en Node)
+- `cyclestore.js` · programmation : données local/cloud (Supabase du module, cache offline, file d'attente)
+- `cycle-ui.js` · programmation : écrans Ta semaine, Séance, Tes max, Importer un cycle
+- `config.js` · **tes clés Supabase** (vide = local) — bibliothèques d'un côté, programmation de l'autre
 - `programs.js` · programmes par défaut (semence à la 1ʳᵉ utilisation)
 - `manifest.webmanifest`, `sw.js`, `icons/`
 - `schema.sql` · à exécuter dans Supabase
+- `tools/validate-cycle.js` · vérifie un fichier de cycle avant import
+- `tools/serve.py` · serveur local pour le test et l'e2e
 
 ---
 
@@ -101,10 +106,10 @@ La clé *anon* est publique : la sécurité vient des règles **RLS** (chaque ut
 voit que ses propres lignes), déjà définies dans `schema.sql`.
 
 En mode CLOUD, tout est synchronisé : programmes, séries/charges (`progress`), **et**
-paliers RPE, semaine courante, journal de séances et micro-programme (table `state`, un
-blob JSON par clé). Compte créé avant l'ajout de la table `state` ? Recolle juste ce bloc
-de `schema.sql` dans le SQL Editor, rien d'autre à migrer. Le micro-programme n'a demandé
-**aucun changement de schéma** : c'est une clé `micro` de plus dans la table `state`.
+paliers RPE, semaine courante et journal de séances (table `state`, un blob JSON par clé).
+Compte créé avant l'ajout de la table `state` ? Recolle juste ce bloc de `schema.sql` dans
+le SQL Editor, rien d'autre à migrer. (L'ancienne clé `micro` du micro-programme retiré
+reste lue et exportée : les vieilles sauvegardes ne perdent rien.)
 
 ## Déployer + installer sur iPhone (plein écran, offline, icône)
 Une PWA doit être servie en **HTTPS** (le `file://` ne permet ni l'offline ni le plein écran).
@@ -114,7 +119,7 @@ Une PWA doit être servie en **HTTPS** (le `file://` ne permet ni l'offline ni l
 
 ### Test local (optionnel)
 ```
-cd perf-lab && python3 -m http.server 8000   # http://localhost:8000
+cd perf-lab && python3 tools/serve.py 8000   # http://localhost:8000
 ```
 
 ---
@@ -129,38 +134,46 @@ Il est sauvegardé côté backend et apparaît sur **tous tes appareils**.
 
 Animations dispo : `pullup explo dip press row bench curl hang crunch raise hold roll rotate carry` (défaut `pulse`).
 
-## Micro-Program (complément quotidien de WYS60)
-Carte **⚡ MICRO PROGRAM** de la bibliothèque (profil Moss) → `#/micro`.
+## Programmation (remplace WYS60)
+Carte **TA SEMAINE** de la bibliothèque (profil Moss uniquement) → `#/cf`.
 
-Le principe : *minimum effective dose, maximum consistency*. Tu déclares ce que ta séance
-WYS contenait vraiment, ta fatigue et le temps dispo ; le moteur choisit la plus petite
-dose utile — et répond **NO ADDITIONAL WORK TODAY** quand c'est la bonne réponse.
-Ce n'est jamais un 2ᵉ entraînement : budget temps et nombre de blocs sont plafonnés
-(3 min → 1 bloc, 5-7 min → 2, 10 min → 3).
+- **Ta semaine** : 4 séances en file ordonnée, faites le jour qui t'arrange (la date est notée
+  quand tu la coches), + un bonus facultatif et le team WOD du dimanche. Une semaine non
+  bouclée au lundi suivant → bandeau **La rattraper / La passer** (une seule question, même
+  après plusieurs semaines manquées).
+- **Séance** (`#/cf/s/<id>`) : blocs dépliables ; charges = **max × % arrondi au 2,5 kg**,
+  pastille *Ceinture* dès 80 %, *Tapis* quand le genou touche le sol ; metcon en **RX / INT**
+  (ouvrir l'un replie l'autre), score enregistré et comparé à la dernière fois. Aucune saisie
+  de ressenti.
+- **Tes max** (`#/cf/max`) : le plus récent par mouvement ; un mouvement *dérivé* (ex. front
+  squat = 85 % du back squat) est estimé tant qu'il n'a pas son propre max.
+- **Importer un cycle** (`#/cf/import`) : colle le JSON. Le journal (séances, scores, max)
+  est conservé.
 
-**Parcours (30-45 s)** : cocher 3-5 caractéristiques WYS → fatigue → temps → *Generate*.
-Fatigue et temps sont mémorisés d'une fois sur l'autre.
+**Format** `perflab-cycle-v1` : `{ schema, id, title, start (un lundi), lifts, weeks[] }` ;
+chaque semaine = `{ n, phase, bloc, intent, sessions[4], bonus? }` ; une séance = blocs
+`warmup | strength | metcon | accessory | skill`, ≤ 60 min hors blocs `optional`, au plus un
+metcon (niveaux `rx` et `int`, score `time | reps | rounds_reps | load`, `bench` pour relier
+les metcons répétés). Vérifier avant import : `node tools/validate-cycle.js content/cycle-1.json`.
 
-**Objectifs suivis** : Bar Muscle-Up, Double Unders, Toes-to-Bar, Handstand Walk, plus du
-renforcement de longévité (épaules/scapulas, chaîne postérieure, gainage, tirage,
-unilatéral, grip). Chacun suit un bloc de **8 semaines** qui se recycle.
+**Le contenu des cycles n'est jamais dans le dépôt** (public) : le dossier `content/` est
+ignoré par git ; le cycle vit dans Supabase et dans le cache de l'appareil.
 
-**Adaptation** : `micro.js` porte une table de conflit déclarative (`CONFLICTS`) — chaque
-catégorie WYS applique une pénalité aux cibles concernées (1 = dose réduite, 2 = retiré du
-jour). Ex. *Heavy Pulling* retire le BMU, *HSPU* retire le HSW, *High Grip* réduit
-BMU/TTB/DU. Fatigue **rouge** = 5 min maximum de mobilité, ou rien du tout après une
-séance dure.
+**Supabase pour ce module seulement** : les bibliothèques et le sélecteur Moss / Souad
+restent en mode LOCAL. Pour activer la synchro de la programmation :
+1. Crée un projet Supabase, colle `schema.sql` dans le SQL Editor → *Run* (tables `cycles`,
+   `cycle_athletes`, `state` + règles RLS).
+2. *Authentication → Providers → Email* : désactive « Confirm email ». Crée ton compte dans
+   *Authentication → Users* (l'app n'a pas d'écran de création de compte pour ce module).
+3. Renseigne `CYCLE_SUPABASE_URL` et `CYCLE_SUPABASE_ANON_KEY` dans `config.js`
+   (laisse `SUPABASE_URL` / `SUPABASE_ANON_KEY` vides).
 
-**Progression** : elle réutilise **la règle RPE existante** (`progression.js`), pas une
-règle parallèle. Un palier ne monte que si la cible du jour est atteinte **et** RPE ≤ 6
-**et** aucune douleur (et, pour le BMU, qualité ≥ 3/5). RPE ≥ 9 ou douleur → palier
-précédent. La montée se fait toujours d'un seul cran (ex. DU : 20 → 25 → 30 → 35 → 40 →
-50 → 60 → 75 → 100).
+Données de l'athlète : blob `state` clé `cycle` (cache `perflab.p.moss.cycle`) =
+`{ v, maxes, logs }`, inclus dans l'export/import de profils.
 
-**Stockage** : un seul blob `perflab.p.<profil>.micro` = `{ v, start, skills, history }`.
-`skills` a exactement la forme de `progression[progId]`, `history` est plafonné à 400
-entrées. Inclus dans l'export/import de profils ; une sauvegarde antérieure (sans clé
-`micro`) n'efface rien.
+**Tests** : `node tests/cycle.test.js && node tests/cyclestore.test.js`, puis l'e2e
+(`python3 tools/serve.py 8741` et `chrome --headless=new --virtual-time-budget=30000
+--dump-dom http://localhost:8741/tests/e2e.html` → aucune ligne `E2E-FAIL`).
 
 ## Offline & sync
 - Les données s'affichent immédiatement depuis le cache local.

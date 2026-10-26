@@ -118,11 +118,9 @@ const Backend = (() => {
     return log;
   }
 
-  /* ---- micro-programme adaptatif — local par profil ----
-     Blob opaque { v, start, skills, history } écrit tel quel : le backend
-     ne connaît pas sa structure (elle vit dans micro.js). Même transport
-     que progression/weeks/log — une clé de plus dans la table `state`,
-     donc aucun changement de schéma SQL.                                */
+  /* ---- micro-programme (retiré de l'app, remplacé par la Programmation) ----
+     Blob opaque { v, start, skills, history } conservé tel quel : les
+     anciennes sauvegardes restent lisibles et ré-exportables.          */
   function getMicro(){ return readLS(K("micro"), null); }
   async function saveMicro(m){ writeLS(K("micro"), m); await syncState("micro", m); }
 
