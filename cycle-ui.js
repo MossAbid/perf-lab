@@ -28,18 +28,19 @@ const CycleUI = (() => {
   const minutesOf = s => s.blocks.filter(b => !b.optional).reduce((a, b) => a + (Number(b.minutes) || 0), 0);
   const isMoss = () => Backend.activeProfile() === "moss";
 
-  function shell(kicker, title, body){
+  /* gabarit commun ; le défilement est remis en haut par route(), pas ici :
+     déplier un bloc re-rend l'écran sans faire sauter la page */
+  function shell(kicker, title, body, back = ["Bibliothèque", "#/"]){
     setAccent(ACC);
     app.innerHTML = `<div class="view cf"><div class="wrap">
       <header>
         <div class="topbar"><div class="kicker">${esc(kicker)}</div>
-          <button class="back" id="cfback">◂ Bibliothèque</button></div>
+          <button class="back" id="cfback">◂ ${esc(back[0])}</button></div>
         <h1>${title}</h1>
       </header>
       ${body}
     </div></div>`;
-    $("#cfback").onclick = () => location.hash = "#/";
-    window.scrollTo(0, 0);
+    $("#cfback").onclick = () => location.hash = back[1];
   }
 
   /* ---- carte de la bibliothèque ---- */
@@ -198,11 +199,143 @@ const CycleUI = (() => {
     };
   }
 
+  /* ---- Séance ----
+     Un bloc = un en-tête qui déplie/replie (force déplié par défaut).
+     Metcon : RX et INT exclusifs, score rangé par séance au niveau choisi. */
+  const FLAG = { tapis: "Tapis", ceinture: "Ceinture" };
+  const SCORE_HINT = { time: "Ton temps (mm:ss)", reps: "Tes reps", rounds_reps: "Tours + reps (ex. 5+8)", load: "Ta charge (kg)" };
+  const SCORE_MODE = { time: "text", reps: "numeric", rounds_reps: "text", load: "decimal" };
+  const fmtKg = kg => String(kg).replace(".", ",") + " kg";
+  const lines = t => String(t || "").split("\n").map(l => l.trim()).filter(Boolean).map(l => `<span>${esc(l)}</span>`).join("");
+  const flagsHtml = b => (b.flags || []).map(f => `<span class="cf-flag cf-flag-${esc(f)}">${esc(FLAG[f] || f)}</span>`).join("");
+  let SS = { sid: null };   // état d'écran de la séance ouverte
+
+  function findSession(cycle, sid){
+    for(let wi = 0; wi < cycle.weeks.length; wi++){
+      const w = cycle.weeks[wi], i = w.sessions.findIndex(s => s.id === sid);
+      if(i >= 0) return { s: w.sessions[i], w, wi, n: i + 1, bonus: false };
+      if(w.bonus && w.bonus.id === sid) return { s: w.bonus, w, wi, n: null, bonus: true };
+    }
+    return null;
+  }
+
+  function strengthBody(cycle, athlete, b){
+    const lift = cycle.lifts[b.lift];
+    const m = C.liftMax(cycle, athlete.maxes, b.lift);
+    const src = m && m.derived ? cycle.lifts[lift.derive.from] : null;
+    const maxLine = m
+      ? `Calculé sur ton max : <b>${fmtKg(m.kg)}</b>${src ? ` · dérivé du ${esc(src.name.toLowerCase())}` : ""}`
+      : `Pas encore de max pour ce mouvement · <a href="#/cf/max">Saisis ton max</a>`;
+    const rows = C.strengthLines(cycle, athlete.maxes, b).map(l => `
+      <span>${esc(l.sets)} × ${esc(l.reps)}</span><span>${esc(l.pct)} %</span>
+      <span class="cf-kg"><span class="cf-load">${l.kg != null ? fmtKg(l.kg) : "—"}</span>${l.belt ? `<span class="cf-belt">Ceinture</span>` : ""}</span>`).join("");
+    return `<div class="cf-max">${maxLine}</div>
+      <div class="cf-table"><span class="cf-th">Séries</span><span class="cf-th">% du max</span><span class="cf-th">Charge</span>${rows}</div>
+      ${b.rest ? `<div class="cf-rest">Repos : ${esc(b.rest)}</div>` : ""}
+      ${b.notes ? `<div class="cf-text">${lines(b.notes)}</div>` : ""}
+      ${lift.video ? `<a class="cf-video" href="${esc(lift.video)}" target="_blank" rel="noopener">▶ Vidéo · ${esc(lift.name)}</a>` : ""}`;
+  }
+
+  function metconBody(athlete, log, b, sid, readOnly){
+    const levels = ["rx", "int"].map(k => {
+      const open = SS.levelOpen && SS.level === k, t = b.levels[k].text || "";
+      return `<button class="cf-lvh${open ? " on" : ""}" data-level="${k}" aria-expanded="${open}">
+          <span class="cf-lvp lv-${k}">${k === "rx" ? "RX" : "INT"}</span>
+          <span class="cf-lvs">${open ? "" : esc(t.split("\n")[0])}</span><span class="cf-chev">${open ? "−" : "+"}</span></button>
+        ${open ? `<div class="cf-level" data-open-level="${k}">${lines(t)}</div>` : ""}`;
+    }).join("");
+    const mine = log.scores[sid];
+    const prev = C.previousScore(athlete, b.bench, today());
+    const score = readOnly ? "" : `<div class="cf-score">
+        <label for="cfscore">${SCORE_HINT[b.score]} · niveau ${SS.level === "rx" ? "RX" : "INT"}</label>
+        <div class="cf-srow"><input id="cfscore" type="text" inputmode="${SCORE_MODE[b.score]}" autocomplete="off" value="${mine ? esc(mine.text) : ""}">
+          <button class="dbtn go" id="cfsave">Enregistrer</button></div>
+        <div class="cf-err">${esc(SS.err || "")}</div>
+        ${mine ? `<div class="cf-sline">Enregistré : <b>${esc(mine.text)}</b> · ${mine.level === "rx" ? "RX" : "INT"}</div>` : ""}
+        ${prev ? `<div class="cf-sline">Dernière fois : ${esc(prev.text)} · ${prev.level === "rx" ? "RX" : "INT"} · ${dayLabel(prev.d)}</div>` : ""}
+      </div>`;
+    return `${b.text ? `<div class="cf-text">${lines(b.text)}</div>` : ""}<div class="cf-levels">${levels}</div>${score}`;
+  }
+
+  function renderSession(sid){
+    const cycle = CycleStore.getCycle();
+    const f = cycle && findSession(cycle, sid);
+    if(!f){ location.hash = "#/cf"; return; }
+    const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle);
+    const metcon = f.s.blocks.find(b => b.kind === "metcon");
+    if(SS.sid !== sid){
+      const prev = metcon && C.previousScore(athlete, metcon.bench, today());
+      SS = { sid, open: new Set(f.s.blocks.map((b, i) => b.kind === "strength" ? i : -1).filter(i => i >= 0)),
+             level: (log.scores[sid] || prev || {}).level || "rx", levelOpen: true, err: "" };
+    }
+    const locked = f.wi > C.calendarWeek(cycle, today());
+    const doneDate = f.bonus ? log.bonus[sid] : log.done[sid];
+
+    const blocks = f.s.blocks.map((b, i) => {
+      const isMet = b.kind === "metcon", open = isMet || SS.open.has(i);
+      const sub = `${b.minutes ? b.minutes + " min" : ""}${b.optional ? " · facultatif" : ""}`;
+      const head = `<span class="cf-bn">${String(i + 1).padStart(2, "0")}</span>
+        <span class="cf-bt"><b>${esc(b.title)}</b><small>${sub}</small></span>${flagsHtml(b)}`;
+      const body = b.kind === "strength" ? strengthBody(cycle, athlete, b)
+        : isMet ? metconBody(athlete, log, b, sid, locked)
+        : `<div class="cf-text">${lines(b.text)}</div>`;
+      return `<section class="cf-blk k-${esc(b.kind)}">
+        ${isMet ? `<div class="cf-bh">${head}</div>`
+          : `<button class="cf-bh" data-block="${i}" aria-expanded="${open}">${head}<span class="cf-chev">${open ? "−" : "+"}</span></button>`}
+        ${open ? `<div class="cf-bb">${body}</div>` : ""}
+      </section>`;
+    }).join("");
+
+    const foot = locked
+      ? `<div class="cf-note">Séance de la semaine ${f.wi + 1} : elle s'ouvre le ${dayLabel(addDays(cycle.start, f.wi * 7))}.</div>`
+      : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>`
+      : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
+    const title = f.bonus ? "BONUS" : `SÉANCE ${f.n}`;
+    shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}`, `${title}<br><em>${esc(f.s.title.replace(/^Bonus · /, ""))}</em>`, `
+      <p class="lede">${minutesOf(f.s)} min${f.w.intent ? ` · ${esc(f.w.intent)}` : ""}</p>
+      <div class="cf-blocks">${blocks}</div>
+      ${foot}`, ["Ta semaine", "#/cf"]);
+
+    app.querySelectorAll("[data-block]").forEach(btn => btn.onclick = () => {
+      const i = +btn.dataset.block;
+      if(SS.open.has(i)) SS.open.delete(i); else SS.open.add(i);
+      renderSession(sid);
+    });
+    app.querySelectorAll("[data-level]").forEach(btn => btn.onclick = () => {
+      const k = btn.dataset.level;
+      if(SS.level === k && SS.levelOpen) SS.levelOpen = false; else { SS.level = k; SS.levelOpen = true; }
+      renderSession(sid);
+    });
+    const save = $("#cfsave");
+    if(save) save.onclick = async () => {
+      let sc;
+      try{ sc = C.parseScore(metcon.score, $("#cfscore").value); }
+      catch(m){ SS.err = String(m); $(".cf-err").textContent = SS.err; return; }
+      SS.err = "";
+      const a = CycleStore.getAthlete();
+      C.recordScore(logFor(a, cycle), sid, SS.level, sc, today(), metcon.bench);
+      await CycleStore.saveAthlete(a);
+      toast("Score enregistré.");
+      renderSession(sid);
+    };
+    const done = $("#cfdone");
+    if(done && !done.disabled) done.onclick = async () => {
+      const a = CycleStore.getAthlete(), l = logFor(a, cycle);
+      if(f.bonus) C.markBonus(l, sid, today()); else C.markDone(l, sid, today());
+      await CycleStore.saveAthlete(a);
+      toast(f.bonus ? "Bonus noté." : "Séance enregistrée — bien joué.");
+      renderSession(sid);
+    };
+  }
+
   /* ---- routeur du module : true si la route est gérée ---- */
   function route(h){
     if(!/^cf(\/|$)/.test(h) || !isMoss()) return false;
-    if(CycleStore.needAuth()){ renderLogin(); return true; }
-    renderWeek();
+    const m = h.match(/^cf\/s\/(.+)$/);
+    if(CycleStore.needAuth()) renderLogin();
+    else if(m) renderSession(decodeURIComponent(m[1]));
+    else renderWeek();
+    window.scrollTo(0, 0);
     return true;
   }
 

@@ -261,6 +261,25 @@
     ok("w1s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s1");
     ok("bonus présent", !!document.querySelector(".cf-bonus"));
     ok("pas de carte micro-programme", !document.querySelector("[data-micro]"));
+
+    /* 9. PROGRAMMATION : séance (charges, RX/INT, score, séance faite) */
+    await goto("cf/s/w1s1");
+    ok("force : charges vides sans max", document.querySelector(".cf-load").textContent.trim() === "—");
+    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 120, today())); await goto("cf"); await goto("cf/s/w1s1");
+    ok("force : 72,5 / 85 / 95 kg", [...document.querySelectorAll(".cf-load")].map(e => e.textContent.trim()).join("|") === "72,5 kg|85 kg|95 kg");
+    ok("ceinture sur la ligne à 80 %", document.querySelectorAll(".cf-belt").length === 1);
+    ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
+    document.querySelector('[data-level="int"]').click(); await tick();
+    ok("INT ouvert, RX replié", !!document.querySelector('.cf-level[data-open-level="int"]') && !document.querySelector('.cf-level[data-open-level="rx"]'));
+    const sc = document.getElementById("cfscore"); sc.value = "abc"; document.getElementById("cfsave").click(); await tick();
+    ok("score invalide refusé", !!document.querySelector(".cf-err").textContent);
+    document.getElementById("cfscore").value = "5+8"; document.getElementById("cfsave").click(); await tick();
+    ok("score enregistré niveau INT", CycleStore.getAthlete().logs["cycle-1"].scores.w1s1.level === "int");
+    document.getElementById("cfdone").click(); await tick(100);
+    await goto("cf");
+    ok("w1s2 passe en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s2");
+    await goto("cf/s/w1s2");
+    ok("strict press sans max : pas de NaN", !document.getElementById("app").textContent.includes("NaN") && document.querySelector(".cf-load").textContent.trim() === "—");
   } catch (e) {
     out.push("E2E-FAIL exception : " + (e && e.stack || e));
   }
