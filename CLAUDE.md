@@ -39,7 +39,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 ## Stack technique exacte
 - Frontend 100% vanilla JS (pas de framework, pas de bundler, scripts classiques non-`module` chargés par balises `<script>`).
 - CSS vanilla (`app.css`), pas de préprocesseur.
-- Backend optionnel : Supabase — Postgres + Auth + Row Level Security, client chargé via CDN jsDelivr (`@supabase/supabase-js@2`), pas de dépendance npm.
+- Backend optionnel : Supabase — Postgres + Auth + Row Level Security, client chargé via CDN jsDelivr (`@supabase/supabase-js@2.118.0`, version épinglée et testée), pas de dépendance npm.
 - Aucun `package.json` / aucun outil de build.
 - Tests : scripts Node purs avec `assert` + un harnais e2e HTML exécuté dans Chrome headless.
 - PWA : `manifest.webmanifest` + `sw.js` (code HTML/CSS/JS en network-first borné à 3 s puis cache ; icônes et polices en cache-first).
