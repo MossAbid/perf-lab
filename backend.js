@@ -361,7 +361,8 @@ const Backend = (() => {
         weeks:       readLS(Kp(p.id,"weeks"), {}),
         progression: readLS(Kp(p.id,"progression"), {}),
         log:         readLS(Kp(p.id,"log"), []),
-        micro:       readLS(Kp(p.id,"micro"), null)
+        micro:       readLS(Kp(p.id,"micro"), null),
+        cycle:       readLS(Kp(p.id,"cycle"), null)
       }))
     };
   }
@@ -374,7 +375,8 @@ const Backend = (() => {
         weeks:       readLS(Kp(p.id,"weeks"), {}),
         progression: readLS(Kp(p.id,"progression"), {}),
         log:         readLS(Kp(p.id,"log"), []),
-        micro:       readLS(Kp(p.id,"micro"), null)
+        micro:       readLS(Kp(p.id,"micro"), null),
+        cycle:       readLS(Kp(p.id,"cycle"), null)
       };
     });
     window.PLProgression.mergeProfilesDoc(state, doc);
@@ -388,6 +390,8 @@ const Backend = (() => {
       writeLS(Kp(pid,"log"),         state[pid].log || []);
       // sauvegardes antérieures au micro-programme : clé absente → on garde l'existant
       if(state[pid].micro) writeLS(Kp(pid,"micro"), state[pid].micro);
+      // idem pour la programmation (blob athlète écrit par CycleStore)
+      if(state[pid].cycle) writeLS(Kp(pid,"cycle"), state[pid].cycle);
     });
   }
 

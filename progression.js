@@ -146,7 +146,7 @@
   function mergeProfilesDoc(state, doc) {
     doc.profiles.forEach(pr => {
       const id = pr.id;
-      const cur = state[id] || { programs: [], progress: {}, weeks: {}, progression: {}, log: [], micro: null };
+      const cur = state[id] || { programs: [], progress: {}, weeks: {}, progression: {}, log: [], micro: null, cycle: null };
       (pr.programs || []).forEach(p => {
         const i = cur.programs.findIndex(x => x.id === p.id);
         if (i >= 0) cur.programs[i] = p; else cur.programs.push(p);
@@ -157,6 +157,8 @@
       if (pr.log)         cur.log         = pr.log;
       // micro-programme : absent d'une sauvegarde antérieure → on conserve l'existant
       if (pr.micro)       cur.micro       = pr.micro;
+      // programmation (max, séances faites, scores) : même règle de tolérance
+      if (pr.cycle)       cur.cycle       = pr.cycle;
       state[id] = cur;
     });
     return state;

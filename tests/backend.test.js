@@ -228,6 +228,31 @@ t("micro : une sauvegarde antérieure (sans clé micro) n'efface pas l'existant"
   assert.equal(Backend.getWeek("core"), 2, "le reste de l'ancien backup est bien appliqué");
 });
 
+/* ---- programmation : blob athlète (clé cycle) dans la sauvegarde ---- */
+const CYCLE_SAMPLE = { v: 1, maxes: { back_squat: [{ kg: 120, d: "2026-08-15" }] },
+  logs: { "cycle-1": { done: { w1s1: "2026-11-24" }, skipped: [], decisions: {}, scores: {}, bonus: {} } } };
+
+t("cycle : aller-retour export → import fidèle", async () => {
+  const a = boot({ "perflab.p.moss.cycle": JSON.stringify(CYCLE_SAMPLE) });
+  const doc = a.Backend.exportAll();
+  assert.deepEqual(doc.profiles.find(p => p.id === "moss").cycle, CYCLE_SAMPLE);
+  assert.equal(doc.profiles.find(p => p.id === "souad").cycle, null);
+  const b = boot();
+  b.Backend.importProfilesDoc(JSON.parse(JSON.stringify(doc)));
+  assert.deepEqual(JSON.parse(b.ls.getItem("perflab.p.moss.cycle")), CYCLE_SAMPLE);
+  assert.equal(b.ls.getItem("perflab.p.souad.cycle"), null, "rien écrit chez Souad");
+});
+
+t("cycle : une sauvegarde sans clé cycle n'efface pas l'existant", async () => {
+  const { Backend, ls } = boot({ "perflab.p.moss.cycle": JSON.stringify(CYCLE_SAMPLE) });
+  Backend.importProfilesDoc({
+    schema: "perflab-profiles-v1",
+    profiles: [{ id: "moss", name: "Moss", programs: [], progress: {}, weeks: { core: 2 }, progression: {}, log: [] }]
+  });
+  assert.deepEqual(JSON.parse(ls.getItem("perflab.p.moss.cycle")), CYCLE_SAMPLE);
+  assert.equal(Backend.getWeek("core"), 2);
+});
+
 /* ---- mode CLOUD : sync des blobs d'état (progression/weeks/log) ----
    Mock minimal du client Supabase (select/eq/order/upsert/delete, tous
    thenables comme le vrai client) + un stub d'auth avec session fixe. */

@@ -131,6 +131,14 @@ t("mergeProfilesDoc : remplace par id, préserve le reste", () => {
   P.mergeProfilesDoc(state, { profiles: [{ id: "souad", programs: [{ id: "z" }], progression: { p: {} } }] });
   assert.equal(state.souad.programs[0].id, "z");
 });
+t("mergeProfilesDoc conserve cycle absent, applique cycle présent", () => {
+  const blob = { v: 1, maxes: { back_squat: [{ kg: 120, d: "2026-08-15" }] }, logs: {} };
+  const state = { moss: { programs: [], progress: {}, weeks: {}, progression: {}, cycle: blob } };
+  P.mergeProfilesDoc(state, { profiles: [{ id: "moss", programs: [], weeks: { core: 2 } }] });
+  assert.deepEqual(state.moss.cycle, blob, "sauvegarde sans clé cycle → existant conservé");
+  P.mergeProfilesDoc(state, { profiles: [{ id: "moss", programs: [], cycle: { v: 1, maxes: {}, logs: {} } }] });
+  assert.deepEqual(state.moss.cycle.maxes, {});
+});
 
 /* ---- cohérence de programs.js ---- */
 t("programs.js : LOWER LAB présent, paliers bien formés partout", () => {
