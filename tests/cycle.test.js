@@ -171,4 +171,56 @@ t("score précédent sur le même metcon", () => {
   assert.equal(C.previousScore(a, "amrap-a", "2026-11-24"), null);
 });
 
+/* ---- Ton mois / Ton programme ---- */
+const MONTHS_LOG = () => ({ ...C.newLog(), done: { w1s2: "2026-11-24", w1s1: "2026-11-24" }, bonus: { w1b: "2026-11-26" } });
+const cell = (g, iso) => g.weeks.flat().find(x => x.iso === iso);
+t("fin du cycle : dimanche de la dernière semaine", () => assert.equal(C.cycleEnd(makeSampleCycle()), "2026-12-06"));
+t("mois : novembre 2026 sur 6 lignes", () => {
+  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  assert.equal(g.label, "Novembre 2026"); assert.equal(g.weeks.length, 6);
+  assert.equal(g.weeks[0][0].iso, "2026-10-26"); assert.equal(g.weeks[0][0].inMonth, false);
+  assert.equal(g.weeks[5][6].iso, "2026-12-06");
+});
+t("mois : deux séances le même jour, dans l'ordre", () => {
+  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  assert.deepEqual(cell(g, "2026-11-24").items.map(i => i.chip), ["S1", "S2"]);
+});
+t("mois : bonus et aujourd'hui", () => {
+  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  assert.deepEqual(cell(g, "2026-11-26").items.map(i => i.type), ["bonus"]);
+  assert.equal(cell(g, "2026-11-25").today, true);
+});
+t("mois : team WOD seulement les dimanches du cycle", () => {
+  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  assert.deepEqual(cell(g, "2026-11-29").items, [{ type: "wod", chip: "T", past: false }]);
+  assert.deepEqual(cell(g, "2026-11-22").items, []);
+  const d = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 12, "2026-12-20");
+  assert.equal(cell(d, "2026-12-06").items[0].past, true);
+  assert.deepEqual(cell(d, "2026-12-13").items, []);
+});
+t("mois : bornes de navigation", () => {
+  assert.deepEqual(C.monthBounds(makeSampleCycle(), "2026-10-26"), { min: "2026-10", max: "2026-12" });
+  assert.deepEqual(C.monthBounds(makeSampleCycle(), "2027-02-10"), { min: "2026-11", max: "2027-02" });
+});
+t("programme : semaine 1, dernière série et charge", () => {
+  const p = C.programmeWeek(makeSampleCycle(), { back_squat: [{ kg: 120, d: "2026-08-15" }] }, 0);
+  assert.equal(p.n, 1); assert.equal(p.start, "2026-11-23"); assert.equal(p.end, "2026-11-29");
+  assert.deepEqual(p.sessions[0].lines[0], { kind: "strength", lift: "back_squat", name: "Back squat", scheme: "4 × 3 à 80 %", kg: 95, test: null, maxKg: 120 });
+  assert.deepEqual(p.sessions[0].lines[1], { kind: "metcon", title: "AMRAP 12 min" });
+  assert.equal(p.sessions[1].lines[0].kg, null);
+  assert.deepEqual(p.bonus, { id: "w1b", title: "Bonus · BMU + mobilité" });
+});
+t("programme : mouvement dérivé et test", () => {
+  const c = makeSampleCycle(); c.weeks[1].sessions[0].blocks[1].test = "3RM";
+  const p = C.programmeWeek(c, { back_squat: [{ kg: 120, d: "2026-08-15" }] }, 1);
+  assert.equal(p.sessions[2].lines[0].kg, 72.5);      // front squat = 102 × 70 %
+  assert.equal(p.sessions[0].lines[0].test, "3RM");
+});
+t("programme : bloc de gymnastique d'une séance", () => {
+  const c = makeSampleCycle();
+  c.weeks[0].sessions[3].blocks.splice(2, 0, { kind: "skill", title: "Bar muscle-up", minutes: 0, text: "EMOM 8 min :\n2 bar muscle-ups" });
+  const p = C.programmeWeek(c, {}, 0);
+  assert.deepEqual(p.sessions[3].lines[1], { kind: "skill", title: "Bar muscle-up", text: "EMOM 8 min :" });
+});
+
 console.log(`\n${n} tests OK`);

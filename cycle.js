@@ -273,12 +273,71 @@
     return best ? { text: best.text, level: best.level, d: best.d } : null;
   }
 
+  /* ---- Ton mois : grille lundi → dimanche, séances faites à leur date ---- */
+  const MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+  const isoOf = n => new Date(n * 86400000).toISOString().slice(0, 10);
+  const weekday = n => (n + 3) % 7; // 0 = lundi … 6 = dimanche
+
+  const cycleEnd = cycle => isoOf(dayNum(cycle.start) + cycle.weeks.length * 7 - 1);
+
+  function monthBounds(cycle, todayISO) {
+    const ms = [cycle.start, cycleEnd(cycle), todayISO].map(iso => iso.slice(0, 7)).sort();
+    return { min: ms[0], max: ms[ms.length - 1] };
+  }
+
+  function monthGrid(cycle, log, year, month, todayISO) {
+    const L = log || {}, ym = `${year}-${String(month).padStart(2, "0")}`;
+    const first = dayNum(ym + "-01"), dim = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const from = first - weekday(first), last = first + dim - 1, to = last + 6 - weekday(last);
+    const startN = dayNum(cycle.start), endN = dayNum(cycleEnd(cycle));
+    const order = sessionOrder(cycle), byDay = {};
+    const add = (iso, item) => (byDay[iso] = byDay[iso] || []).push(item);
+    cycle.weeks.forEach((w, wi) => {
+      w.sessions.forEach((s, i) => {
+        const d = (L.done || {})[s.id];
+        if (d) add(d, { type: "session", id: s.id, n: i + 1, wi, title: s.title, chip: "S" + (i + 1), _o: order.indexOf(s.id) });
+      });
+      const bd = w.bonus && (L.bonus || {})[w.bonus.id];
+      if (bd) add(bd, { type: "bonus", id: w.bonus.id, title: w.bonus.title, chip: "B", _o: order.length });
+    });
+    const weeks = [];
+    for (let n = from; n <= to; n++) {
+      const iso = isoOf(n);
+      const items = (byDay[iso] || []).sort((a, b) => a._o - b._o).map(({ _o, ...it }) => it);
+      if (weekday(n) === 6 && n >= startN && n <= endN) items.push({ type: "wod", chip: "T", past: iso < todayISO });
+      if (weekday(n) === 0) weeks.push([]);
+      weeks[weeks.length - 1].push({ iso, day: +iso.slice(8), inMonth: iso.slice(0, 7) === ym, today: iso === todayISO, items });
+    }
+    return { year, month, label: `${MONTHS_FR[month - 1]} ${year}`, weeks };
+  }
+
+  /* ---- Ton programme : une semaine résumée (dernière série de travail) ---- */
+  function programmeWeek(cycle, maxes, wi) {
+    const w = cycle.weeks[wi], start = dayNum(cycle.start) + wi * 7;
+    const sessions = w.sessions.map((s, i) => ({
+      id: s.id, n: i + 1, title: s.title,
+      lines: s.blocks.reduce((acc, b) => {
+        if (b.kind === "strength") {
+          const top = b.sets[b.sets.length - 1], m = liftMax(cycle, maxes, b.lift);
+          acc.push({ kind: "strength", lift: b.lift, name: cycle.lifts[b.lift].name,
+            scheme: `${top.sets} × ${top.reps} à ${top.pct} %`, kg: m ? loadKg(m.kg, top.pct) : null,
+            test: b.test || null, maxKg: m ? m.kg : null });
+        } else if (b.kind === "skill") acc.push({ kind: "skill", title: b.title, text: String(b.text || "").split("\n")[0] });
+        else if (b.kind === "metcon") acc.push({ kind: "metcon", title: b.title });
+        return acc;
+      }, [])
+    }));
+    return { n: w.n || wi + 1, phase: w.phase, bloc: w.bloc, intent: w.intent, start: isoOf(start), end: isoOf(start + 6),
+             sessions, bonus: w.bonus ? { id: w.bonus.id, title: w.bonus.title } : null };
+  }
+
   const API = {
     SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT, MOVE_CATS, STEP_STATES, TESTS,
     validateCycle,
     loadKg, liftMax, strengthLines, newAthlete, setMax,
     newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,
-    parseScore, recordScore, previousScore
+    parseScore, recordScore, previousScore,
+    cycleEnd, monthBounds, monthGrid, programmeWeek
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   root.PLCycle = API;
