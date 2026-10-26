@@ -11,5 +11,10 @@
    ===================================================================== */
 window.CONFIG = {
   SUPABASE_URL: "",      // ex: "https://xxxxxxxx.supabase.co"
-  SUPABASE_ANON_KEY: ""  // ex: "eyJhbGciOi..."
+  SUPABASE_ANON_KEY: "", // ex: "eyJhbGciOi..."
+
+  // Programmation (module « Ta semaine ») : Supabase pour ce module seulement.
+  // Les bibliothèques et le sélecteur Moss / Souad restent en mode LOCAL.
+  CYCLE_SUPABASE_URL: "",
+  CYCLE_SUPABASE_ANON_KEY: ""
 };

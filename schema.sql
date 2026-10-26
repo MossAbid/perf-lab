@@ -61,3 +61,43 @@ create policy "own_state" on public.state
 -- bloc "state" ci-dessus dans le SQL Editor et relance l'app — rien
 -- d'autre à migrer, la table se remplit au fil des séances.
 -- =====================================================================
+
+-- =====================================================================
+-- PROGRAMMATION (module « Ta semaine ») — contenu des cycles + athlètes
+-- Le contenu des cycles n'est jamais dans le dépôt : il vit ici.
+-- Les données de l'athlète (max, séances faites, scores) restent dans
+-- la table `state`, clé `cycle`.
+-- =====================================================================
+create table if not exists public.cycles (
+  id         text primary key,
+  owner      uuid not null references auth.users(id) on delete cascade,
+  data       jsonb not null,                -- cycle complet perflab-cycle-v1
+  updated_at timestamptz not null default now()
+);
+create table if not exists public.cycle_athletes (
+  cycle_id text not null references public.cycles(id) on delete cascade,
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  owner    uuid not null references auth.users(id) on delete cascade,
+  active   boolean not null default true,
+  primary key (cycle_id, user_id)
+);
+alter table public.cycles enable row level security;
+alter table public.cycle_athletes enable row level security;
+
+-- l'auteur gère ses cycles ; un athlète inscrit les lit
+drop policy if exists "cycles_owner" on public.cycles;
+create policy "cycles_owner" on public.cycles
+  for all using (auth.uid() = owner) with check (auth.uid() = owner);
+drop policy if exists "cycles_athlete_read" on public.cycles;
+create policy "cycles_athlete_read" on public.cycles
+  for select using (exists (select 1 from public.cycle_athletes a
+                            where a.cycle_id = cycles.id and a.user_id = auth.uid()));
+
+-- `owner` est recopié ici pour que ces règles ne lisent jamais `cycles`
+-- (sinon récursion de RLS entre les deux tables)
+drop policy if exists "ca_owner" on public.cycle_athletes;
+create policy "ca_owner" on public.cycle_athletes
+  for all using (auth.uid() = owner) with check (auth.uid() = owner);
+drop policy if exists "ca_self_read" on public.cycle_athletes;
+create policy "ca_self_read" on public.cycle_athletes
+  for select using (auth.uid() = user_id);
