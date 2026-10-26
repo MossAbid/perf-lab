@@ -138,7 +138,7 @@ const CycleUI = (() => {
       <span class="cf-bdate">${dayLabel(addDays(wStart, 6))}</span></div>`;
 
     shell("Programmation", "TA <em>SEMAINE</em>", `
-      <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length} · ${esc(PHASE[w.phase] || w.phase)}
+      <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length}${w.bloc && w.phase !== "test" ? ` · Bloc ${esc(w.bloc)}` : ""} · ${esc(PHASE[w.phase] || w.phase)}
         · ${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}${w.intent ? `<br>${esc(w.intent)}` : ""}</p>
       ${banner}
       <div class="cf-prog"><div class="cf-bar"><div style="width:${done * 25}%"></div></div><span>${done} sur 4</span></div>
@@ -292,7 +292,7 @@ const CycleUI = (() => {
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
     const title = f.bonus ? "BONUS" : `SÉANCE ${f.n}`;
     shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}`, `${title}<br><em>${esc(f.s.title.replace(/^Bonus · /, ""))}</em>`, `
-      <p class="lede">${minutesOf(f.s)} min${f.w.intent ? ` · ${esc(f.w.intent)}` : ""}</p>
+      <p class="lede">${minutesOf(f.s)} min, hors blocs facultatifs.</p>
       <div class="cf-blocks">${blocks}</div>
       ${foot}`, ["Ta semaine", "#/cf"]);
 

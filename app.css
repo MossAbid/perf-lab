@@ -243,6 +243,7 @@ footer{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;
 .backup .dbtn{padding:6px 10px;font-size:10px}
 
 /* ===== Programmation ===== */
+.cf h1{line-height:.98}
 .cf .lede{margin-top:6px}
 .cf-lab{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
 .cf-note{margin-top:18px;border:1px dashed var(--line);background:var(--panel);border-radius:14px;padding:14px 16px;font-size:14px}
