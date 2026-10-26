@@ -280,6 +280,24 @@
     ok("w1s2 passe en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s2");
     await goto("cf/s/w1s2");
     ok("strict press sans max : pas de NaN", !document.getElementById("app").textContent.includes("NaN") && document.querySelector(".cf-load").textContent.trim() === "—");
+
+    /* 10. PROGRAMMATION : importer un cycle, tes max */
+    await goto("cf/import");
+    const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";
+    document.getElementById("cfjson").value = JSON.stringify(badCycle);
+    document.getElementById("cfimport").click(); await tick();
+    ok("import invalide : message du validateur", document.querySelector(".cf-err").textContent.includes("Schéma attendu"));
+    ok("import invalide : cycle inchangé", CycleStore.getCycle().id === "cycle-1");
+    const goodCycle = makeSampleCycle(mon); goodCycle.title = "Cycle importé";
+    document.getElementById("cfjson").value = JSON.stringify(goodCycle);
+    document.getElementById("cfimport").click(); await tick(100);
+    ok("import valide via le formulaire", CycleStore.getCycle().title === "Cycle importé" && location.hash === "#/cf");
+    ok("journal conservé après réimport", !!CycleStore.getAthlete().logs["cycle-1"].done.w1s1);
+    await goto("cf/max");
+    document.querySelector('[data-edit="snatch"]').click(); await tick();
+    document.getElementById("cfmkg").value = "55"; document.getElementById("cfmsave").click(); await tick(100);
+    ok("tes max : snatch 55 kg", document.querySelector('[data-lift="snatch"] .cf-mkg').textContent.trim() === "55 kg");
+    ok("tes max : front squat estimé : 102 kg", document.querySelector('[data-lift="front_squat"]').textContent.includes("estimé : 102 kg"));
   } catch (e) {
     out.push("E2E-FAIL exception : " + (e && e.stack || e));
   }

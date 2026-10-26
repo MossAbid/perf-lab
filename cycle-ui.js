@@ -328,12 +328,98 @@ const CycleUI = (() => {
     };
   }
 
+  /* ---- Tes max ----
+     Max saisis (le plus récent par mouvement) ; les mouvements sans max
+     — dont les dérivés, avec leur estimation — dans « Pas encore de repère ».
+     Date en orange : max antérieur de plus de 9 semaines au début du cycle. */
+  let editLift = null;
+  function maxRow(cycle, athlete, id, staleBefore){
+    const l = cycle.lifts[id], own = C.liftMax({ lifts: {} }, athlete.maxes, id);
+    const est = !own && l.derive ? C.liftMax(cycle, athlete.maxes, id) : null;
+    const right = own
+      ? `<span class="cf-mdate${own.d < staleBefore ? " stale" : ""}">${ddmm(own.d)}</span><span class="cf-mkg">${fmtKg(own.kg)}</span>`
+      : `<span class="cf-mest">${est ? `estimé : ${fmtKg(Math.round(est.kg))}` : "à tester"}</span>`;
+    const editor = editLift === id ? `
+      <div class="cf-medit">
+        <input id="cfmkg" type="text" inputmode="decimal" placeholder="kg" value="${own ? String(own.kg).replace(".", ",") : ""}">
+        <input id="cfmdate" type="date" value="${today()}">
+        <button class="dbtn go" id="cfmsave">OK</button>
+        <div class="cf-err" id="cfmerr"></div>
+      </div>` : "";
+    return `<div class="cf-mrow" data-lift="${esc(id)}">
+      <div class="cf-mline"><span class="cf-mname">${esc(l.name)}</span>${right}
+        <button class="dbtn" data-edit="${esc(id)}">${own ? "Modifier" : "Saisir"}</button></div>${editor}
+    </div>`;
+  }
+
+  function renderMax(){
+    const cycle = CycleStore.getCycle();
+    if(!cycle){
+      shell("Programmation", "TES <em>MAX</em>", `<div class="cf-empty"><p>Importe d'abord un cycle : la liste des mouvements vient du cycle.</p>
+        <a class="dbtn go" href="#/cf/import">Importer un cycle</a></div>`, ["Ta semaine", "#/cf"]);
+      return;
+    }
+    const athlete = CycleStore.getAthlete();
+    const ids = Object.keys(cycle.lifts);
+    const has = id => (athlete.maxes[id] || []).length > 0;
+    const staleBefore = addDays(cycle.start, -63);
+    const withMax = ids.filter(has), without = ids.filter(id => !has(id));
+    shell("Programmation", "TES <em>MAX</em>", `
+      <p class="lede">Ils calculent toutes tes charges. Chaque nouveau max recalcule les séances à venir.</p>
+      ${withMax.length ? `<div class="blk"><div class="blk-h"><div class="bl">Force & haltéro</div><div class="line"></div></div>
+        <div class="cf-mlist">${withMax.map(id => maxRow(cycle, athlete, id, staleBefore)).join("")}</div>
+        ${withMax.some(id => C.liftMax({ lifts: {} }, athlete.maxes, id).d < staleBefore)
+          ? `<div class="cf-rest">Date en orange : max de plus de 9 semaines avant le début du cycle.</div>` : ""}</div>` : ""}
+      ${without.length ? `<div class="blk"><div class="blk-h"><div class="bl">Pas encore de repère</div><div class="line"></div></div>
+        <div class="cf-mlist dashed">${without.map(id => maxRow(cycle, athlete, id, staleBefore)).join("")}</div></div>` : ""}`,
+      ["Ta semaine", "#/cf"]);
+
+    app.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
+      editLift = editLift === b.dataset.edit ? null : b.dataset.edit;
+      renderMax();
+      const k = $("#cfmkg"); if(k) k.focus();
+    });
+    const save = $("#cfmsave");
+    if(save) save.onclick = async () => {
+      const kg = parseFloat(String($("#cfmkg").value).replace(",", ".").replace(/\s*kg$/i, ""));
+      const d = $("#cfmdate").value || today();
+      if(!(kg > 0 && kg < 500)){ $("#cfmerr").textContent = "Une charge en kg est attendue (ex. 57,5)."; return; }
+      if(d > today()){ $("#cfmerr").textContent = "La date ne peut pas être dans le futur."; return; }
+      const a = CycleStore.getAthlete();
+      C.setMax(a, editLift, kg, d);
+      await CycleStore.saveAthlete(a);
+      toast(`${cycle.lifts[editLift].name} : ${fmtKg(kg)}`);
+      editLift = null;
+      renderMax();
+    };
+  }
+
+  /* ---- Importer un cycle (JSON perflab-cycle-v1) ---- */
+  function renderImport(){
+    const cur = CycleStore.getCycle();
+    shell("Programmation", "IMPORTER <em>UN CYCLE</em>", `
+      <p class="lede">Colle le JSON du cycle. Il remplace le cycle en cours${cur ? ` (${esc(cur.title)})` : ""} ; tes séances faites, tes scores et tes max sont conservés.</p>
+      <textarea id="cfjson" class="cf-json" spellcheck="false" placeholder='{ "schema": "perflab-cycle-v1", … }'></textarea>
+      <div class="cf-err" id="cfimperr"></div>
+      <button class="dbtn go cf-wide" id="cfimport">Importer</button>`, ["Ta semaine", "#/cf"]);
+    $("#cfimport").onclick = async () => {
+      const err = m => { $("#cfimperr").textContent = m; };
+      let cycle;
+      try{ cycle = JSON.parse($("#cfjson").value); }catch(e){ return err("JSON invalide : " + e.message); }
+      try{ await CycleStore.importCycle(cycle); }catch(m){ return err((m && m.message) || String(m)); }
+      toast("Cycle importé.");
+      location.hash = "#/cf";
+    };
+  }
+
   /* ---- routeur du module : true si la route est gérée ---- */
   function route(h){
     if(!/^cf(\/|$)/.test(h) || !isMoss()) return false;
     const m = h.match(/^cf\/s\/(.+)$/);
     if(CycleStore.needAuth()) renderLogin();
     else if(m) renderSession(decodeURIComponent(m[1]));
+    else if(h === "cf/max"){ editLift = null; renderMax(); }
+    else if(h === "cf/import") renderImport();
     else renderWeek();
     window.scrollTo(0, 0);
     return true;
