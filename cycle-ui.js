@@ -135,7 +135,7 @@ const CycleUI = (() => {
       </div>` : "";
     const wod = `<div class="cf-wod"><span class="cf-num">D</span>
       <span class="cf-st"><b>Team WOD à la salle</b><small>Compté dans ta semaine</small></span>
-      <span class="cf-bdate">${dayLabel(addDays(wStart, 6))}</span></div>`;
+      <span class="cf-bdate">${dayLabel(addDays(cycle.start, Math.max(0, C.calendarWeek(cycle, today())) * 7 + 6))}</span></div>`;
 
     shell("Programmation", "TA <em>SEMAINE</em>", `
       <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length}${w.bloc && w.phase !== "test" ? ` · Bloc ${esc(w.bloc)}` : ""} · ${esc(PHASE[w.phase] || w.phase)}
@@ -165,9 +165,17 @@ const CycleUI = (() => {
     bindFooter();
   }
 
+  /* état de la synchro (CLOUD) : envoi en attente ou refusé, jamais silencieux */
+  function syncLine(){
+    if(!CycleStore.isCloud()) return "";
+    const st = CycleStore.syncState();
+    if(st.error) return `<div class="cf-sync err">Envoi refusé par le serveur : ${esc(st.error)}. Tes données restent sur ce téléphone.</div>`;
+    if(st.pending) return `<div class="cf-sync">Envoi en attente : il repart au retour du réseau.</div>`;
+    return `<div class="cf-sync ok">Synchronisé.</div>`;
+  }
   function footer(){
     const u = CycleStore.isCloud() && CycleStore.user();
-    return `<div class="cf-foot">
+    return `${syncLine()}<div class="cf-foot">
       <a class="dbtn" href="#/cf/max">Tes max</a>
       <a class="dbtn" href="#/cf/import">Importer un cycle</a>
       ${u ? `<button class="dbtn" id="cfout">${esc(u.email || "compte")} · sortir</button>` : ""}
@@ -175,7 +183,7 @@ const CycleUI = (() => {
   }
   function bindFooter(){
     const o = $("#cfout");
-    if(o) o.onclick = async () => { await CycleStore.signOut(); renderLogin(); };
+    if(o) o.onclick = async () => { await CycleStore.signOut(); toast("Déconnecté."); renderLogin(); };
   }
 
   /* ---- connexion (CLOUD) : pas de création de compte ici ---- */
@@ -245,10 +253,12 @@ const CycleUI = (() => {
         ${open ? `<div class="cf-level" data-open-level="${k}">${lines(t)}</div>` : ""}`;
     }).join("");
     const mine = log.scores[sid];
-    const prev = C.previousScore(athlete, b.bench, today());
+    // « dernière fois » = avant le score de cette séance, pour ne pas le répéter
+    const prev = C.previousScore(athlete, b.bench, mine ? mine.d : today());
+    const draft = SS.draft != null ? SS.draft : mine ? mine.text : "";
     const score = readOnly ? "" : `<div class="cf-score">
         <label for="cfscore">${SCORE_HINT[b.score]} · niveau ${SS.level === "rx" ? "RX" : "INT"}</label>
-        <div class="cf-srow"><input id="cfscore" type="text" inputmode="${SCORE_MODE[b.score]}" autocomplete="off" value="${mine ? esc(mine.text) : ""}">
+        <div class="cf-srow"><input id="cfscore" type="text" inputmode="${SCORE_MODE[b.score]}" autocomplete="off" value="${esc(draft)}">
           <button class="dbtn go" id="cfsave">Enregistrer</button></div>
         <div class="cf-err">${esc(SS.err || "")}</div>
         ${mine ? `<div class="cf-sline">Enregistré : <b>${esc(mine.text)}</b> · ${mine.level === "rx" ? "RX" : "INT"}</div>` : ""}
@@ -303,7 +313,8 @@ const CycleUI = (() => {
       renderSession(sid);
     });
     app.querySelectorAll("[data-level]").forEach(btn => btn.onclick = () => {
-      const k = btn.dataset.level;
+      const k = btn.dataset.level, inp = $("#cfscore");
+      if(inp) SS.draft = inp.value;   // garder la saisie en cours
       if(SS.level === k && SS.levelOpen) SS.levelOpen = false; else { SS.level = k; SS.levelOpen = true; }
       renderSession(sid);
     });
@@ -312,7 +323,7 @@ const CycleUI = (() => {
       let sc;
       try{ sc = C.parseScore(metcon.score, $("#cfscore").value); }
       catch(m){ SS.err = String(m); $(".cf-err").textContent = SS.err; return; }
-      SS.err = "";
+      SS.err = ""; SS.draft = null;
       const a = CycleStore.getAthlete();
       C.recordScore(logFor(a, cycle), sid, SS.level, sc, today(), metcon.bench);
       await CycleStore.saveAthlete(a);
@@ -426,7 +437,7 @@ const CycleUI = (() => {
     if(!/^cf(\/|$)/.test(h) || !isMoss()) return false;
     const m = h.match(/^cf\/s\/(.+)$/);
     if(CycleStore.needAuth()) renderLogin();
-    else if(m) renderSession(decodeURIComponent(m[1]));
+    else if(m){ SS = { sid: null }; renderSession(decodeURIComponent(m[1])); }   // écran neuf à chaque arrivée
     else if(h === "cf/max"){ editLift = null; renderMax(); }
     else if(h === "cf/import") renderImport();
     else renderWeek();

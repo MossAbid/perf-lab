@@ -285,6 +285,10 @@ footer{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;
 .cf-wod{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px}
 .cf-bdate{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .cf-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.cf .authbox input{font-size:16px}   /* < 16 px : Safari iOS zoome au focus */
+.cf-sync{margin-top:22px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.04em;color:#ffb25b}
+.cf-sync.ok{color:var(--muted)}
+.cf-sync.err{color:var(--hot)}
 /* séance : blocs dépliables */
 .cf-blocks{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .cf-blk{border:1px solid var(--line);background:var(--panel);border-radius:16px;overflow:hidden}
@@ -348,7 +352,7 @@ div.cf-bh{cursor:default}
 .cf-medit #cfmdate{flex:1;min-width:140px;color-scheme:dark}
 .cf-medit .cf-err{flex-basis:100%}
 /* importer un cycle */
-.cf-json{display:block;width:100%;min-height:240px;margin-top:18px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:12px;border-radius:12px;resize:vertical}
+.cf-json{display:block;width:100%;min-height:240px;margin-top:18px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:16px;padding:12px;border-radius:12px;resize:vertical}
 .cf-json:focus{outline:1px solid var(--accent)}
 .cf-wide{width:100%;min-height:48px;margin-top:8px}
 .cf-undo{display:block;margin:10px auto 0;min-height:40px;background:transparent}

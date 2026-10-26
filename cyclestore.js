@@ -53,10 +53,15 @@ const CycleStore = (() => {
     if(!op) return;
     try{
       await pushAthlete(op.value);
+      lastError = null;
       const cur = readLS(QUEUE_KEY, null);
       if(cur && cur.seq === op.seq) dropLS(QUEUE_KEY);
-    }catch(e){}
+    }catch(e){ lastError = isNetwork(e) ? null : msg(e); }
   }
+  // dernier refus du serveur (RLS, table absente…) ; une coupure réseau n'en est pas un
+  let lastError = null;
+  const isNetwork = e => !e || e instanceof TypeError || /fetch|network|réseau/i.test(msg(e));
+  function syncState(){ return { pending: !!readLS(QUEUE_KEY, null), error: lastError }; }
   let pushing = Promise.resolve();
   function flush(){ pushing = pushing.then(flushOnce, flushOnce); return pushing; }
 
@@ -95,7 +100,14 @@ const CycleStore = (() => {
     currentUser = data?.user || currentUser;
     await flush();
   }
-  async function signOut(){ if(client) await client.auth.signOut(); currentUser = null; }
+  /* hors-ligne, supabase-js garde la session : on l'efface nous-mêmes */
+  async function signOut(){
+    if(client){
+      try{ const r = await withTimeout(client.auth.signOut()); if(r && r.error) throw r.error; }
+      catch(e){ dropLS(AUTH_KEY); }
+    }
+    currentUser = null;
+  }
   function user(){ return currentUser; }
   function onAuth(cb){ authCb = cb; }
   function isCloud(){ return CLOUD; }
@@ -162,5 +174,5 @@ const CycleStore = (() => {
   }
 
   return { init, isCloud, needAuth, signIn, signOut, user, onAuth,
-           refresh, flush, getCycle, getAthlete, saveAthlete, importCycle };
+           refresh, flush, syncState, getCycle, getAthlete, saveAthlete, importCycle };
 })();

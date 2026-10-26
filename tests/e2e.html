@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Perf Lab — e2e</title>
+<link rel="stylesheet" href="../app.css">
 <!-- Harnais e2e : charge la vraie app et déroule le parcours complet.
      Lancer :  python3 tools/serve.py 8741  (racine du repo) puis
      chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"
@@ -184,6 +185,9 @@
     const mon = isoUTC(new Date(t0 - dow * 864e5)), prevMon = isoUTC(new Date(t0 - (dow + 7) * 864e5));
     await CycleStore.importCycle(makeSampleCycle(prevMon, "cycle-past")); await goto("cf");
     ok("semaine passée non faite → bandeau de décision", !!document.querySelector("[data-decide='skip']"));
+    const sunCal = isoUTC(new Date(t0 + (6 - dow) * 864e5));
+    ok("team WOD : dimanche de la semaine du calendrier, même en rattrapage",
+       document.querySelector(".cf-wod .cf-bdate").textContent.trim() === "dim. " + sunCal.slice(8, 10) + "/" + sunCal.slice(5, 7));
     document.querySelector("[data-decide='skip']").click(); await tick();
     ok("passer → w2s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w2s1");
     await CycleStore.importCycle(makeSampleCycle(mon)); await goto("");
@@ -203,10 +207,20 @@
     ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
     document.querySelector('[data-level="int"]').click(); await tick();
     ok("INT ouvert, RX replié", !!document.querySelector('.cf-level[data-open-level="int"]') && !document.querySelector('.cf-level[data-open-level="rx"]'));
+    document.getElementById("cfscore").value = "7+3"; document.querySelector('[data-level="rx"]').click(); await tick();
+    ok("changer de niveau garde le score en cours de saisie", document.getElementById("cfscore").value === "7+3");
+    document.querySelector('[data-level="int"]').click(); await tick();
     const sc = document.getElementById("cfscore"); sc.value = "abc"; document.getElementById("cfsave").click(); await tick();
     ok("score invalide refusé", !!document.querySelector(".cf-err").textContent);
     document.getElementById("cfscore").value = "5+8"; document.getElementById("cfsave").click(); await tick();
     ok("score enregistré niveau INT", CycleStore.getAthlete().logs["cycle-1"].scores.w1s1.level === "int");
+    document.getElementById("cfscore").value = "abc"; document.getElementById("cfsave").click(); await tick();
+    await goto("cf"); await goto("cf/s/w1s1");
+    ok("erreur de score effacée en revenant sur la séance", document.querySelector(".cf-err").textContent === "");
+    const aw = CycleStore.getAthlete(); aw.logs["cycle-1"].scores.w1s1.d = "2026-01-05"; await CycleStore.saveAthlete(aw);
+    await goto("cf"); await goto("cf/s/w1s1");
+    ok("score de la séance non répété en « Dernière fois »",
+       ![...document.querySelectorAll(".cf-sline")].some(e => e.textContent.includes("Dernière fois")));
     document.getElementById("cfdone").click(); await tick(100);
     document.getElementById("cfundo").click(); await tick(100);
     ok("annuler : la séance redevient à faire",
@@ -244,6 +258,29 @@
     const hyd = await Promise.race([hydrate().then(() => "ok"), tick(300).then(() => "bloqué")]);
     ok("hydrate n'attend pas la synchro du module", hyd === "ok");
     CycleStore.refresh = realRefresh;
+
+    /* 12. défauts mineurs de la revue : synchro visible, restauration, champs sans zoom iOS */
+    const realCloud = CycleStore.isCloud, realSync = CycleStore.syncState;
+    CycleStore.isCloud = () => true; CycleStore.syncState = () => ({ pending: true, error: null });
+    await goto("cf/max"); await goto("cf");
+    ok("synchro : envoi en attente affiché", ((document.querySelector(".cf-sync") || {}).textContent || "").includes("attente"));
+    CycleStore.syncState = () => ({ pending: true, error: "permission denied" });
+    await goto("cf/max"); await goto("cf");
+    ok("synchro : refus du serveur affiché", ((document.querySelector(".cf-sync") || {}).textContent || "").includes("permission denied"));
+    CycleStore.isCloud = realCloud; CycleStore.syncState = realSync;
+    let adopted = 0; const realSave = CycleStore.saveAthlete;
+    CycleStore.saveAthlete = a => { adopted++; return realSave(a); };
+    await goto("add");
+    document.getElementById("jsonin").value = JSON.stringify(Backend.exportAll());
+    document.getElementById("import").click(); await tick(200);
+    ok("restauration d'une sauvegarde : programmation remise en file d'envoi", adopted === 1);
+    CycleStore.saveAthlete = realSave;
+    await goto("cf/import");
+    ok("champ d'import en 16 px (pas de zoom iOS)", getComputedStyle(document.getElementById("cfjson")).fontSize === "16px");
+    const probe = document.createElement("div"); probe.className = "cf"; probe.innerHTML = '<div class="authbox"><input id="cfprobe"></div>';
+    document.body.appendChild(probe);
+    ok("champs de connexion du module en 16 px", getComputedStyle(document.getElementById("cfprobe")).fontSize === "16px");
+    probe.remove();
   } catch (e) {
     out.push("E2E-FAIL exception : " + (e && e.stack || e));
   }

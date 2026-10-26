@@ -199,7 +199,7 @@
   function parseScore(type, text) {
     const s = String(text == null ? "" : text).trim().replace(/\s+/g, " ");
     if (type === "time") {
-      const m = s.match(/^(\d{1,3}) ?(?::|'|’|′) ?(\d{2}) ?(?:''|"|″|’’)?$/);
+      const m = s.match(/^(\d{1,3}) ?(?::|'|’|′) ?(\d{2}) ?(?:''|"|″|’’|”)?$/);
       if (!m || +m[2] > 59) throw "Temps attendu au format mm:ss (ex. 12:30).";
       return { value: +m[1] * 60 + +m[2], text: `${+m[1]}:${m[2]}` };
     }

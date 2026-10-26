@@ -242,6 +242,8 @@ function renderAdd(){
     catch(ex){ $("#adderr").textContent = "Erreur : "+(ex.message||ex); return; }
     if(r.kind==="profiles"){
       Backend.importProfilesDoc(r.doc);
+      // programmation restaurée : la remettre en file d'envoi, sinon la synchro la réécraserait
+      if(CF && (r.doc.profiles||[]).some(p=>p.id==="moss" && p.cycle)) CycleStore.saveAthlete(CycleStore.getAthlete());
       await hydrate(); toast("Profils importés."); location.hash="#/"; return;
     }
     // ancien format (racine id + sessions) : rattaché au profil Moss, silencieusement

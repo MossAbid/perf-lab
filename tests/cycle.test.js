@@ -135,6 +135,10 @@ t("temps : mm:ss, m'ss, m''ss", () => {
   assert.equal(C.parseScore("time", "12'30").value, 750);
   assert.throws(() => C.parseScore("time", "7:5"), /mm:ss/);
 });
+t("temps : guillemets du clavier iPhone acceptés", () => {
+  assert.equal(C.parseScore("time", "12’30”").value, 750);
+  assert.equal(C.parseScore("time", "12′30″").value, 750);
+});
 t("tours + reps", () => {
   assert.deepEqual(C.parseScore("rounds_reps", "5+8"), { value: 5008, text: "5 tours + 8" });
   assert.equal(C.parseScore("rounds_reps", "5 tours 8").value, 5008);

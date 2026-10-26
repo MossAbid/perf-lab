@@ -50,6 +50,7 @@ function makeMockClient(store, session, opts) {
       },
       upsert: async rows => {
         if (opts.gate) await opts.gate();
+        if (opts.upsertError) return { error: { message: opts.upsertError } };
         const arr = Array.isArray(rows) ? rows : [rows];
         arr.forEach(row => {
           const i = store[table].findIndex(r => PK[table].every(k => r[k] === row[k]));
@@ -65,7 +66,7 @@ function makeMockClient(store, session, opts) {
         : opts.sessionError ? { data: { session: null }, error: { message: "Failed to fetch" } }
         : { data: { session } },
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
-      signOut: async () => {}
+      signOut: async () => opts.signOutError ? { error: { message: "Failed to fetch" } } : {}
     },
     from
   };
@@ -178,6 +179,7 @@ t("CLOUD : saveAthlete hors-ligne → file, poussé au retour du réseau", async
   const row = store.state.find(r => r.user_id === "u1" && r.key === "cycle");
   assert.equal(row.value.maxes.back_squat[0].kg, 125);
   assert.equal(JSON.parse(ls.getItem("perflab.cf.queue")), null, "file vide");
+  assert.deepEqual(CycleStore.syncState(), { pending: false, error: null });
 });
 
 t("CLOUD : refresh hors-ligne sert le cache", async () => {
@@ -272,6 +274,30 @@ t("CLOUD : réseau qui ne répond pas → init et refresh rendent la main avec l
   const r = await CycleStore.refresh();
   assert.ok(Date.now() - t0 < 1000, "rendu en moins d'une seconde");
   assert.equal(r.cycle.id, "cycle-1");
+});
+
+/* ---- défauts mineurs de la revue ---- */
+t("CLOUD : déconnexion hors-ligne → session locale effacée, connexion redemandée", async () => {
+  const { CycleStore, ls } = boot({ "perflab.cf.auth": "{}" }, { store: {}, session: ME, signOutError: true });
+  await CycleStore.init();
+  await CycleStore.signOut();
+  assert.equal(ls.getItem("perflab.cf.auth"), null);
+  assert.equal(CycleStore.user(), null);
+  assert.equal(CycleStore.needAuth(), true);
+});
+
+t("CLOUD : état de synchro — en attente hors-ligne, refus du serveur signalé", async () => {
+  const store = { cycles: [], cycle_athletes: [], state: [] };
+  const { CycleStore, sandbox } = boot(null, { store, session: ME, upsertError: "permission denied for table state" });
+  await CycleStore.init();
+  sandbox.navigator.onLine = false;
+  await CycleStore.saveAthlete(athleteWith(125));
+  assert.deepEqual(CycleStore.syncState(), { pending: true, error: null });
+  sandbox.navigator.onLine = true;
+  await CycleStore.flush();
+  const st = CycleStore.syncState();
+  assert.equal(st.pending, true);
+  assert.ok(/permission denied/.test(st.error), "refus visible : " + st.error);
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });
