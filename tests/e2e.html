@@ -28,6 +28,10 @@
   window.confirm = () => true; // pas de dialogues bloquants en headless
 </script>
 <script src="../config.js"></script>
+<script>
+  // le harnais reste en LOCAL : config.js porte la vraie clé publique de la Programmation
+  window.CONFIG.CYCLE_SUPABASE_URL = ""; window.CONFIG.CYCLE_SUPABASE_ANON_KEY = "";
+</script>
 <script src="../programs.js"></script>
 <script src="../progression.js"></script>
 <script src="../cycle.js"></script>

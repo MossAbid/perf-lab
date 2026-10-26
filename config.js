@@ -15,6 +15,6 @@ window.CONFIG = {
 
   // Programmation (module « Ta semaine ») : Supabase pour ce module seulement.
   // Les bibliothèques et le sélecteur Moss / Souad restent en mode LOCAL.
-  CYCLE_SUPABASE_URL: "",
-  CYCLE_SUPABASE_ANON_KEY: ""
+  CYCLE_SUPABASE_URL: "https://jrffuxbzuzcejgmslfvz.supabase.co",
+  CYCLE_SUPABASE_ANON_KEY: "sb_publishable_lSYUp9lEvPZGxDP3vY9hbQ_ZH4lsxWR" // clé « publishable » (remplace la clé anon)
 };

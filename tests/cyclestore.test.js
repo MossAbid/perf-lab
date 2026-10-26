@@ -72,7 +72,8 @@ function makeMockClient(store, session, opts) {
   };
 }
 
-/* Charge config → cycle → cyclestore comme index.html. cloud = { store, session, failSelect }. */
+/* Charge config → cycle → cyclestore comme index.html. cloud = { store, session, failSelect }.
+   Sans cloud : config.js réel, clés CYCLE_* vidées (le dépôt porte la vraie clé publique). */
 function boot(seedLS, cloud) {
   const ls = makeLocalStorage(seedLS);
   const onlineHandlers = [];
@@ -90,7 +91,7 @@ function boot(seedLS, cloud) {
     const window = __sandbox.window;
     const localStorage = __sandbox.localStorage;
     const navigator = __sandbox.navigator;
-    ${cloud ? "" : src("config.js")}
+    ${cloud ? "" : src("config.js") + "\nwindow.CONFIG.CYCLE_SUPABASE_URL = ''; window.CONFIG.CYCLE_SUPABASE_ANON_KEY = '';"}
     ${src("cycle.js")}
     ${src("cyclestore.js")}
     return { CycleStore, PLCycle: window.PLCycle };
