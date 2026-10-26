@@ -296,6 +296,38 @@
     ok("séance sans fiches : pas de rangée", !document.querySelector(".cf-moves"));
     await CycleStore.importCycle(makeSampleCycle(mon));
 
+    /* 9e. PROGRAMMATION : bandeau de 9 semaines, retours vers l'écran d'origine */
+    const nine = makeSampleCycle(mon);
+    for (let n = 3; n <= 9; n++) {
+      const w = JSON.parse(JSON.stringify(nine.weeks[(n - 1) % 2])); w.n = n;
+      w.sessions.forEach((s, i) => s.id = `w${n}s${i + 1}`); w.bonus.id = `w${n}b`; nine.weeks.push(w);
+    }
+    nine.weeks[8].phase = "test";
+    await CycleStore.importCycle(nine); await goto("cf");
+    const appEl = document.getElementById("app"); appEl.style.width = "320px";   // largeur d'iPhone : le bandeau déborde
+    await goto("cf/programme");
+    document.querySelector('[data-week="8"]').click(); await tick();
+    const strip9 = document.querySelector(".cf-strip").getBoundingClientRect(), sel9 = document.querySelector('[data-week="8"]').getBoundingClientRect();
+    ok("programme : semaine choisie visible dans le bandeau", sel9.left >= strip9.left - 1 && sel9.right <= strip9.right + 1);
+    appEl.style.width = "";
+    document.querySelector('[data-week="1"]').click(); await tick();
+    document.querySelector('[data-psess="w2s1"]').click(); await tick();
+    document.getElementById("cfback").click(); await tick();
+    ok("séance ouverte depuis le programme : retour au programme, même semaine",
+       location.hash === "#/cf/programme" && document.querySelector('[data-week="1"]').getAttribute("aria-pressed") === "true");
+    await goto("cf/mois");
+    document.querySelector('.cf-dday a[href="#/cf/s/w1s1"]').click(); await tick();
+    document.getElementById("cfback").click(); await tick();
+    ok("séance ouverte depuis le mois : retour au mois", location.hash === "#/cf/mois");
+    await goto("cf/s/w1s1");
+    document.querySelector('[data-level="rx"]').click(); await tick();
+    document.getElementById("cfscore").value = "9+1";
+    document.querySelector('.cf-moves a[href="#/cf/m/wall_ball"]').click(); await tick();
+    document.getElementById("cfback").click(); await tick();
+    ok("retour de fiche : séance conservée (niveau, saisie)",
+       location.hash === "#/cf/s/w1s1" && !!document.querySelector('.cf-level[data-open-level="rx"]') && document.getElementById("cfscore").value === "9+1");
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";

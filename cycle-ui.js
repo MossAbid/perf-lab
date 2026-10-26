@@ -261,7 +261,9 @@ const CycleUI = (() => {
     const cycle = CycleStore.getCycle();
     if(!cycle){ location.hash = "#/cf"; return; }
     const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle);
-    const p = C.programmeWeek(cycle, athlete.maxes, PS.wi), nW = cycle.weeks.length;
+    const nW = cycle.weeks.length;
+    PS.wi = Math.min(PS.wi, nW - 1);   // cycle réimporté plus court
+    const p = C.programmeWeek(cycle, athlete.maxes, PS.wi);
     const goals = (cycle.goals || []).length ? `<div class="cf-goals"><div class="cf-lab">Objectifs du cycle</div>
       ${cycle.goals.map(g => `<div class="cf-goal"><span class="cf-glab">${esc(g.label)}</span><span>${esc(g.text)}</span></div>`).join("")}</div>` : "";
     const strip = cycle.weeks.map((w, i) => `<button class="cf-wk" data-week="${i}" aria-pressed="${i === PS.wi}"
@@ -289,6 +291,9 @@ const CycleUI = (() => {
       <p class="cf-rest cf-mt">Charges calculées sur tes max, arrondies à 2,5 kg. Elles se recalculent dès qu'un max change.</p>
       ${Object.keys(cycle.movements || {}).length ? `<a class="cf-flink cf-mt" href="#/cf/m">Fiches mouvement</a>` : ""}
       ${footer()}`, ["Ta semaine", "#/cf"]);
+    // bandeau plus large que l'écran (9 × 44 px) : la semaine choisie est ramenée au centre
+    const band = $(".cf-strip"), on = band.querySelector('[aria-pressed="true"]');
+    band.scrollLeft += on.getBoundingClientRect().left - band.getBoundingClientRect().left - (band.clientWidth - on.offsetWidth) / 2;
     app.querySelectorAll("[data-week]").forEach(b => b.onclick = () => { PS.wi = +b.dataset.week; renderProgramme(); });
     app.querySelectorAll("[data-psess]").forEach(b => b.onclick = () => location.hash = "#/cf/s/" + encodeURIComponent(b.dataset.psess));
     bindFooter();
@@ -354,6 +359,7 @@ const CycleUI = (() => {
       `<a href="${moveHref(id)}">${esc(mv[id].name)}</a>`).join("")}</div>` : "";
   }
   let SS = { sid: null };   // état d'écran de la séance ouverte
+  let sessBack = ["Ta semaine", "#/cf"];   // retour de la séance : l'écran d'où on l'a ouverte
 
   function findSession(cycle, sid){
     for(let wi = 0; wi < cycle.weeks.length; wi++){
@@ -443,7 +449,7 @@ const CycleUI = (() => {
     shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}`, `${title}<br><em>${esc(f.s.title.replace(/^Bonus · /, ""))}</em>`, `
       <p class="lede">${minutesOf(f.s)} min, hors blocs facultatifs.</p>
       <div class="cf-blocks">${blocks}</div>
-      ${foot}`, ["Ta semaine", "#/cf"]);
+      ${foot}`, sessBack);
 
     app.querySelectorAll("[data-block]").forEach(btn => btn.onclick = () => {
       const i = +btn.dataset.block;
@@ -624,23 +630,39 @@ const CycleUI = (() => {
 
   /* ---- routeur du module : true si la route est gérée ---- */
   function route(h){
-    if(h !== curHash){ prevHash = curHash; curHash = h; }   // pour le retour des fiches
+    if(h !== curHash){
+      // on quitte une séance : garder sa position et la saisie en cours (retour depuis une fiche)
+      if(/^cf\/s\//.test(curHash || "")){ SS.y = window.scrollY; const inp = $("#cfscore"); if(inp) SS.draft = inp.value; }
+      prevHash = curHash; curHash = h;
+    }
     if(!/^cf(\/|$)/.test(h) || !isMoss()) return false;
     const m = h.match(/^cf\/s\/(.+)$/), mv = h.match(/^cf\/m\/(.+)$/);
+    const from = prevHash || "", back = /^cf\/[sm]\//.test(from);   // retour d'une séance ou d'une fiche
+    let y = 0;
     if(CycleStore.needAuth()) renderLogin();
-    else if(m){ SS = { sid: null }; renderSession(decodeURIComponent(m[1])); }   // écran neuf à chaque arrivée
+    else if(m){
+      const sid = decodeURIComponent(m[1]), fromFiche = /^cf\/m\//.test(from);
+      if(/^cf\/(programme|mois)$/.test(from)) sessBack = [from === "cf/mois" ? "Ton mois" : "Ton programme", "#/" + from];
+      else if(!fromFiche) sessBack = ["Ta semaine", "#/cf"];
+      if(fromFiche && SS.sid === sid) y = SS.y || 0;
+      else SS = { sid: null };   // écran neuf, sauf au retour d'une fiche
+      renderSession(sid);
+    }
     else if(mv) renderFiche(decodeURIComponent(mv[1]));
     else if(h === "cf/m") renderMoves();
-    else if(h === "cf/mois"){ MS = { ym: today().slice(0, 7), sel: today() }; renderMonth(); }
+    else if(h === "cf/mois"){
+      if(!back || !MS.ym) MS = { ym: today().slice(0, 7), sel: today() };
+      renderMonth();
+    }
     else if(h === "cf/programme"){
       const c = CycleStore.getCycle();   // semaine affichée par Ta semaine (0 avant le début)
-      PS = { wi: c ? C.weekView(c, logFor(CycleStore.getAthlete(), c), today()).weekIndex : 0 };
+      if(!back) PS = { wi: c ? C.weekView(c, logFor(CycleStore.getAthlete(), c), today()).weekIndex : 0 };
       renderProgramme();
     }
     else if(h === "cf/max"){ editLift = null; renderMax(); }
     else if(h === "cf/import") renderImport();
     else renderWeek();
-    window.scrollTo(0, 0);
+    window.scrollTo(0, y);
     return true;
   }
 
