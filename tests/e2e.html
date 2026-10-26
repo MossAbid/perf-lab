@@ -235,6 +235,29 @@
     await goto("cf/s/w1s2");
     ok("strict press sans max : pas de NaN", !document.getElementById("app").textContent.includes("NaN") && document.querySelector(".cf-load").textContent.trim() === "—");
 
+    /* 9b. PROGRAMMATION : fiches mouvement */
+    await goto("cf/s/w1s1");
+    ok("séance : fiches du metcon", !!document.querySelector('.cf-moves a[href="#/cf/m/wall_ball"]'));
+    ok("force : lien fiche, plus de lien vidéo direct", !!document.querySelector('a[href="#/cf/m/back_squat"]') && !document.querySelector(".cf-video"));
+    await goto("cf/m/wall_ball");
+    ok("fiche : points clés, erreurs, RX/INT", document.querySelectorAll(".cf-cues li").length === 1 && !!document.querySelector(".cf-faults") && /RX/.test(document.querySelector(".cf").textContent));
+    ok("fiche sans vidéo : pas de bouton", !document.querySelector(".cf-vid"));
+    document.getElementById("cfback").click(); await tick();
+    ok("fiche : retour vers la séance", location.hash === "#/cf/s/w1s1");
+    await goto("cf/m/back_squat");
+    const vid = document.querySelector("a.cf-vid");
+    ok("fiche : vidéo dans un nouvel onglet", !!vid && vid.target === "_blank" && /noopener/.test(vid.rel) && vid.href === "https://example.com/v");
+    ok("fiche du lift : ton max", /120 kg/.test(document.querySelector(".cf-fmax").textContent));
+    await goto("cf/m/bar_muscle_up");
+    ok("fiche : une étape en cours", document.querySelectorAll(".cf-step.current").length === 1 && /Tu es ici/.test(document.querySelector(".cf-step.current").textContent));
+    await goto("cf/m/nope");
+    ok("fiche inconnue → index", location.hash === "#/cf/m");
+    ok("index : 3 fiches", document.querySelectorAll("[data-move]").length === 3);
+    const evil = makeSampleCycle(mon); evil.movements.wall_ball.name = '<img src=x id="xss">';
+    await CycleStore.importCycle(evil); await goto("cf/m/wall_ball");
+    ok("fiche : contenu échappé", !document.getElementById("xss") && /<img/.test(document.querySelector("h1").textContent));
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";

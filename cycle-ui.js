@@ -4,6 +4,8 @@
      #/cf/s/<sid>   une séance
      #/cf/max       tes max
      #/cf/import    importer un cycle
+     #/cf/m         fiches mouvement (index)
+     #/cf/m/<id>    une fiche mouvement
      #/cf/login     connexion (CLOUD, sans création de compte)
    Chargé avant app.js ; utilise ses helpers ($, app, esc, toast, setAccent,
    today) au moment du rendu seulement.
@@ -216,6 +218,13 @@ const CycleUI = (() => {
   const fmtKg = kg => String(kg).replace(".", ",") + " kg";
   const lines = t => String(t || "").split("\n").map(l => l.trim()).filter(Boolean).map(l => `<span>${esc(l)}</span>`).join("");
   const flagsHtml = b => (b.flags || []).map(f => `<span class="cf-flag cf-flag-${esc(f)}">${esc(FLAG[f] || f)}</span>`).join("");
+  const moveHref = id => "#/cf/m/" + encodeURIComponent(id);
+  /* rangée de liens vers les fiches d'un bloc (ids absents de movements ignorés) */
+  function movesHtml(cycle, ids){
+    const mv = cycle.movements || {}, ok = (ids || []).filter(id => mv[id]);
+    return ok.length ? `<div class="cf-moves"><span class="cf-mvl">Fiches</span>${ok.map(id =>
+      `<a href="${moveHref(id)}">${esc(mv[id].name)}</a>`).join("")}</div>` : "";
+  }
   let SS = { sid: null };   // état d'écran de la séance ouverte
 
   function findSession(cycle, sid){
@@ -241,7 +250,8 @@ const CycleUI = (() => {
       <div class="cf-table"><span class="cf-th">Séries</span><span class="cf-th">% du max</span><span class="cf-th">Charge</span>${rows}</div>
       ${b.rest ? `<div class="cf-rest">Repos : ${esc(b.rest)}</div>` : ""}
       ${b.notes ? `<div class="cf-text">${lines(b.notes)}</div>` : ""}
-      ${lift.video ? `<a class="cf-video" href="${esc(lift.video)}" target="_blank" rel="noopener">▶ Vidéo · ${esc(lift.name)}</a>` : ""}`;
+      ${(cycle.movements || {})[b.lift] ? `<a class="cf-flink" href="${moveHref(b.lift)}">Fiche · ${esc(lift.name)}</a>`
+        : lift.video ? `<a class="cf-video" href="${esc(lift.video)}" target="_blank" rel="noopener">▶ Vidéo · ${esc(lift.name)}</a>` : ""}`;
   }
 
   function metconBody(athlete, log, b, sid, readOnly){
@@ -286,9 +296,9 @@ const CycleUI = (() => {
       const sub = `${Number(b.minutes) > 0 ? Number(b.minutes) + " min" : ""}${b.optional ? " · facultatif" : ""}`;
       const head = `<span class="cf-bn">${String(i + 1).padStart(2, "0")}</span>
         <span class="cf-bt"><b>${esc(b.title)}</b><small>${sub}</small></span>${flagsHtml(b)}`;
-      const body = b.kind === "strength" ? strengthBody(cycle, athlete, b)
+      const body = (b.kind === "strength" ? strengthBody(cycle, athlete, b)
         : isMet ? metconBody(athlete, log, b, sid, locked)
-        : `<div class="cf-text">${lines(b.text)}</div>`;
+        : `<div class="cf-text">${lines(b.text)}</div>`) + movesHtml(cycle, b.moves);
       return `<section class="cf-blk k-${esc(b.kind)}">
         ${isMet ? `<div class="cf-bh">${head}</div>`
           : `<button class="cf-bh" data-block="${i}" aria-expanded="${open}">${head}<span class="cf-chev">${open ? "−" : "+"}</span></button>`}
@@ -432,12 +442,67 @@ const CycleUI = (() => {
     };
   }
 
+  /* ---- Fiches mouvement ----
+     Le retour ramène à l'écran d'où l'on vient (séance, programme…), sinon à l'index. */
+  const CAT = { force: "Force", halterophilie: "Haltérophilie", gymnastique: "Gymnastique", moteur: "Moteur", accessoire: "Accessoire" };
+  let prevHash = null, curHash = null;
+  const BACK = [[/^cf\/s\//, "Séance"], [/^cf\/programme$/, "Ton programme"], [/^cf\/mois$/, "Ton mois"], [/^cf$/, "Ta semaine"], [/^cf\/max$/, "Tes max"]];
+  function ficheBack(){
+    const hit = prevHash != null && BACK.find(([re]) => re.test(prevHash));
+    return hit ? [hit[1], "#/" + prevHash] : ["Fiches", "#/cf/m"];
+  }
+
+  function renderFiche(id){
+    const cycle = CycleStore.getCycle();
+    const m = cycle && (cycle.movements || {})[id];
+    if(!m){ location.hash = "#/cf/m"; return; }
+    const sec = (label, html) => html ? `<div class="cf-fsec"><div class="cf-lab">${label}</div>${html}</div>` : "";
+    let max = "";
+    if(cycle.lifts[id]){
+      const mx = C.liftMax(cycle, CycleStore.getAthlete().maxes, id);
+      max = `<div class="cf-fmax">${mx ? `Ton max : <b>${fmtKg(mx.kg)}</b> · ${ddmm(mx.d)}${mx.derived ? " · estimé" : ""}`
+        : `Pas encore de max · <a href="#/cf/max">Saisis ton max</a>`}</div>`;
+    }
+    const video = m.video ? `<a class="cf-vid" href="${esc(m.video)}" target="_blank" rel="noopener">▶ Voir la démonstration</a>
+      ${m.videoBy ? `<div class="cf-vby">Vidéo publique · ${esc(m.videoBy)}</div>` : ""}` : "";
+    const steps = (m.progression || []).map(p => `<div class="cf-step ${esc(p.state)}">
+      <span class="cf-dot">${p.state === "done" ? "✓" : ""}</span><span class="cf-stext">${esc(p.text)}</span>
+      ${p.state === "current" ? `<span class="cf-here">Tu es ici</span>` : ""}</div>`).join("");
+    const lv = [["rx", "RX", m.rx], ["int", "INT", m.int]].filter(x => x[2])
+      .map(([k, l, t]) => `<div class="cf-fl"><span class="cf-lvp lv-${k}">${l}</span><span>${esc(t)}</span></div>`).join("");
+    shell(CAT[m.cat] || "Fiche", esc(m.name), `
+      ${max}${video}
+      ${m.level ? `<div class="cf-flevel"><div class="cf-lab">Ton niveau</div><p>${esc(m.level)}</p></div>` : ""}
+      ${sec("Points clés", `<ol class="cf-cues">${m.cues.map(c => `<li>${esc(c)}</li>`).join("")}</ol>`)}
+      ${sec("Pour enchaîner", m.chain ? `<p class="cf-p">${esc(m.chain)}</p>` : "")}
+      ${sec("Progression", steps)}
+      ${sec("En metcon", lv)}
+      ${sec("Erreurs fréquentes", (m.faults || []).length ? `<ul class="cf-faults">${m.faults.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : "")}`,
+      ficheBack());
+  }
+
+  function renderMoves(){
+    const cycle = CycleStore.getCycle(), mv = (cycle && cycle.movements) || {};
+    const ids = Object.keys(mv);
+    const groups = C.MOVE_CATS.map(cat => ({ cat, ids: ids.filter(id => mv[id].cat === cat)
+      .sort((a, b) => mv[a].name.localeCompare(mv[b].name, "fr")) })).filter(g => g.ids.length);
+    shell("Programmation", "FICHES <em>MOUVEMENT</em>", ids.length ? groups.map(g => `
+      <div class="blk"><div class="blk-h"><div class="bl">${CAT[g.cat]}</div><div class="line"></div></div>
+        <div class="cf-list">${g.ids.map(id => `<button class="cf-sess" data-move="${esc(id)}">
+          <span class="cf-st"><b>${esc(mv[id].name)}</b></span><span class="cf-chev">›</span></button>`).join("")}</div></div>`).join("")
+      : `<div class="cf-empty"><p>Ce cycle n'a pas encore de fiches.</p></div>`, ["Ton programme", "#/cf/programme"]);
+    app.querySelectorAll("[data-move]").forEach(b => b.onclick = () => location.hash = moveHref(b.dataset.move));
+  }
+
   /* ---- routeur du module : true si la route est gérée ---- */
   function route(h){
+    if(h !== curHash){ prevHash = curHash; curHash = h; }   // pour le retour des fiches
     if(!/^cf(\/|$)/.test(h) || !isMoss()) return false;
-    const m = h.match(/^cf\/s\/(.+)$/);
+    const m = h.match(/^cf\/s\/(.+)$/), mv = h.match(/^cf\/m\/(.+)$/);
     if(CycleStore.needAuth()) renderLogin();
     else if(m){ SS = { sid: null }; renderSession(decodeURIComponent(m[1])); }   // écran neuf à chaque arrivée
+    else if(mv) renderFiche(decodeURIComponent(mv[1]));
+    else if(h === "cf/m") renderMoves();
     else if(h === "cf/max"){ editLift = null; renderMax(); }
     else if(h === "cf/import") renderImport();
     else renderWeek();
