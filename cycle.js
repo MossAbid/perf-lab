@@ -77,9 +77,51 @@
     return true;
   }
 
+  /* ---- max et charges ----
+     athlete.maxes = { [liftId]: [{ kg, d:"AAAA-MM-JJ" }] }, plus récent en tête */
+  const ROUND_KG = 2.5;
+  const BELT_PCT = 80; // ceinture dès 80 % du max (dos à protéger)
+
+  const loadKg = (maxKg, pct) => Math.round(maxKg * pct / 100 / ROUND_KG) * ROUND_KG;
+
+  function latest(entries) {
+    if (!Array.isArray(entries) || !entries.length) return null;
+    return entries.reduce((a, b) => (b.d > a.d ? b : a));
+  }
+
+  function liftMax(cycle, maxes, liftId) {
+    const own = latest((maxes || {})[liftId]);
+    if (own) return { kg: own.kg, d: own.d, derived: false };
+    const lift = (cycle.lifts || {})[liftId];
+    if (!lift || !lift.derive) return null;
+    const src = latest((maxes || {})[lift.derive.from]);
+    if (!src) return null;
+    return { kg: Math.round(src.kg * lift.derive.ratio * 10) / 10, d: src.d, derived: true };
+  }
+
+  function strengthLines(cycle, maxes, block) {
+    const m = liftMax(cycle, maxes, block.lift);
+    return (block.sets || []).map(s => ({
+      sets: s.sets, reps: s.reps, pct: s.pct,
+      kg: m ? loadKg(m.kg, s.pct) : null,
+      belt: s.pct >= BELT_PCT
+    }));
+  }
+
+  const newAthlete = () => ({ v: 1, maxes: {}, logs: {} });
+
+  function setMax(athlete, liftId, kg, dateISO) {
+    const list = (athlete.maxes[liftId] || []).filter(e => e.d !== dateISO);
+    list.push({ kg, d: dateISO });
+    list.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+    athlete.maxes[liftId] = list;
+    return athlete;
+  }
+
   const API = {
-    SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES,
-    validateCycle
+    SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT,
+    validateCycle,
+    loadKg, liftMax, strengthLines, newAthlete, setMax
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   root.PLCycle = API;
