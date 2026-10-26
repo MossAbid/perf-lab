@@ -52,4 +52,58 @@ t("setMax ajoute une entrée datée", () => {
   assert.deepEqual(a.maxes.snatch, [{ kg: 57.5, d: "2026-11-30" }]);
 });
 
+/* ---- semaine, file ordonnée, rattraper ou passer (début lundi 2026-11-23) ---- */
+const cyc = makeSampleCycle();
+t("calendarWeek", () => {
+  assert.equal(C.calendarWeek(cyc, "2026-11-22"), -1); assert.equal(C.calendarWeek(cyc, "2026-11-23"), 0);
+  assert.equal(C.calendarWeek(cyc, "2026-11-29"), 0);  assert.equal(C.calendarWeek(cyc, "2026-11-30"), 1);
+});
+t("avant le début : upcoming, rien de faisable", () => {
+  const v = C.weekView(cyc, C.newLog(), "2026-11-20");
+  assert.equal(v.state, "upcoming"); assert.equal(v.nextId, null);
+});
+t("première séance mise en avant", () => {
+  const v = C.weekView(cyc, C.newLog(), "2026-11-24");
+  assert.deepEqual(v.sessions.map(s => s.status), ["next", "todo", "todo", "todo"]);
+});
+t("séance faite → la suivante passe en tête", () => {
+  const v = C.weekView(cyc, C.markDone(C.newLog(), "w1s1", "2026-11-24"), "2026-11-24");
+  assert.deepEqual(v.sessions.map(s => s.status), ["done", "next", "todo", "todo"]);
+  assert.equal(v.sessions[0].date, "2026-11-24");
+});
+t("semaine bouclée avant lundi : suivante verrouillée", () => {
+  let l = C.newLog(); ["w1s1","w1s2","w1s3","w1s4"].forEach(id => C.markDone(l, id, "2026-11-27"));
+  const v = C.weekView(cyc, l, "2026-11-28");
+  assert.equal(v.weekIndex, 0); assert.equal(v.nextId, null);
+  assert.equal(C.weekView(cyc, l, "2026-11-30").nextId, "w2s1");
+});
+t("une séance manquée → décision demandée le lundi", () => {
+  let l = C.newLog(); ["w1s1","w1s2","w1s3"].forEach(id => C.markDone(l, id, "2026-11-25"));
+  assert.deepEqual(C.weekView(cyc, l, "2026-11-30").decision, { cw: 1, missed: ["w1s4"] });
+});
+t("rattraper : pas de nouvelle demande cette semaine, w1s4 en tête", () => {
+  let l = C.newLog(); ["w1s1","w1s2","w1s3"].forEach(id => C.markDone(l, id, "2026-11-25"));
+  C.applyDecision(l, cyc, "2026-11-30", "catchup");
+  const v = C.weekView(cyc, l, "2026-12-01");
+  assert.equal(v.decision, null); assert.equal(v.nextId, "w1s4"); assert.equal(v.weekIndex, 0);
+});
+t("passer : saute à la semaine du calendrier", () => {
+  let l = C.newLog(); ["w1s1","w1s2","w1s3"].forEach(id => C.markDone(l, id, "2026-11-25"));
+  C.applyDecision(l, cyc, "2026-11-30", "skip");
+  const v = C.weekView(cyc, l, "2026-11-30");
+  assert.equal(v.nextId, "w2s1"); assert.equal(v.weekIndex, 1);
+});
+t("semaine entière manquée : une seule demande, 4 séances", () => {
+  assert.deepEqual(C.weekView(cyc, C.newLog(), "2026-12-01").decision.missed, ["w1s1","w1s2","w1s3","w1s4"]);
+});
+t("bonus fait : daté, hors file", () => {
+  const l = C.markBonus(C.newLog(), "w1b", "2026-11-26");
+  const v = C.weekView(cyc, l, "2026-11-26");
+  assert.equal(v.bonus.date, "2026-11-26"); assert.equal(v.nextId, "w1s1");
+});
+t("après la fin du cycle : décision puis finished", () => {
+  const l = C.newLog(); C.applyDecision(l, cyc, "2026-12-14", "skip");
+  assert.equal(C.weekView(cyc, l, "2026-12-14").state, "finished");
+});
+
 console.log(`\n${n} tests OK`);

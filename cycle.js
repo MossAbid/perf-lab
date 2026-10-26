@@ -118,10 +118,79 @@
     return athlete;
   }
 
+  /* ---- semaine : file ordonnée de 4 séances, calée sur le calendrier ----
+     log = journal d'un cycle : séances faites (datées), passées, décisions
+     « rattraper » par semaine calendrier, scores, bonus faits.            */
+  const newLog = () => ({ done: {}, skipped: [], decisions: {}, scores: {}, bonus: {} });
+  function norm(log) {
+    const base = newLog();
+    Object.keys(base).forEach(k => { if (log[k] == null) log[k] = base[k]; });
+    return log;
+  }
+
+  const sessionOrder = cycle => cycle.weeks.reduce((a, w) => a.concat(w.sessions.map(s => s.id)), []);
+  const calendarWeek = (cycle, todayISO) => Math.floor((dayNum(todayISO) - dayNum(cycle.start)) / 7);
+
+  function weekView(cycle, log, todayISO) {
+    norm(log);
+    const order = sessionOrder(cycle);
+    const nW = cycle.weeks.length;
+    const cw = calendarWeek(cycle, todayISO);
+    const weekOf = i => Math.floor(i / SESSIONS_PER_WEEK);
+    const closed = sid => !!log.done[sid] || log.skipped.includes(sid);
+    let pos = order.findIndex(sid => !closed(sid));
+    if (pos < 0) pos = order.length;
+
+    const state = cw < 0 ? "upcoming" : pos === order.length ? "finished" : "active";
+    // semaine affichée : celle de la file, sans dépasser la semaine calendrier
+    // (semaine bouclée en avance → on la montre, la suivante reste verrouillée)
+    const weekIndex = Math.max(0, Math.min(weekOf(pos), cw, nW - 1));
+    const nextId = state === "active" && weekOf(pos) <= cw ? order[pos] : null;
+
+    let decision = null;
+    if (state === "active" && weekOf(pos) < cw && !log.decisions[cw]) {
+      const missed = order.filter((sid, i) => weekOf(i) < cw && !closed(sid));
+      decision = { cw, missed };
+    }
+
+    const week = cycle.weeks[weekIndex];
+    const sessions = week.sessions.map(s => {
+      const i = order.indexOf(s.id);
+      const status = log.done[s.id] ? "done"
+        : log.skipped.includes(s.id) ? "skipped"
+        : s.id === nextId ? "next"
+        : weekOf(i) > cw ? "locked" : "todo";
+      return { id: s.id, title: s.title, status, date: log.done[s.id] || null };
+    });
+    const bonus = week.bonus ? { id: week.bonus.id, title: week.bonus.title, date: log.bonus[week.bonus.id] || null } : null;
+    return { state, weekIndex, week, sessions, bonus, nextId, decision };
+  }
+
+  function markDone(log, sid, dateISO) {
+    norm(log);
+    log.done[sid] = dateISO;
+    log.skipped = log.skipped.filter(x => x !== sid);
+    return log;
+  }
+
+  function markBonus(log, bid, dateISO) {
+    norm(log).bonus[bid] = dateISO;
+    return log;
+  }
+
+  function applyDecision(log, cycle, todayISO, choice) {
+    const d = weekView(cycle, log, todayISO).decision;
+    if (!d) return log;
+    if (choice === "catchup") log.decisions[d.cw] = "catchup";
+    if (choice === "skip") d.missed.forEach(sid => { if (!log.skipped.includes(sid)) log.skipped.push(sid); });
+    return log;
+  }
+
   const API = {
     SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT,
     validateCycle,
-    loadKg, liftMax, strengthLines, newAthlete, setMax
+    loadKg, liftMax, strengthLines, newAthlete, setMax,
+    newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, applyDecision
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   root.PLCycle = API;
