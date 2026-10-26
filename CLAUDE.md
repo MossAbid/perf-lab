@@ -31,7 +31,7 @@ Deux parties :
 - `sw.js` : service worker, cache `perflab-vX` (bump manuel après modif de la coque)
 - `tools/validate-cycle.js` : vérifie un fichier de cycle ; `tools/serve.py` : serveur local (test + e2e)
 - `manifest.webmanifest`, `icons/` : métadonnées PWA
-- `tests/progression.test.js`, `tests/backend.test.js`, `tests/cycle.test.js`, `tests/cyclestore.test.js` : tests Node ; `tests/fixtures/cycle-sample.js` : cycle d'exemple
+- `tests/progression.test.js`, `tests/backend.test.js`, `tests/cycle.test.js`, `tests/cyclestore.test.js`, `tests/sw.test.js` : tests Node ; `tests/fixtures/cycle-sample.js` : cycle d'exemple
 - `tests/e2e.html` : harnais e2e navigateur
 
 L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
@@ -42,13 +42,13 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - Backend optionnel : Supabase — Postgres + Auth + Row Level Security, client chargé via CDN jsDelivr (`@supabase/supabase-js@2`), pas de dépendance npm.
 - Aucun `package.json` / aucun outil de build.
 - Tests : scripts Node purs avec `assert` + un harnais e2e HTML exécuté dans Chrome headless.
-- PWA : `manifest.webmanifest` + `sw.js` (cache-first pour la coque, network-first pour `programs.js`).
+- PWA : `manifest.webmanifest` + `sw.js` (code HTML/CSS/JS en network-first borné à 3 s puis cache ; icônes et polices en cache-first).
 
 ## Commandes réelles
 - Pas de build : les fichiers sont directement déployables.
 - **Déploiement** : `git push` sur `main` de `github.com/mossabid/perf-lab` → GitHub Pages. Uniquement avec l'accord de Moss.
 - **Test local** : `python3 tools/serve.py 8000` puis `http://localhost:8000`.
-- **Tests unitaires** : `node tests/progression.test.js && node tests/backend.test.js && node tests/cycle.test.js && node tests/cyclestore.test.js`.
+- **Tests unitaires** : `node tests/progression.test.js && node tests/backend.test.js && node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js`.
 - **Tests e2e** : `python3 tools/serve.py 8741` à la racine, puis `chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"` → aucune ligne `E2E-FAIL` dans `#results`. (Avec `python3 -m http.server`, la file de 5 connexions fait échouer des scripts au hasard.)
 - **Vérifier un cycle** : `node tools/validate-cycle.js content/cycle-1.json`.
 - Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v11`) **et** ajouter tout nouveau fichier au tableau `SHELL`.

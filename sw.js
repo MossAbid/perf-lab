@@ -2,6 +2,7 @@
    Bump CACHE quand tu modifies la coque (pas nécessaire pour programs.js
    grâce au network-first ci-dessous, mais conseillé après gros changements). */
 const CACHE = "perflab-v11";
+const NET_TIMEOUT = 3000;   // ms avant de servir la coque depuis le cache
 
 const SHELL = [
   "./",
@@ -44,14 +45,19 @@ self.addEventListener("fetch", e=>{
   if(/supabase\.co$/.test(url.host)) return;
 
   // Code applicatif (HTML/CSS/JS même origine) : network-first → màj quand en ligne, cache si offline.
+  // Réseau de salle (connecté mais sans débit) : au-delà de NET_TIMEOUT on sert le cache ;
+  // sans copie en cache, on attend quand même le réseau.
   const isCode = sameOrigin && /\.(html|css|js)$/.test(url.pathname) || (sameOrigin && url.pathname.endsWith("/"));
   if(isCode){
+    const net = fetch(req).then(res=>{
+      const copy = res.clone();
+      caches.open(CACHE).then(c=>c.put(req, copy));
+      return res;
+    });
+    const late = new Promise((_, no)=> setTimeout(()=> no(new Error("réseau lent")), NET_TIMEOUT));
     e.respondWith(
-      fetch(req).then(res=>{
-        const copy = res.clone();
-        caches.open(CACHE).then(c=>c.put(req, copy));
-        return res;
-      }).catch(()=> caches.match(req).then(r=> r || caches.match("./index.html")))
+      Promise.race([net, late]).catch(()=> caches.match(req).then(r=> r ||
+        net.catch(()=> caches.match("./index.html"))))
     );
     return;
   }

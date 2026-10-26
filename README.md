@@ -172,7 +172,7 @@ restent en mode LOCAL. Pour activer la synchro de la programmation :
 Données de l'athlète : blob `state` clé `cycle` (cache `perflab.p.moss.cycle`) =
 `{ v, maxes, logs }`, inclus dans l'export/import de profils.
 
-**Tests** : `node tests/cycle.test.js && node tests/cyclestore.test.js`, puis l'e2e
+**Tests** : `node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js`, puis l'e2e
 (`python3 tools/serve.py 8741` et `chrome --headless=new --virtual-time-budget=30000
 --dump-dom http://localhost:8741/tests/e2e.html` → aucune ligne `E2E-FAIL`).
 
