@@ -35,9 +35,11 @@
     if (minutes > MAX_SESSION_MIN) throw `${sid} : ${minutes} min (max ${MAX_SESSION_MIN}).`;
     s.blocks.forEach(b => {
       if (!KINDS.includes(b.kind)) throw `${sid} : type de bloc '${b.kind}' inconnu.`;
+      if (!b.optional && !(typeof b.minutes === "number" && b.minutes >= 0)) throw `${sid} : durée manquante sur « ${b.title} ».`;
       if (b.kind === "strength") {
         if (!lifts[b.lift]) throw `${sid} : mouvement '${b.lift}' inconnu.`;
         if (!Array.isArray(b.sets) || !b.sets.length) throw `${sid} : séries manquantes.`;
+        if (b.sets.some(x => !(typeof x.pct === "number" && x.pct > 0 && x.pct <= 110))) throw `${sid} : % de série invalide (nombre entre 1 et 110).`;
       }
       if (b.kind === "metcon") {
         if (!b.levels || !b.levels.rx || !b.levels.int) throw `${sid} : niveaux RX et INT requis.`;
@@ -56,6 +58,7 @@
     if (!lifts) throw "Champ 'lifts' requis.";
     Object.keys(lifts).forEach(id => {
       const l = lifts[id] || {};
+      if (typeof l.name !== "string" || !l.name.trim()) throw `${id} : nom requis.`;
       if (l.derive && !lifts[l.derive.from]) throw `${id} : dérivé d'un mouvement inconnu '${l.derive.from}'.`;
       if (l.derive && !(l.derive.ratio > 0)) throw `${id} : ratio de dérivation invalide.`;
       if (l.video != null && !/^https:\/\//.test(l.video)) throw `${id} : vidéo https attendue.`;
@@ -103,7 +106,7 @@
     const m = liftMax(cycle, maxes, block.lift);
     return (block.sets || []).map(s => ({
       sets: s.sets, reps: s.reps, pct: s.pct,
-      kg: m ? loadKg(m.kg, s.pct) : null,
+      kg: m && typeof s.pct === "number" ? loadKg(m.kg, s.pct) : null,
       belt: s.pct >= BELT_PCT
     }));
   }
@@ -178,6 +181,10 @@
     return log;
   }
 
+  /* annuler un « fait » tapé par erreur : la séance reprend sa place dans la file */
+  function unmarkDone(log, sid) { delete norm(log).done[sid]; return log; }
+  function unmarkBonus(log, bid) { delete norm(log).bonus[bid]; return log; }
+
   function applyDecision(log, cycle, todayISO, choice) {
     const d = weekView(cycle, log, todayISO).decision;
     if (!d) return log;
@@ -236,7 +243,7 @@
     SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT,
     validateCycle,
     loadKg, liftMax, strengthLines, newAthlete, setMax,
-    newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, applyDecision,
+    newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,
     parseScore, recordScore, previousScore
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;

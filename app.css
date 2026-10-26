@@ -351,3 +351,4 @@ div.cf-bh{cursor:default}
 .cf-json{display:block;width:100%;min-height:240px;margin-top:18px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:12px;border-radius:12px;resize:vertical}
 .cf-json:focus{outline:1px solid var(--accent)}
 .cf-wide{width:100%;min-height:48px;margin-top:8px}
+.cf-undo{display:block;margin:10px auto 0;min-height:40px;background:transparent}

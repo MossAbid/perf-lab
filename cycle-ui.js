@@ -273,7 +273,7 @@ const CycleUI = (() => {
 
     const blocks = f.s.blocks.map((b, i) => {
       const isMet = b.kind === "metcon", open = isMet || SS.open.has(i);
-      const sub = `${b.minutes ? b.minutes + " min" : ""}${b.optional ? " · facultatif" : ""}`;
+      const sub = `${Number(b.minutes) > 0 ? Number(b.minutes) + " min" : ""}${b.optional ? " · facultatif" : ""}`;
       const head = `<span class="cf-bn">${String(i + 1).padStart(2, "0")}</span>
         <span class="cf-bt"><b>${esc(b.title)}</b><small>${sub}</small></span>${flagsHtml(b)}`;
       const body = b.kind === "strength" ? strengthBody(cycle, athlete, b)
@@ -288,7 +288,8 @@ const CycleUI = (() => {
 
     const foot = locked
       ? `<div class="cf-note">Séance de la semaine ${f.wi + 1} : elle s'ouvre le ${dayLabel(addDays(cycle.start, f.wi * 7))}.</div>`
-      : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>`
+      : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
+          <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
     const title = f.bonus ? "BONUS" : `SÉANCE ${f.n}`;
     shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}`, `${title}<br><em>${esc(f.s.title.replace(/^Bonus · /, ""))}</em>`, `
@@ -316,6 +317,14 @@ const CycleUI = (() => {
       C.recordScore(logFor(a, cycle), sid, SS.level, sc, today(), metcon.bench);
       await CycleStore.saveAthlete(a);
       toast("Score enregistré.");
+      renderSession(sid);
+    };
+    const undo = $("#cfundo");
+    if(undo) undo.onclick = async () => {
+      const a = CycleStore.getAthlete(), l = logFor(a, cycle);
+      if(f.bonus) C.unmarkBonus(l, sid); else C.unmarkDone(l, sid);
+      await CycleStore.saveAthlete(a);
+      toast("Séance remise à faire.");
       renderSession(sid);
     };
     const done = $("#cfdone");

@@ -72,14 +72,18 @@ create table if not exists public.cycles (
   id         text primary key,
   owner      uuid not null references auth.users(id) on delete cascade,
   data       jsonb not null,                -- cycle complet perflab-cycle-v1
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (id, owner)                        -- cible de la clé composite ci-dessous
 );
 create table if not exists public.cycle_athletes (
-  cycle_id text not null references public.cycles(id) on delete cascade,
+  cycle_id text not null,
   user_id  uuid not null references auth.users(id) on delete cascade,
   owner    uuid not null references auth.users(id) on delete cascade,
   active   boolean not null default true,
-  primary key (cycle_id, user_id)
+  primary key (cycle_id, user_id),
+  -- un lien ne peut nommer comme `owner` que le vrai auteur du cycle
+  -- (sinon n'importe quel compte se déclarerait propriétaire du cycle d'un autre)
+  foreign key (cycle_id, owner) references public.cycles(id, owner) on delete cascade
 );
 alter table public.cycles enable row level security;
 alter table public.cycle_athletes enable row level security;
@@ -95,9 +99,11 @@ create policy "cycles_athlete_read" on public.cycles
 
 -- `owner` est recopié ici pour que ces règles ne lisent jamais `cycles`
 -- (sinon récursion de RLS entre les deux tables)
+-- v1 : on ne s'inscrit qu'à ses propres cycles (owner = user_id = soi) ; l'inscription
+-- d'autres athlètes par un coach viendra avec le plan multi-athlètes.
 drop policy if exists "ca_owner" on public.cycle_athletes;
 create policy "ca_owner" on public.cycle_athletes
-  for all using (auth.uid() = owner) with check (auth.uid() = owner);
+  for all using (auth.uid() = owner) with check (auth.uid() = owner and auth.uid() = user_id);
 drop policy if exists "ca_self_read" on public.cycle_athletes;
 create policy "ca_self_read" on public.cycle_athletes
   for select using (auth.uid() = user_id);

@@ -26,6 +26,21 @@ t("identifiant en double", () => bad(c => c.weeks[1].sessions[0].id = "w1s1", /i
 t("un seul metcon par séance", () => bad(c => { const b = c.weeks[0].sessions[0].blocks; b.push(clone(b[2])); }, /w1s1 : un seul metcon/));
 t("vidéo en https", () => bad(c => c.lifts.back_squat.video = "ftp://x", /back_squat : vidéo https attendue/));
 
+/* ---- contenu mal formé : jamais de NaN ni de texte brut injecté à l'écran ---- */
+t("pct manquant ou non numérique refusé", () => {
+  bad(c => delete c.weeks[0].sessions[0].blocks[1].sets[0].pct, /w1s1 : % de série invalide/);
+  bad(c => c.weeks[0].sessions[0].blocks[1].sets[0].pct = "85%", /w1s1 : % de série invalide/);
+});
+t("durée manquante ou non numérique refusée", () => {
+  bad(c => delete c.weeks[0].sessions[0].blocks[0].minutes, /w1s1 : durée manquante/);
+  bad(c => c.weeks[0].sessions[0].blocks[0].minutes = "<img onerror=x>", /w1s1 : durée manquante/);
+});
+t("nom de mouvement requis", () => bad(c => delete c.lifts.snatch.name, /snatch : nom requis/));
+t("strengthLines : pct non numérique → kg null", () => {
+  const c = makeSampleCycle(), blk = clone(c.weeks[0].sessions[0].blocks[1]); blk.sets[0].pct = "lourd";
+  assert.equal(C.strengthLines(c, { back_squat: [{ kg: 120, d: "2026-08-15" }] }, blk)[0].kg, null);
+});
+
 /* ---- max et charges ---- */
 t("loadKg arrondit au 2,5 kg", () => {
   assert.equal(C.loadKg(120, 75), 90);  assert.equal(C.loadKg(120, 70), 85);
@@ -104,6 +119,14 @@ t("bonus fait : daté, hors file", () => {
 t("après la fin du cycle : décision puis finished", () => {
   const l = C.newLog(); C.applyDecision(l, cyc, "2026-12-14", "skip");
   assert.equal(C.weekView(cyc, l, "2026-12-14").state, "finished");
+});
+
+t("annuler une séance faite : elle redevient la prochaine", () => {
+  const l = C.markDone(C.newLog(), "w1s1", "2026-11-24");
+  C.unmarkDone(l, "w1s1");
+  assert.equal(C.weekView(cyc, l, "2026-11-24").nextId, "w1s1");
+  const b = C.unmarkBonus(C.markBonus(C.newLog(), "w1b", "2026-11-26"), "w1b");
+  assert.equal(b.bonus.w1b, undefined);
 });
 
 /* ---- scores ---- */

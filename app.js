@@ -68,8 +68,19 @@ async function hydrate(){
     LIBRARY = r.programs || []; PROGRESS = r.progress || {};
     PROGRESSION = Backend.loadProgression();
     if(r.offline) toast("Hors-ligne — données locales");
-    if(CF){ try{ await CycleStore.refresh(); }catch(e){} }
   }catch(e){ LIBRARY = DEFAULT_PROGRAMS.slice(); PROGRESS = {}; PROGRESSION = {}; }
+  syncCycle();
+}
+/* module Programmation : synchro en arrière-plan, l'écran part du cache ;
+   on ne re-rend (bibliothèque ou écrans cf) que si les données ont changé */
+function syncCycle(){
+  if(!CF) return;
+  const snap = ()=> JSON.stringify([CycleStore.getCycle(), CycleStore.getAthlete()]);
+  const before = snap();
+  CycleStore.refresh().then(()=>{
+    const h = location.hash.replace(/^#\/?/,"");
+    if(snap() !== before && (h === "" || h.startsWith("cf"))) route();
+  }, ()=>{});
 }
 
 /* ---- ROUTER ---- */

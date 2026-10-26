@@ -163,8 +163,9 @@ ignoré par git ; le cycle vit dans Supabase et dans le cache de l'appareil.
 restent en mode LOCAL. Pour activer la synchro de la programmation :
 1. Crée un projet Supabase, colle `schema.sql` dans le SQL Editor → *Run* (tables `cycles`,
    `cycle_athletes`, `state` + règles RLS).
-2. *Authentication → Providers → Email* : désactive « Confirm email ». Crée ton compte dans
-   *Authentication → Users* (l'app n'a pas d'écran de création de compte pour ce module).
+2. *Authentication → Sign In / Providers* : désactive **« Allow new users to sign up »** (personne
+   d'autre ne doit pouvoir créer un compte) et « Confirm email ». Crée ton compte dans
+   *Authentication → Users → Add user* (l'app n'a pas d'écran de création de compte pour ce module).
 3. Renseigne `CYCLE_SUPABASE_URL` et `CYCLE_SUPABASE_ANON_KEY` dans `config.js`
    (laisse `SUPABASE_URL` / `SUPABASE_ANON_KEY` vides).
 
