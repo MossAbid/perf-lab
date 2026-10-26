@@ -25,6 +25,21 @@ t("type de score inconnu", () => bad(c => c.weeks[0].sessions[0].blocks[2].score
 t("identifiant en double", () => bad(c => c.weeks[1].sessions[0].id = "w1s1", /identifiant 'w1s1' en double/));
 t("un seul metcon par séance", () => bad(c => { const b = c.weeks[0].sessions[0].blocks; b.push(clone(b[2])); }, /w1s1 : un seul metcon/));
 t("vidéo en https", () => bad(c => c.lifts.back_squat.video = "ftp://x", /back_squat : vidéo https attendue/));
+t("objectif : libellé et texte requis", () => bad(c => c.goals = [{ label: "Force" }], /objectif 1 : libellé et texte requis/));
+t("fiche : nom requis", () => bad(c => c.movements.wall_ball.name = " ", /wall_ball : nom requis/));
+t("fiche : catégorie connue", () => bad(c => c.movements.wall_ball.cat = "cardio", /wall_ball : catégorie 'cardio' inconnue/));
+t("fiche : points clés requis", () => bad(c => c.movements.wall_ball.cues = [], /wall_ball : points clés requis/));
+t("fiche : vidéo en https", () => bad(c => c.movements.wall_ball.video = "http://x", /wall_ball : vidéo https attendue/));
+t("fiche : état de progression connu", () => bad(c => c.movements.bar_muscle_up.progression[0].state = "ok", /bar_muscle_up : état 'ok' inconnu/));
+t("fiche : une seule étape en cours", () => bad(c => c.movements.bar_muscle_up.progression[2].state = "current", /bar_muscle_up : une seule étape « current »/));
+t("bloc : fiche inconnue", () => bad(c => c.weeks[0].sessions[0].blocks[2].moves = ["wallball"], /w1s1 : fiche 'wallball' inconnue/));
+t("force : test 1RM ou 3RM", () => bad(c => c.weeks[0].sessions[0].blocks[1].test = "2RM", /w1s1 : test '2RM' inconnu \(1RM ou 3RM\)/));
+t("cycle v1 sans objectifs ni fiches reste valide", () => {
+  const c = clone(makeSampleCycle());
+  delete c.goals; delete c.movements;
+  c.weeks.forEach(w => [...w.sessions, w.bonus].forEach(s => s.blocks.forEach(b => delete b.moves)));
+  assert.equal(C.validateCycle(c), true);
+});
 
 /* ---- contenu mal formé : jamais de NaN ni de texte brut injecté à l'écran ---- */
 t("pct manquant ou non numérique refusé", () => {

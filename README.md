@@ -156,6 +156,16 @@ chaque semaine = `{ n, phase, bloc, intent, sessions[4], bonus? }` ; une séance
 metcon (niveaux `rx` et `int`, score `time | reps | rounds_reps | load`, `bench` pour relier
 les metcons répétés). Vérifier avant import : `node tools/validate-cycle.js content/cycle-1.json`.
 
+Champs facultatifs (v1.1) — un cycle sans eux reste valide :
+- `goals` : objectifs du cycle, `[{ label, text }]`, affichés dans Ton programme.
+- `movements` : fiches mouvement, `{ <id>: { name, cat, cues[], video?, videoBy?, level?, chain?,
+  progression?, rx?, int?, faults?[] } }`. `cat` vaut `force | halterophilie | gymnastique |
+  moteur | accessoire`. `cues` (points clés) n'est jamais vide. `video` est en `https://`.
+  `progression` = `[{ text, state }]` avec `state` = `done | current | next`, au plus une
+  étape `current`. Une fiche qui porte l'id d'un lift remplace le lien vidéo de ce lift.
+- `moves` sur un bloc : ids des fiches à proposer sous ce bloc (chaque id existe dans `movements`).
+- `test` sur un bloc de force : `1RM | 3RM` (semaine de test).
+
 **Le contenu des cycles n'est jamais dans le dépôt** (public) : le dossier `content/` est
 ignoré par git ; le cycle vit dans Supabase et dans le cache de l'appareil.
 

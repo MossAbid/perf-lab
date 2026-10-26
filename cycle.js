@@ -17,6 +17,9 @@
   const SCORE_TYPES = ["time", "reps", "rounds_reps", "load"];
   const KINDS = ["warmup", "strength", "metcon", "accessory", "skill"];
   const PHASES = ["base", "montee", "surcharge", "decharge", "test"];
+  const MOVE_CATS = ["force", "halterophilie", "gymnastique", "moteur", "accessoire"];
+  const STEP_STATES = ["done", "current", "next"];
+  const TESTS = ["1RM", "3RM"];
 
   /* ---- dates AAAA-MM-JJ en jours UTC (jamais de Date locale) ---- */
   const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -27,7 +30,26 @@
   const isMonday = iso => (dayNum(iso) + 3) % 7 === 0; // 1970-01-01 = jeudi
 
   /* ---- validation du contenu ---- */
-  function validateSession(s, lifts) {
+  const isText = v => typeof v === "string" && v.trim() !== "";
+
+  /* fiche mouvement (facultative) : nom, catégorie, points clés ; le reste au choix */
+  function validateMovement(id, m) {
+    if (!m || !isText(m.name)) throw `${id} : nom requis.`;
+    if (!MOVE_CATS.includes(m.cat)) throw `${id} : catégorie '${m.cat}' inconnue.`;
+    if (!Array.isArray(m.cues) || !m.cues.length || !m.cues.every(isText)) throw `${id} : points clés requis.`;
+    if (m.video != null && !/^https:\/\//.test(m.video)) throw `${id} : vidéo https attendue.`;
+    if (m.progression != null) {
+      if (!Array.isArray(m.progression)) throw `${id} : progression en liste attendue.`;
+      m.progression.forEach(p => {
+        if (!p || !isText(p.text)) throw `${id} : étape de progression sans texte.`;
+        if (!STEP_STATES.includes(p.state)) throw `${id} : état '${p && p.state}' inconnu.`;
+      });
+      if (m.progression.filter(p => p.state === "current").length > 1) throw `${id} : une seule étape « current ».`;
+    }
+    if (m.faults != null && !(Array.isArray(m.faults) && m.faults.every(isText))) throw `${id} : erreurs fréquentes en liste de textes attendues.`;
+  }
+
+  function validateSession(s, lifts, moves) {
     const sid = s.id;
     if (!Array.isArray(s.blocks) || !s.blocks.length) throw `${sid} : aucun bloc.`;
     if (s.blocks.filter(b => b.kind === "metcon").length > 1) throw `${sid} : un seul metcon par séance.`;
@@ -36,10 +58,15 @@
     s.blocks.forEach(b => {
       if (!KINDS.includes(b.kind)) throw `${sid} : type de bloc '${b.kind}' inconnu.`;
       if (!b.optional && !(typeof b.minutes === "number" && b.minutes >= 0)) throw `${sid} : durée manquante sur « ${b.title} ».`;
+      if (b.moves != null) {
+        if (!Array.isArray(b.moves)) throw `${sid} : 'moves' en liste attendu.`;
+        b.moves.forEach(id => { if (!moves[id]) throw `${sid} : fiche '${id}' inconnue.`; });
+      }
       if (b.kind === "strength") {
         if (!lifts[b.lift]) throw `${sid} : mouvement '${b.lift}' inconnu.`;
         if (!Array.isArray(b.sets) || !b.sets.length) throw `${sid} : séries manquantes.`;
         if (b.sets.some(x => !(typeof x.pct === "number" && x.pct > 0 && x.pct <= 110))) throw `${sid} : % de série invalide (nombre entre 1 et 110).`;
+        if (b.test != null && !TESTS.includes(b.test)) throw `${sid} : test '${b.test}' inconnu (1RM ou 3RM).`;
       }
       if (b.kind === "metcon") {
         if (!b.levels || !b.levels.rx || !b.levels.int) throw `${sid} : niveaux RX et INT requis.`;
@@ -63,6 +90,13 @@
       if (l.derive && !(l.derive.ratio > 0)) throw `${id} : ratio de dérivation invalide.`;
       if (l.video != null && !/^https:\/\//.test(l.video)) throw `${id} : vidéo https attendue.`;
     });
+    if (c.goals != null) {
+      if (!Array.isArray(c.goals)) throw "Champ 'goals' : liste attendue.";
+      c.goals.forEach((g, i) => { if (!g || !isText(g.label) || !isText(g.text)) throw `objectif ${i + 1} : libellé et texte requis.`; });
+    }
+    const moves = c.movements == null ? {} : c.movements;
+    if (typeof moves !== "object" || Array.isArray(moves)) throw "Champ 'movements' : objet attendu.";
+    Object.keys(moves).forEach(id => validateMovement(id, moves[id]));
     if (!Array.isArray(c.weeks) || !c.weeks.length) throw "Au moins une semaine ('weeks').";
     const seen = new Set();
     const useId = id => {
@@ -74,8 +108,8 @@
       const label = `Semaine ${w.n || i + 1}`;
       if (!PHASES.includes(w.phase)) throw `${label} : phase '${w.phase}' inconnue.`;
       if (!Array.isArray(w.sessions) || w.sessions.length !== SESSIONS_PER_WEEK) throw `${label} : ${SESSIONS_PER_WEEK} séances attendues.`;
-      w.sessions.forEach(s => { useId(s.id); validateSession(s, lifts); });
-      if (w.bonus) { useId(w.bonus.id); validateSession(w.bonus, lifts); }
+      w.sessions.forEach(s => { useId(s.id); validateSession(s, lifts, moves); });
+      if (w.bonus) { useId(w.bonus.id); validateSession(w.bonus, lifts, moves); }
     });
     return true;
   }
@@ -240,7 +274,7 @@
   }
 
   const API = {
-    SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT,
+    SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT, MOVE_CATS, STEP_STATES, TESTS,
     validateCycle,
     loadKg, liftMax, strengthLines, newAthlete, setMax,
     newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,

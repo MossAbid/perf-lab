@@ -18,7 +18,7 @@
 
   function bonus(n) {
     return { id: `w${n}b`, title: "Bonus · BMU + mobilité", blocks: [
-      { kind: "skill", title: "Bar muscle-up", minutes: 15, text: "EMOM 10 min : 1 à 2 bar muscle-ups." },
+      { kind: "skill", title: "Bar muscle-up", minutes: 15, text: "EMOM 10 min : 1 à 2 bar muscle-ups.", moves: ["bar_muscle_up"] },
       { kind: "accessory", title: "Mobilité", minutes: 15, text: "Hanches et épaules." }
     ] };
   }
@@ -27,11 +27,25 @@
     const w1s1 = session("w1s1", "Back squat", "back_squat", { title: "AMRAP 12 min", score: "rounds_reps", bench: "amrap-a" });
     w1s1.blocks[0].flags = ["tapis"];
     w1s1.blocks[1].sets = [{ sets: 1, reps: "5", pct: 60 }, { sets: 1, reps: "3", pct: 70 }, { sets: 4, reps: "3", pct: 80 }];
+    w1s1.blocks[2].moves = ["wall_ball"];
     return {
       schema: "perflab-cycle-v1",
       id, title: "Cycle test", start: startISO,
+      goals: [
+        { label: "Force", text: "Battre ton max de back squat." },
+        { label: "Gym", text: "Enchaîner 3 bar muscle-ups." }
+      ],
+      movements: {
+        back_squat: { name: "Back squat", cat: "force", video: "https://example.com/v", videoBy: "Démo",
+          cues: ["Pieds largeur d'épaules, genoux dans l'axe des pieds."] },
+        wall_ball: { name: "Wall ball", cat: "moteur", cues: ["Squat complet avant de lancer."],
+          faults: ["Lancer avec les bras."], rx: "9 kg", int: "6 kg" },
+        bar_muscle_up: { name: "Bar muscle-up", cat: "gymnastique", level: "À l'unité.",
+          cues: ["Balancier bras tendus."],
+          progression: [{ text: "À l'unité", state: "done" }, { text: "Enchaîner 2", state: "current" }, { text: "Enchaîner 5", state: "next" }] }
+      },
       lifts: {
-        back_squat:   { name: "Back squat" },
+        back_squat:   { name: "Back squat", video: "https://example.com/lift" },
         snatch:       { name: "Snatch" },
         bench_press:  { name: "Bench press" },
         deadlift:     { name: "Deadlift" },
