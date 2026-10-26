@@ -220,7 +220,7 @@ t("programme : bloc de gymnastique d'une séance", () => {
   const c = makeSampleCycle();
   c.weeks[0].sessions[3].blocks.splice(2, 0, { kind: "skill", title: "Bar muscle-up", minutes: 0, text: "EMOM 8 min :\n2 bar muscle-ups" });
   const p = C.programmeWeek(c, {}, 0);
-  assert.deepEqual(p.sessions[3].lines[1], { kind: "skill", title: "Bar muscle-up", text: "EMOM 8 min :" });
+  assert.deepEqual(p.sessions[3].lines[1], { kind: "skill", title: "Bar muscle-up", text: "EMOM 8 min : 2 bar muscle-ups" });
 });
 
 console.log(`\n${n} tests OK`);

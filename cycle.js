@@ -322,7 +322,11 @@
           acc.push({ kind: "strength", lift: b.lift, name: cycle.lifts[b.lift].name,
             scheme: `${top.sets} × ${top.reps} à ${top.pct} %`, kg: m ? loadKg(m.kg, top.pct) : null,
             test: b.test || null, maxKg: m ? m.kg : null });
-        } else if (b.kind === "skill") acc.push({ kind: "skill", title: b.title, text: String(b.text || "").split("\n")[0] });
+        } else if (b.kind === "skill") {
+          // « EMOM 10 min : » seul ne dit rien : on y joint la ligne suivante
+          const ls = String(b.text || "").split("\n").map(x => x.trim()).filter(Boolean);
+          acc.push({ kind: "skill", title: b.title, text: ls[0] && ls[0].endsWith(":") && ls[1] ? `${ls[0]} ${ls[1]}` : ls[0] || "" });
+        }
         else if (b.kind === "metcon") acc.push({ kind: "metcon", title: b.title });
         return acc;
       }, [])
