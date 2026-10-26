@@ -186,11 +186,58 @@
     return log;
   }
 
+  /* ---- scores de metcon (repères, pas de ressenti) ----
+     value = nombre comparable : secondes, reps, tours×1000 + reps, kg      */
+  const NUM_MSG = "Un nombre est attendu.";
+  function parseScore(type, text) {
+    const s = String(text == null ? "" : text).trim().replace(/\s+/g, " ");
+    if (type === "time") {
+      const m = s.match(/^(\d{1,3}) ?(?::|'|’|′) ?(\d{2}) ?(?:''|"|″|’’)?$/);
+      if (!m || +m[2] > 59) throw "Temps attendu au format mm:ss (ex. 12:30).";
+      return { value: +m[1] * 60 + +m[2], text: `${+m[1]}:${m[2]}` };
+    }
+    if (type === "rounds_reps") {
+      const m = s.match(/^(\d+) ?(?:tours?|rounds?|rds?|r)? ?(?:\+ ?(\d+)|(\d+))? ?(?:reps?)?$/i);
+      if (!m) throw "Tours + reps attendus (ex. 5+8).";
+      const rounds = +m[1], reps = +(m[2] || m[3] || 0);
+      return { value: rounds * 1000 + reps, text: reps ? `${rounds} tours + ${reps}` : `${rounds} tours` };
+    }
+    if (type === "reps") {
+      const m = s.match(/^(\d+) ?(?:reps?)?$/i);
+      if (!m) throw NUM_MSG;
+      return { value: +m[1], text: `${+m[1]} reps` };
+    }
+    if (type === "load") {
+      const m = s.match(/^(\d+(?:[.,]\d+)?) ?(?:kg)?$/i);
+      if (!m) throw NUM_MSG;
+      const v = parseFloat(m[1].replace(",", "."));
+      return { value: v, text: `${String(v).replace(".", ",")} kg` };
+    }
+    throw `Type de score '${type}' inconnu.`;
+  }
+
+  function recordScore(log, sid, level, score, dateISO, bench) {
+    norm(log).scores[sid] = { level, value: score.value, text: score.text, d: dateISO, bench: bench || null };
+    return log;
+  }
+
+  function previousScore(athlete, bench, beforeISO) {
+    if (!bench) return null;
+    let best = null;
+    Object.values((athlete && athlete.logs) || {}).forEach(log => {
+      Object.values((log && log.scores) || {}).forEach(s => {
+        if (s.bench === bench && s.d < beforeISO && (!best || s.d > best.d)) best = s;
+      });
+    });
+    return best ? { text: best.text, level: best.level, d: best.d } : null;
+  }
+
   const API = {
     SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT,
     validateCycle,
     loadKg, liftMax, strengthLines, newAthlete, setMax,
-    newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, applyDecision
+    newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, applyDecision,
+    parseScore, recordScore, previousScore
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   root.PLCycle = API;

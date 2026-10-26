@@ -106,4 +106,27 @@ t("après la fin du cycle : décision puis finished", () => {
   assert.equal(C.weekView(cyc, l, "2026-12-14").state, "finished");
 });
 
+/* ---- scores ---- */
+t("temps : mm:ss, m'ss, m''ss", () => {
+  assert.deepEqual(C.parseScore("time", "12:30"), { value: 750, text: "12:30" });
+  assert.equal(C.parseScore("time", "12'30").value, 750);
+  assert.throws(() => C.parseScore("time", "7:5"), /mm:ss/);
+});
+t("tours + reps", () => {
+  assert.deepEqual(C.parseScore("rounds_reps", "5+8"), { value: 5008, text: "5 tours + 8" });
+  assert.equal(C.parseScore("rounds_reps", "5 tours 8").value, 5008);
+  assert.deepEqual(C.parseScore("rounds_reps", "5"), { value: 5000, text: "5 tours" });
+});
+t("reps et charge", () => {
+  assert.deepEqual(C.parseScore("reps", "142"), { value: 142, text: "142 reps" });
+  assert.deepEqual(C.parseScore("load", "92,5"), { value: 92.5, text: "92,5 kg" });
+  assert.throws(() => C.parseScore("reps", "abc"), /nombre/);
+});
+t("score précédent sur le même metcon", () => {
+  const a = C.newAthlete(); a.logs["cycle-1"] = C.newLog();
+  C.recordScore(a.logs["cycle-1"], "w1s1", "rx", C.parseScore("rounds_reps", "5+8"), "2026-11-24", "amrap-a");
+  assert.deepEqual(C.previousScore(a, "amrap-a", "2026-12-01"), { text: "5 tours + 8", level: "rx", d: "2026-11-24" });
+  assert.equal(C.previousScore(a, "amrap-a", "2026-11-24"), null);
+});
+
 console.log(`\n${n} tests OK`);
