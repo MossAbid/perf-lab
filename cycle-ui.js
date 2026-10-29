@@ -202,7 +202,7 @@ const CycleUI = (() => {
       } else if(iso > td) msg = "À venir : tes séances se placent ici le jour où tu les fais.";
       rows.push(`<div class="cf-ditem"><p>${msg}</p>${link}</div>`);
     }
-    return `<div class="cf-dday"><div class="cf-lab">${dayLabel(cell.iso)}</div>${rows.join("")}</div>`;
+    return `<div class="cf-dday"><h2 class="cf-ddt">${dayLabel(cell.iso)}</h2>${rows.join("")}</div>`;
   }
 
   function renderMonth(){
@@ -243,12 +243,11 @@ const CycleUI = (() => {
   }
 
   /* ---- Ton programme : le cycle, ses objectifs, chaque semaine en charges ---- */
-  const PHASE_COLOR = { base: "#8ab4ff", montee: "#d7f25a", surcharge: "#ffb25b", decharge: "#9ba1ac", test: "#ff7a7a" };
   let PS = { wi: 0 };
   function progLine(l){
     if(l.kind === "strength") return `<span>${esc(l.name)} · ${l.test
       ? `test ${esc(l.test)} · ${l.maxKg != null ? "max actuel " + fmtKg(l.maxKg) : "pas encore de max"}`
-      : `${esc(l.scheme)} · ${l.kg != null ? fmtKg(l.kg) : "saisis ton max"}`}</span>`;
+      : `${esc(l.scheme)} · ${l.kg != null ? `<b class="r">${fmtKg(l.kg)}</b>` : "saisis ton max"}`}</span>`;
     if(l.kind === "skill") return `<span>${esc(l.title)} · ${esc(l.text)}</span>`;
     return `<span>Metcon · ${esc(l.title)}</span>`;
   }
@@ -260,12 +259,15 @@ const CycleUI = (() => {
     const nW = cycle.weeks.length;
     PS.wi = Math.min(PS.wi, nW - 1);   // cycle réimporté plus court
     const p = C.programmeWeek(cycle, athlete.maxes, PS.wi);
-    const goals = (cycle.goals || []).length ? `<div class="cf-goals"><div class="cf-lab">Objectifs du cycle</div>
+    const goals = (cycle.goals || []).length ? `<h2 class="cf-h2">Objectifs du cycle</h2><div class="cf-goals">
       ${cycle.goals.map(g => `<div class="cf-goal"><span class="cf-glab">${esc(g.label)}</span><span>${esc(g.text)}</span></div>`).join("")}</div>` : "";
-    const strip = cycle.weeks.map((w, i) => `<button class="cf-wk" data-week="${i}" aria-pressed="${i === PS.wi}"
-        aria-label="Semaine ${i + 1}, ${esc(PHASE[w.phase] || w.phase)}"><span>${i + 1}</span>
-        <span class="cf-wbar" style="background:${PHASE_COLOR[w.phase] || "#9ba1ac"}"></span></button>`).join("");
-    const legend = Object.keys(PHASE).map(k => `<span><span class="cf-wbar" style="background:${PHASE_COLOR[k]}"></span>${PHASE[k]}</span>`).join("");
+    // hauteur de la barre = intensité de la semaine (% le plus haut des dernières séries), test = pleine
+    const strip = cycle.weeks.map((w, i) => {
+      const z = C.weekZone(cycle, i), h = w.phase === "test" ? 100 : z ? z.hi : 0;
+      return `<button class="cf-wk" data-week="${i}" aria-pressed="${i === PS.wi}"
+        aria-label="Semaine ${i + 1}, ${esc(PHASE[w.phase] || w.phase)}"><span class="r">${i + 1}</span>
+        <span class="cf-wbar" style="--h:${h}"></span></button>`;
+    }).join("");
     const card = (sid, head, body, st) => `<button class="cf-pcard" data-psess="${esc(sid)}">
         <span class="cf-pbody"><b>${head}</b>${body}</span>${st ? `<span class="cf-bdate">${st}</span>` : ""}</button>`;
     const status = sid => log.done[sid] ? `faite ${ddmm(log.done[sid])}` : (log.skipped || []).includes(sid) ? "passée" : "";
@@ -275,11 +277,11 @@ const CycleUI = (() => {
     shell({ title: "Ton programme", back: ["Ta semaine", "#/cf"] }, `
       <p class="lede">${esc(cycle.title)} · ${nW} semaines · ${ddmm(cycle.start)} → ${ddmm(C.cycleEnd(cycle))}</p>
       ${goals}
-      <div class="cf-lab cf-mt">Les ${nW} semaines</div>
+      <h2 class="cf-h2">Les ${nW} semaines</h2>
       <div class="cf-strip">${strip}</div>
-      <div class="cf-plegend">${legend}</div>
+      <p class="cf-rest">Hauteur : intensité de la semaine.</p>
       <div class="cf-whead">
-        <div class="cf-lab" style="color:${PHASE_COLOR[p.phase] || "#9ba1ac"}">Semaine ${p.n} · ${esc(PHASE[p.phase] || p.phase)}${p.bloc && p.phase !== "test" ? ` · Bloc ${esc(p.bloc)}` : ""}</div>
+        <h2>Semaine ${p.n} · ${esc(PHASE[p.phase] || p.phase)}${p.bloc && p.phase !== "test" ? ` · Bloc ${esc(p.bloc)}` : ""}</h2>
         <div class="cf-wdates">${ddmm(p.start)} → ${ddmm(p.end)}</div>
         ${p.intent ? `<p class="cf-p">${esc(p.intent)}</p>` : ""}
       </div>
@@ -626,7 +628,7 @@ const CycleUI = (() => {
   /* ---- Tes max ----
      Max saisis (le plus récent par mouvement) ; les mouvements sans max
      — dont les dérivés, avec leur estimation — dans « Pas encore de repère ».
-     Date en orange : max antérieur de plus de 9 semaines au début du cycle. */
+     Date soulignée : max antérieur de plus de 9 semaines au début du cycle. */
   let editLift = null;
   function maxRow(cycle, athlete, id, staleBefore){
     const l = cycle.lifts[id], own = C.liftMax({ lifts: {} }, athlete.maxes, id);
@@ -661,11 +663,11 @@ const CycleUI = (() => {
     const withMax = ids.filter(has), without = ids.filter(id => !has(id));
     shell({ title: "Tes max", back: ["Progrès", "#/cf/progres"], tab: "progres" }, `
       <p class="lede">Ils calculent toutes tes charges. Chaque nouveau max recalcule les séances à venir.</p>
-      ${withMax.length ? `<div class="blk"><div class="blk-h"><div class="bl">Force & haltéro</div><div class="line"></div></div>
+      ${withMax.length ? `<div><h2 class="cf-h2">Force & haltéro</h2>
         <div class="cf-mlist">${withMax.map(id => maxRow(cycle, athlete, id, staleBefore)).join("")}</div>
         ${withMax.some(id => C.liftMax({ lifts: {} }, athlete.maxes, id).d < staleBefore)
-          ? `<div class="cf-rest">Date en orange : max de plus de 9 semaines avant le début du cycle.</div>` : ""}</div>` : ""}
-      ${without.length ? `<div class="blk"><div class="blk-h"><div class="bl">Pas encore de repère</div><div class="line"></div></div>
+          ? `<p class="cf-rest cf-mt8">Date soulignée : max de plus de 9 semaines avant le début du cycle.</p>` : ""}</div>` : ""}
+      ${without.length ? `<div><h2 class="cf-h2">Pas encore de repère</h2>
         <div class="cf-mlist dashed">${without.map(id => maxRow(cycle, athlete, id, staleBefore)).join("")}</div></div>` : ""}`);
 
     app.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
@@ -720,14 +722,14 @@ const CycleUI = (() => {
     const cycle = CycleStore.getCycle();
     const m = cycle && (cycle.movements || {})[id];
     if(!m){ location.hash = "#/cf/m"; return; }
-    const sec = (label, html) => html ? `<div class="cf-fsec"><div class="cf-lab">${label}</div>${html}</div>` : "";
+    const sec = (label, html) => html ? `<div class="cf-fsec"><h2>${label}</h2>${html}</div>` : "";
     let max = "";
     if(cycle.lifts[id]){
       const mx = C.liftMax(cycle, CycleStore.getAthlete().maxes, id);
       max = `<div class="cf-fmax">${mx ? `Ton max : <b>${fmtKg(mx.kg)}</b> · ${ddmm(mx.d)}${mx.derived ? " · estimé" : ""}`
         : `Pas encore de max · <a href="#/cf/max">Saisis ton max</a>`}</div>`;
     }
-    const video = m.video ? `<a class="cf-vid" href="${esc(m.video)}" target="_blank" rel="noopener">▶ Voir la démonstration</a>
+    const video = m.video ? `<a class="dbtn cf-vid" href="${esc(m.video)}" target="_blank" rel="noopener">${PLAY}Voir la démonstration</a>
       ${m.videoBy ? `<div class="cf-vby">Vidéo publique · ${esc(m.videoBy)}</div>` : ""}` : "";
     const steps = (m.progression || []).map(p => `<div class="cf-step ${esc(p.state)}">
       <span class="cf-dot">${p.state === "done" ? "✓" : ""}</span><span class="cf-stext">${esc(p.text)}</span>
@@ -736,7 +738,7 @@ const CycleUI = (() => {
       .map(([k, l, t]) => `<div class="cf-fl"><span class="cf-lvp lv-${k}">${l}</span><span>${esc(t)}</span></div>`).join("");
     shell({ title: m.name, sub: esc(CAT[m.cat] || "Fiche"), back: ficheBack() }, `
       ${max}${video}
-      ${m.level ? `<div class="cf-flevel"><div class="cf-lab">Ton niveau</div><p>${esc(m.level)}</p></div>` : ""}
+      ${m.level ? `<div class="cf-flevel"><h2>Ton niveau</h2><p>${esc(m.level)}</p></div>` : ""}
       ${sec("Points clés", `<ol class="cf-cues">${m.cues.map(c => `<li>${esc(c)}</li>`).join("")}</ol>`)}
       ${sec("Pour enchaîner", m.chain ? `<p class="cf-p">${esc(m.chain)}</p>` : "")}
       ${sec("Progression", steps)}
@@ -751,7 +753,7 @@ const CycleUI = (() => {
     const groups = C.MOVE_CATS.map(cat => ({ cat, ids: ids.filter(id => mv[id].cat === cat)
       .sort((a, b) => mv[a].name.localeCompare(mv[b].name, "fr")) })).filter(g => g.ids.length);
     shell({ title: "Fiches mouvement", back: ["Ton programme", "#/cf/programme"] }, ids.length ? groups.map(g => `
-      <div class="blk"><div class="blk-h"><div class="bl">${CAT[g.cat]}</div><div class="line"></div></div>
+      <div><h2 class="cf-h2">${CAT[g.cat]}</h2>
         <div class="cf-list">${g.ids.map(id => `<button class="cf-sess" data-move="${esc(id)}">
           <span class="cf-st"><b>${esc(mv[id].name)}</b></span><span class="cf-chev">›</span></button>`).join("")}</div></div>`).join("")
       : `<div class="cf-empty"><p>Ce cycle n'a pas encore de fiches.</p></div>`);

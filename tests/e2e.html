@@ -347,6 +347,8 @@
     ok("programme : semaine en cours choisie", document.querySelector('[data-week][aria-pressed="true"]').dataset.week === "0");
     ok("programme : charge calculée", /Back squat · 4 × 3 à 80 % · 95 kg/.test(document.querySelector('[data-psess="w1s1"]').textContent));
     ok("programme : séance faite", /faite/.test(document.querySelector('[data-psess="w1s1"]').textContent));
+    ok("programme : plus de couleur de phase", ![...document.querySelectorAll(".cf-wbar")].some(e => /background/.test(e.getAttribute("style") || ""))
+       && /--h:\s*80/.test(document.querySelector('[data-week="0"] .cf-wbar').getAttribute("style")));
     document.querySelector('[data-week="1"]').click(); await tick();
     ok("programme : semaine 2", /Semaine 2/.test(document.querySelector(".cf").textContent) && !!document.querySelector('[data-psess="w2s1"]'));
     document.querySelector('[data-psess="w2s1"]').click(); await tick();
@@ -435,6 +437,10 @@
     document.querySelector('[data-edit="snatch"]').click(); await tick();
     document.getElementById("cfmkg").value = "55"; document.getElementById("cfmsave").click(); await tick(100);
     ok("tes max : snatch 55 kg", document.querySelector('[data-lift="snatch"] .cf-mkg').textContent.trim() === "55 kg");
+    const aS = CycleStore.getAthlete(); PLCycle.setMax(aS, "deadlift", 140, "2025-01-01"); await CycleStore.saveAthlete(aS); await goto("cf/progres"); await goto("cf/max");
+    ok("max ancien : souligné, plus d'orange", !!document.querySelector(".cf-mdate.stale")
+       && getComputedStyle(document.querySelector(".cf-mdate.stale")).color !== "rgb(255, 178, 91)" && /Date soulignée/.test(document.querySelector(".cf").textContent));
+    delete aS.maxes.deadlift; await CycleStore.saveAthlete(aS); await goto("cf/progres"); await goto("cf/max");
     ok("tes max : front squat estimé : 102 kg", document.querySelector('[data-lift="front_squat"]').textContent.includes("estimé : 102 kg"));
     const mossExp = Backend.exportAll().profiles.find(p => p.id === "moss");
     ok("export : programmation incluse (max, séances faites)",
