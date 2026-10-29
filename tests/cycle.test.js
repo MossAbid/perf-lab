@@ -223,4 +223,76 @@ t("programme : bloc de gymnastique d'une séance", () => {
   assert.deepEqual(p.sessions[3].lines[1], { kind: "skill", title: "Bar muscle-up", text: "EMOM 8 min : 2 bar muscle-ups" });
 });
 
+/* ---- intensité, écart de charge, série, prochain test, assiduité ---- */
+const MX = { back_squat: [{ kg: 120, d: "2026-08-01" }] };
+const strengthOf = (c, wi, si) => c.weeks[wi].sessions[si].blocks.find(b => b.kind === "strength");
+/* semaine 3 = clone de la semaine 1 en Base du bloc B, back squat à 4 × 4 à 82 % */
+function withBlocB(){
+  const c = makeSampleCycle("2026-11-23"), w = clone(c.weeks[0]);
+  w.bloc = "B"; w.phase = "base";
+  strengthOf({ weeks: [w] }, 0, 0).sets.splice(-1, 1, { sets: 4, reps: "4", pct: 82 });
+  c.weeks.push(w);
+  return c;
+}
+t("schéma d'une série", () => {
+  assert.equal(C.schemeOf({ sets: 4, reps: "4", pct: 76 }), "4 × 4 à 76 %");
+});
+t("zone de la semaine : % des dernières séries de force", () => {
+  const c = makeSampleCycle("2026-11-23");
+  assert.deepEqual(C.weekZone(c, 0), { lo: 70, hi: 80 });
+  assert.deepEqual(C.weekZone(c, 1), { lo: 70, hi: 70 });
+  c.weeks[1].sessions.forEach(s => { s.blocks = s.blocks.filter(b => b.kind !== "strength"); });
+  assert.equal(C.weekZone(c, 1), null);
+});
+t("écart : à défaut de même phase, la semaine précédente du lift", () => {
+  const c = makeSampleCycle("2026-11-23");
+  assert.deepEqual(C.loadDelta(c, MX, 1, strengthOf(c, 1, 0)), { kg: -10, ref: { wi: 0, kg: 95, scheme: "4 × 3 à 80 %" } });
+});
+t("écart : même phase du bloc précédent", () => {
+  const c = withBlocB();
+  assert.deepEqual(C.loadDelta(c, MX, 2, strengthOf(c, 2, 0)), { kg: 2.5, ref: { wi: 0, kg: 95, scheme: "4 × 3 à 80 %" } });
+});
+t("écart : aucun pour un test, sans max ou au premier passage", () => {
+  const c = makeSampleCycle("2026-11-23"), b = strengthOf(c, 1, 0);
+  assert.equal(C.loadDelta(c, {}, 1, b), null);
+  assert.equal(C.loadDelta(c, { snatch: [{ kg: 55, d: "2026-08-01" }] }, 0, strengthOf(c, 0, 2)), null);
+  b.test = "3RM";
+  assert.equal(C.loadDelta(c, MX, 1, b), null);
+});
+t("série d'un mouvement, semaine par semaine", () => {
+  const c = makeSampleCycle("2026-11-23");
+  assert.deepEqual(C.liftSeries(c, MX, "back_squat"), [
+    { wi: 0, kg: 95, pct: 80, scheme: "4 × 3 à 80 %", test: null },
+    { wi: 1, kg: 85, pct: 70, scheme: "3 × 5 à 70 %", test: null }
+  ]);
+  const bench = C.liftSeries(c, {}, "bench_press");
+  assert.equal(bench[0], null);
+  assert.equal(bench[1].kg, null);
+});
+t("prochain test d'un mouvement", () => {
+  const c = makeSampleCycle("2026-11-23");
+  c.weeks[1].sessions[0].blocks[1].test = "3RM";
+  assert.deepEqual(C.nextTest(c, "back_squat", "2026-11-25"), { wi: 1, test: "3RM", start: "2026-11-30", end: "2026-12-06" });
+  assert.equal(C.nextTest(c, "snatch", "2026-11-25"), null);
+});
+t("assiduité : faite, rattrapée, passée, à venir", () => {
+  const c = makeSampleCycle("2026-11-23"), log = C.newLog();
+  log.done = { w1s1: "2026-11-24", w1s2: "2026-11-26", w1s3: "2026-12-01" };
+  log.skipped = ["w1s4"]; log.bonus = { w1b: "2026-11-28" };
+  const a = C.attendance(c, log, "2026-12-02");
+  assert.deepEqual(a.weeks[0], { wi: 0, dots: ["done", "done", "late", "skipped"], bonus: "done" });
+  assert.deepEqual(a.weeks[1].dots, ["todo", "todo", "todo", "todo"]);
+  assert.deepEqual([a.closed, a.total, a.done, a.late, a.skipped, a.bonusDone, a.bonusTotal], [1, 4, 3, 1, 1, 1, 1]);
+});
+t("assiduité : semaine close sans rien = manquée", () => {
+  const a = C.attendance(makeSampleCycle("2026-11-23"), C.newLog(), "2026-12-02");
+  assert.deepEqual(a.weeks[0].dots, ["missed", "missed", "missed", "missed"]);
+  assert.equal(a.weeks[0].bonus, "open");
+});
+t("assiduité : rien avant le début du cycle", () => {
+  const a = C.attendance(makeSampleCycle("2026-11-23"), C.newLog(), "2026-11-20");
+  assert.equal(a.weeks.length, 0);
+  assert.equal(a.closed, 0);
+});
+
 console.log(`\n${n} tests OK`);

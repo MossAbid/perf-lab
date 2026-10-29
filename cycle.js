@@ -320,7 +320,7 @@
         if (b.kind === "strength") {
           const top = b.sets[b.sets.length - 1], m = liftMax(cycle, maxes, b.lift);
           acc.push({ kind: "strength", lift: b.lift, name: cycle.lifts[b.lift].name,
-            scheme: `${top.sets} × ${top.reps} à ${top.pct} %`, kg: m ? loadKg(m.kg, top.pct) : null,
+            scheme: schemeOf(top), kg: m ? loadKg(m.kg, top.pct) : null,
             test: b.test || null, maxKg: m ? m.kg : null });
         } else if (b.kind === "skill") {
           // « EMOM 10 min : » seul ne dit rien : on y joint la ligne suivante
@@ -335,13 +335,83 @@
              sessions, bonus: w.bonus ? { id: w.bonus.id, title: w.bonus.title } : null };
   }
 
+  /* ---- lecture d'une charge : zone de la semaine, écart, série, test, assiduité ---- */
+  const schemeOf = set => `${set.sets} × ${set.reps} à ${set.pct} %`;
+  const topOf = b => b.sets[b.sets.length - 1];
+  const strengthBlocks = w => w.sessions.reduce((a, s) => a.concat(s.blocks.filter(b => b.kind === "strength")), []);
+  const liftBlock = (w, liftId) => strengthBlocks(w).find(b => b.lift === liftId) || null;
+
+  function weekZone(cycle, wi) {
+    const pcts = strengthBlocks(cycle.weeks[wi]).map(b => topOf(b).pct);
+    return pcts.length ? { lo: Math.min(...pcts), hi: Math.max(...pcts) } : null;
+  }
+
+  // référence : même phase du bloc précédent, sinon le dernier passage du lift
+  function loadDelta(cycle, maxes, wi, block) {
+    const m = liftMax(cycle, maxes, block.lift);
+    if (block.test || !m) return null;
+    const w = cycle.weeks[wi];
+    let ref = -1;
+    for (let j = wi - 1; j >= 0 && ref < 0; j--) {
+      const o = cycle.weeks[j];
+      if (o.phase === w.phase && o.bloc !== w.bloc && liftBlock(o, block.lift)) ref = j;
+    }
+    for (let j = wi - 1; j >= 0 && ref < 0; j--) if (liftBlock(cycle.weeks[j], block.lift)) ref = j;
+    if (ref < 0) return null;
+    const rt = topOf(liftBlock(cycle.weeks[ref], block.lift)), rkg = loadKg(m.kg, rt.pct);
+    return { kg: loadKg(m.kg, topOf(block).pct) - rkg, ref: { wi: ref, kg: rkg, scheme: schemeOf(rt) } };
+  }
+
+  function liftSeries(cycle, maxes, liftId) {
+    const m = liftMax(cycle, maxes, liftId);
+    return cycle.weeks.map((w, wi) => {
+      const b = liftBlock(w, liftId);
+      if (!b) return null;
+      const top = topOf(b);
+      return { wi, kg: m ? loadKg(m.kg, top.pct) : null, pct: top.pct, scheme: schemeOf(top), test: b.test || null };
+    });
+  }
+
+  function nextTest(cycle, liftId, todayISO) {
+    for (let wi = Math.max(0, calendarWeek(cycle, todayISO)); wi < cycle.weeks.length; wi++) {
+      const b = strengthBlocks(cycle.weeks[wi]).find(x => x.lift === liftId && x.test);
+      if (b) {
+        const start = dayNum(cycle.start) + wi * 7;
+        return { wi, test: b.test, start: isoOf(start), end: isoOf(start + 6) };
+      }
+    }
+    return null;
+  }
+
+  // semaines 1 → semaine en cours ; totaux sur les semaines closes seulement
+  function attendance(cycle, log, todayISO) {
+    norm(log);
+    const cw = calendarWeek(cycle, todayISO), last = Math.min(cw, cycle.weeks.length - 1);
+    const r = { weeks: [], closed: 0, total: 0, done: 0, late: 0, skipped: 0, bonusDone: 0, bonusTotal: 0 };
+    for (let wi = 0; wi <= last; wi++) {
+      const w = cycle.weeks[wi], end = isoOf(dayNum(cycle.start) + wi * 7 + 6), closed = wi < cw;
+      const dots = w.sessions.map(s => log.done[s.id] ? (log.done[s.id] > end ? "late" : "done")
+        : log.skipped.includes(s.id) ? "skipped" : closed ? "missed" : "todo");
+      const bonus = w.bonus ? (log.bonus[w.bonus.id] ? "done" : "open") : null;
+      r.weeks.push({ wi, dots, bonus });
+      if (!closed) continue;
+      r.closed++; r.total += dots.length;
+      r.done += dots.filter(d => d === "done" || d === "late").length;
+      r.late += dots.filter(d => d === "late").length;
+      r.skipped += dots.filter(d => d === "skipped").length;
+      if (bonus) { r.bonusTotal++; if (bonus === "done") r.bonusDone++; }
+    }
+    return r;
+  }
+
   const API = {
     SCHEMA, SESSIONS_PER_WEEK, MAX_SESSION_MIN, SCORE_TYPES, ROUND_KG, BELT_PCT, MOVE_CATS, STEP_STATES, TESTS,
     validateCycle,
     loadKg, liftMax, strengthLines, newAthlete, setMax,
     newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,
     parseScore, recordScore, previousScore,
-    cycleEnd, monthBounds, monthGrid, programmeWeek
+    cycleEnd, monthBounds, monthGrid, programmeWeek,
+    schemeOf, weekZone, loadDelta, liftSeries, nextTest, attendance
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   root.PLCycle = API;
