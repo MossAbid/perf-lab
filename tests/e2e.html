@@ -65,6 +65,7 @@
     ok("semaine legacy migrée", Backend.getWeek("legacy-prog") === 2);
     ok("sélecteur profils Moss/Souad", document.querySelectorAll(".profbtn").length === 2);
     ok("profil actif par défaut : Moss", Backend.activeProfile() === "moss");
+    ok("bibliothèque : plus d'emoji", !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{2712}\u{2714}-\u{27BF}\u{FF0B}\u{FE0F}]/u.test(document.getElementById("app").textContent));
 
     /* 2. bascule Souad : bibliothèque indépendante */
     document.querySelector('[data-prof="souad"]').click();
@@ -132,9 +133,11 @@
     ok("saisie RPE présente", !!rpe);
     // repos inline : après la 1re série cochée il apparaît, après la dernière il s'arrête
     const rdlBtns = [...document.querySelectorAll('.setbtn[data-k="rdl"]')];
+    ok("Lower Lab : plus d'emoji", !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{2712}\u{2714}-\u{27BF}\u{FF0B}\u{FE0F}]/u.test(document.getElementById("app").textContent));
     rdlBtns[0].click(); await tick();
+    ok("série faite en bleu force", getComputedStyle(rdlBtns[0]).backgroundColor === "rgb(77, 141, 255)");
     const restEl = rdlBtns[0].closest("[data-ex]").querySelector("[data-rest]");
-    ok("repos inline affiché après une série", !restEl.hidden && restEl.textContent.includes("REPOS"));
+    ok("repos inline affiché après une série", !restEl.hidden && restEl.textContent.includes("Repos"));
     // toutes les séries du RDL + RPE 5 → doit proposer le palier supérieur (70 kg)
     rdlBtns.slice(1).forEach(b => b.click()); await tick();
     ok("repos masqué après la dernière série", restEl.hidden);
@@ -187,6 +190,8 @@
     await goto("p/lower");
     ok("LOWER LAB toujours fonctionnel",
        document.querySelectorAll(".tab").length === 2 && !!document.querySelector(".target.tier"));
+    document.getElementById("back").click(); await tick();
+    ok("programme : retour vers #/lib", location.hash === "#/lib" && !!document.querySelector(".lib"));
 
     /* 8. PROGRAMMATION (Moss) : carte, semaine, rattraper ou passer */
     const isoUTC = d => d.toISOString().slice(0, 10);
