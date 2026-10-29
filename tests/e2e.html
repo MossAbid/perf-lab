@@ -206,7 +206,7 @@
     ok("onglet Mois", (await goto("cf/mois"), !!document.querySelector('.tabbar a[href="#/cf/mois"][aria-current="page"]')));
     ok("onglet Bibliothèques", (await goto("lib"), !!document.querySelector(".lib") && !!document.querySelector('.tabbar a[href="#/lib"][aria-current="page"]')));
     await goto("cf");
-    ok("semaine : 4 séances", document.querySelectorAll(".cf-sess").length === 4);
+    ok("semaine : 1 séance en avant + 3 ensuite", !!document.querySelector(".cf-next [data-open]") && document.querySelectorAll(".cf-sess").length === 3);
     ok("w1s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s1");
     ok("bonus présent", !!document.querySelector(".cf-bonus"));
     ok("pas de carte micro-programme", !document.querySelector("[data-micro]"));
@@ -276,6 +276,27 @@
     const st6 = document.querySelector(".cf-bstrip");
     ok("bande de 6 blocs sans débordement", st6.querySelectorAll("[data-goto]").length === 6 && st6.scrollWidth <= st6.clientWidth);
     document.getElementById("app").style.width = "";
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
+    /* 8b. Ta semaine : héros, teinte, cycle à venir, semaine bouclée */
+    await goto("cf");
+    ok("semaine : haut teinté force", document.querySelector(".cf-top").dataset.kind === "strength");
+    ok("semaine : héros sans max = —", document.querySelector(".cf-next .cf-load").textContent.trim() === "—");
+    const aW = CycleStore.getAthlete(); PLCycle.unmarkDone(aW.logs["cycle-1"], "w1s1"); await CycleStore.saveAthlete(aW);
+    await goto("cf/max"); await goto("cf");
+    ok("semaine : héros 95 kg", document.querySelector(".cf-next .cf-load").textContent.trim() === "95 kg");
+    PLCycle.markDone(aW.logs["cycle-1"], "w1s1", today()); await CycleStore.saveAthlete(aW);
+    const nextMon = isoUTC(new Date(t0 + (7 - dow) * 864e5));
+    await CycleStore.importCycle(makeSampleCycle(nextMon, "cycle-next")); await goto("cf/max"); await goto("cf");
+    ok("cycle à venir : date de début et aperçu de la séance 1",
+       /Le cycle démarre/.test(document.querySelector(".cf").textContent) && !!document.querySelector('.cf-next [data-open="w1s1"]')
+       && /Voir la séance/.test(document.querySelector(".cf-next [data-open]").textContent) && document.querySelectorAll(".cf-sess").length === 3);
+    await goto("cf/s/w1s1");
+    ok("cycle à venir : séance verrouillée", /elle s'ouvre le/.test(document.querySelector(".cf-note").textContent) && !document.getElementById("cfdone"));
+    await CycleStore.importCycle(makeSampleCycle(mon, "cycle-loop"));
+    const aL = CycleStore.getAthlete(); ["w1s1", "w1s2", "w1s3", "w1s4"].forEach(sid => PLCycle.markDone(aL.logs["cycle-loop"] = aL.logs["cycle-loop"] || PLCycle.newLog(), sid, today()));
+    await CycleStore.saveAthlete(aL); await goto("cf/max"); await goto("cf");
+    ok("semaine bouclée : message et 4 séances", /Semaine bouclée/.test(document.querySelector(".cf").textContent) && document.querySelectorAll(".cf-sess").length === 4);
     await CycleStore.importCycle(makeSampleCycle(mon));
 
     /* 9b. PROGRAMMATION : fiches mouvement */

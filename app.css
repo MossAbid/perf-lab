@@ -276,46 +276,53 @@ footer{color:var(--ink-2);font-size:11px;letter-spacing:.06em;text-align:center;
 .cf-note{margin-top:18px;border:1px dashed var(--line);background:var(--surface);border-radius:14px;padding:14px 16px;font-size:14px}
 .cf-empty{margin-top:22px;display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:var(--ink-2)}
 .cf-empty .dbtn,.cf-foot .dbtn{text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
-/* bandeau « la semaine a débordé » */
-.cf-decide{margin-top:18px;border:1px solid #ffb25b;background:#241c12;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
-.cf-decide .cf-lab{color:#ffb25b}
-.cf-dt{font-size:22px;line-height:1.05;letter-spacing:.3px}
-.cf-decide p{font-size:13px;color:var(--ink-2);line-height:1.5}
+/* Ta semaine : haut plein cadre, teinté par le bloc héros de la séance mise en avant */
+.cf-top{margin-top:calc(-1 * var(--safe-t));padding:calc(var(--safe-t) + 14px) 0 20px;background:var(--c-deep)}
+.cf-th{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.cf-th h1{margin:0}
+.cf-count{font-size:17px;font-weight:600;color:var(--c-soft);white-space:nowrap}
+.cf-top .sub{margin-top:2px}
+.cf-intent{margin-top:12px;font-size:15px;line-height:1.4;color:var(--c-pale)}
+.cf-top .cf-note,.cf-decide{margin-top:16px;padding:14px 16px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.06);font-size:15px}
+.cf-decide{display:flex;flex-direction:column;gap:6px}
+.cf-dt{font-size:17px;font-weight:600}
+.cf-decide p:not(.cf-dt){font-size:15px;line-height:1.45;color:var(--c-soft)}
 .cf-dbtns{display:flex;gap:8px;margin-top:6px}
-.cf-dbtns .dbtn{flex:1;min-height:44px}
-/* progression de la semaine */
-.cf-prog{display:flex;align-items:center;gap:12px;margin-top:18px;font-size:11px;color:var(--ink-2);letter-spacing:.06em}
-.cf-bar{flex:1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
-.cf-bar div{height:100%;background:var(--c);transition:width .4s}
-/* prochaine séance */
-.cf-next{margin-top:16px;border:1px solid var(--c);background:linear-gradient(160deg,rgba(215,242,90,.10),var(--surface) 60%);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px}
-.cf-nt{font-size:clamp(24px,7vw,32px);line-height:1;letter-spacing:.4px}
-.cf-nm{font-size:12px;color:var(--ink-2);line-height:1.45}
-.cf-next .dbtn.go{align-self:flex-start;min-height:44px;padding:0 22px;margin-top:6px}
-.cf-next.cf-closed{border-color:var(--line);background:var(--surface)}
-/* file de la semaine */
-.cf-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}
-.cf-sess,.cf-bopen{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px;cursor:pointer;width:100%}
-.cf-sess+.cf-sess,.cf-bonus,.cf-wod{border-top:1px solid var(--line)}
-.cf-num{width:28px;height:28px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--surface-2);color:var(--ink-2)}
-.cf-st{display:flex;flex-direction:column;min-width:0;flex:1}
-.cf-st b{font-weight:600;font-size:14px}
-.cf-st small{font-size:10px;letter-spacing:.06em;color:var(--ink-2)}
-.cf-sess.st-next .cf-num{background:var(--c);color:var(--bg)}
-.cf-sess.st-next small{color:var(--c)}
-.cf-sess.st-done .cf-num{background:rgba(215,242,90,.16);color:var(--c)}
-.cf-sess.st-done b,.cf-sess.st-skipped b,.cf-sess.st-locked b{color:var(--ink-2)}
+.cf-dbtns .dbtn{flex:1}
+.cf-top .dbtn:not(.go){background:rgba(255,255,255,.1)}
+.cf-next{margin-top:24px}
+.cf-next h2{font-size:22px;font-weight:700;line-height:1.15;letter-spacing:-.01em}
+.cf-nm{margin-top:3px;font-size:15px;color:var(--c-soft)}
+.cf-nhero{display:flex;align-items:baseline;gap:8px;margin-top:8px}
+.cf-nhero .cf-hn{font-size:76px}
+.cf-nhero .cf-hu{font-size:24px}
+.cf-nsch{margin-left:auto;font-size:15px;color:var(--c-pale);text-align:right}
+.cf-next .cf-compo{margin-top:14px}
+.cf-next .dbtn.go{display:flex;width:100%;margin-top:16px}
+.cf-closed{margin-top:20px;font-size:17px;color:var(--c-pale)}
+/* la file : des lignes séparées par des filets */
+.cf-h3{margin:20px 0 2px;font-size:17px;font-weight:600}
+.cf-list{display:flex;flex-direction:column}
+.cf-sess,.cf-bopen{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:11px 0;cursor:pointer}
+.cf-list > * + *{border-top:1px solid var(--line)}   /* après .cf-sess : all:unset l'effacerait */
+.cf-st{display:flex;flex-direction:column;flex:1;min-width:0}
+.cf-st b{font-size:16px;font-weight:600}
+.cf-st small{margin-top:2px;font-size:13px;color:var(--ink-3)}
+.cf-sess.st-done b,.cf-sess.st-skipped b{color:var(--ink-2)}
 .cf-sess.st-skipped b{text-decoration:line-through}
-.cf-bonus{display:flex;align-items:center;gap:8px;padding-right:14px;border-top-style:dashed}
-.cf-bonus .cf-num{background:transparent;border:1px dashed var(--line)}
-.cf-bonus .dbtn{min-height:36px}
-.cf-wod{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px}
-.cf-bdate{font-size:10px;letter-spacing:.06em;color:var(--ink-2);white-space:nowrap}
+.cf-mini{flex:none;width:96px}
+.cf-mini > span{display:block}
+.cf-mini .cf-compo{gap:2px}
+.cf-bonus{display:flex;align-items:center;gap:10px}
+.cf-bonus .cf-bopen{flex:1;min-width:0}
+.cf-wod{display:flex;align-items:center;gap:12px;min-height:56px;padding:11px 0}
+.cf-bdate{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.cf-chev{flex:none;font-size:17px;color:var(--ink-3)}
 .cf-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
 .cf .authbox input{font-size:16px}   /* < 16 px : Safari iOS zoome au focus */
-.cf-sync{margin-top:22px;font-size:11px;letter-spacing:.04em;color:#ffb25b}
-.cf-sync.ok{color:var(--ink-2)}
-.cf-sync.err{color:var(--ink)}
+.cf-sync{margin-top:22px;font-size:13px;color:var(--ink-2)}
+.cf-sync.ok{color:var(--ink-3)}
+.cf-sync.err{color:var(--ink);font-weight:600}
 /* séance plein cadre : un bloc à la fois, la page prend sa couleur */
 .view[data-kind] .dbtn:not(.go){background:rgba(255,255,255,.1)}
 .view[data-kind] .cf-note{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}

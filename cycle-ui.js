@@ -35,8 +35,9 @@ const CycleUI = (() => {
      déplier un bloc re-rend l'écran sans faire sauter la page.
      title est échappé ici ; sub est du HTML déjà échappé par l'appelant. */
   const CHEV = `<svg viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2 2 10l8 8"/></svg>`;
-  function shell({ title, sub = "", back = null, context = "", tab = "week", kind = null }, body){
+  function shell({ title, sub = "", back = null, context = "", tab = "week", kind = null, head = true }, body){
     setGround(kind);
+    if(!head){ app.innerHTML = `<div class="view cf">${body}${tabBar(tab)}</div>`; return; }
     const top = back || context ? `<div class="topbar">${back
       ? `<button class="back" id="cfback">${CHEV}<span>${esc(back[0])}</span></button>` : "<span></span>"}${context ? `<span class="ctx">${esc(context)}</span>` : ""}</div>` : "";
     app.innerHTML = `<div class="view cf"${kind ? ` data-kind="${kind}"` : ""}><div class="wrap">
@@ -69,8 +70,7 @@ const CycleUI = (() => {
       ? `${d.missed.length} séances manquées · semaines ${weeks[0]} à ${weeks[weeks.length - 1]}`
       : `Semaine ${weeks[0]} terminée à ${4 - d.missed.length} sur 4`;
     return `<div class="cf-decide">
-      <div class="cf-lab">Ta semaine a débordé</div>
-      <div class="cf-dt">${title}</div>
+      <p class="cf-dt">${title}</p>
       <p>Rattraper : tu reprends là où tu t'es arrêté. Passer : tu sautes à la semaine du calendrier, le cycle garde son rythme.</p>
       <div class="cf-dbtns">
         <button class="dbtn go" data-decide="catchup">${many ? "Les" : "La"} rattraper</button>
@@ -99,47 +99,59 @@ const CycleUI = (() => {
     else if(v.state === "finished") banner = `<div class="cf-note">Cycle terminé · prépare le cycle suivant avec Claude.</div>`;
     else if(v.decision) banner = decisionHtml(cycle, v);
 
-    let next = "";
-    if(v.nextId){
-      const i = w.sessions.findIndex(x => x.id === v.nextId), s = w.sessions[i];
-      next = `<div class="cf-next">
-        <div class="cf-lab">Prochaine séance</div>
-        <div class="cf-nt">Séance ${i + 1} · ${esc(s.title)}</div>
-        <div class="cf-nm">${minutesOf(s)} min · ${s.blocks.filter(b => !b.optional).map(b => esc(b.title)).join(" · ")}</div>
-        <button class="dbtn go" data-open="${esc(s.id)}">Ouvrir</button>
+    // séance mise en avant : la prochaine de la file, ou la 1re du cycle avant son début
+    const featId = v.nextId || (v.state === "upcoming" ? w.sessions[0].id : null);
+    let feat = "", kind = null;
+    if(featId){
+      const i = w.sessions.findIndex(x => x.id === featId), s = w.sessions[i];
+      const hb = s.blocks.find(b => b.kind === "strength") || s.blocks.find(b => b.kind !== "warmup") || s.blocks[0];
+      kind = hb.kind;
+      let hero = "";
+      if(hb.kind === "strength"){
+        const ls = C.strengthLines(cycle, athlete.maxes, hb), t = ls[ls.length - 1], name = esc(cycle.lifts[hb.lift].name);
+        hero = `<div class="cf-nhero">${heroHtml(t.kg)}<span class="cf-nsch">${name}<br>${hb.test ? `test ${esc(hb.test)}` : esc(C.schemeOf(t))}</span></div>`;
+      }
+      feat = `<div class="cf-next">
+        <h2>${esc(s.title)}</h2><p class="cf-nm">Séance ${i + 1} · ${minutesLine(s)}</p>
+        ${hero}${compo(s)}
+        <button class="dbtn go" data-open="${esc(s.id)}">${v.state === "upcoming" ? "Voir la séance" : "Commencer la séance"}</button>
       </div>`;
     } else if(v.state === "active" && done === 4){
-      next = `<div class="cf-next cf-closed"><div class="cf-lab">Semaine bouclée</div>
-        <div class="cf-nt">4 séances sur 4</div>
-        <div class="cf-nm">Reste le team WOD dimanche à la salle.</div></div>`;
+      feat = `<p class="cf-closed">Semaine bouclée. Reste le team WOD dimanche à la salle.</p>`;
     }
 
-    const STATUS = { done: "faite", skipped: "passée", next: "à faire", todo: "ensuite", locked: "semaine suivante" };
-    const rows = v.sessions.map((s, i) => `
-      <button class="cf-sess st-${s.status}" data-sess="${esc(s.id)}">
-        <span class="cf-num">${s.status === "done" ? "✓" : i + 1}</span>
-        <span class="cf-st"><b>${esc(s.title)}</b><small>${s.status === "done" ? "faite " + dayLabel(s.date) : STATUS[s.status]}</small></span>
-      </button>`).join("");
+    const mini = s => `<span class="cf-mini"><span style="width:${Math.round(Math.min(minutesOf(s) + optMinutes(s), 60) / 60 * 100)}%">${compo(s)}</span></span>`;
+    const rows = v.sessions.filter(x => x.id !== featId).map(x => {
+      const ws = w.sessions.find(y => y.id === x.id);
+      const st = x.status === "done" ? "faite " + dayLabel(x.date) : x.status === "skipped" ? "passée"
+        : x.status === "locked" && v.state !== "upcoming" ? "semaine suivante" : minutesLine(ws);
+      return `<button class="cf-sess st-${x.status}" data-sess="${esc(x.id)}">
+        <span class="cf-st"><b>${x.status === "done" ? "✓ " : ""}${esc(x.title)}</b><small>${st}</small></span>${mini(ws)}</button>`;
+    }).join("");
     const bonus = v.bonus ? `
       <div class="cf-bonus">
-        <button class="cf-bopen" data-sess="${esc(v.bonus.id)}"><span class="cf-num">+</span>
-          <span class="cf-st"><b>Bonus · facultatif</b><small>${esc(v.bonus.title)}</small></span></button>
+        <button class="cf-bopen" data-sess="${esc(v.bonus.id)}"><span class="cf-st"><b>${esc(v.bonus.title)}</b>
+          <small>${minutesLine(w.bonus, true)}</small></span>${v.bonus.date || v.state !== "active" ? mini(w.bonus) : ""}</button>
         ${v.bonus.date ? `<span class="cf-bdate">fait ${dayLabel(v.bonus.date)}</span>`
           : v.state === "active" ? `<button class="dbtn" data-bonus="${esc(v.bonus.id)}">Fait</button>` : ""}
       </div>` : "";
-    const wod = `<div class="cf-wod"><span class="cf-num">D</span>
+    const wod = `<div class="cf-wod">
       <span class="cf-st"><b>Team WOD à la salle</b><small>Compté dans ta semaine</small></span>
       <span class="cf-bdate">${dayLabel(addDays(cycle.start, Math.max(0, C.calendarWeek(cycle, today())) * 7 + 6))}</span></div>`;
 
-    shell({ title: "Ta semaine" }, `
-      <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length}${w.bloc && w.phase !== "test" ? ` · Bloc ${esc(w.bloc)}` : ""} · ${esc(PHASE[w.phase] || w.phase)}
-        · ${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}${w.intent ? `<br>${esc(w.intent)}` : ""}</p>
-      ${banner}
-      <div class="cf-prog"><div class="cf-bar"><div style="width:${done * 25}%"></div></div><span>${done} sur 4</span></div>
-      ${next}
-      <div class="blk"><div class="blk-h"><div class="bl">Dans l'ordre, le jour qui t'arrange</div><div class="line"></div></div>
-        <div class="cf-list">${rows}${bonus}${wod}</div></div>
-      ${footer()}`);
+    shell({ title: "Ta semaine", head: false }, `
+      <section class="cf-top"${kind ? ` data-kind="${kind}"` : ""}><div class="wrap">
+        <div class="cf-th"><h1>Ta semaine</h1><span class="r cf-count">${done} sur 4</span></div>
+        <p class="sub">Semaine ${v.weekIndex + 1} · ${esc(PHASE[w.phase] || w.phase)}${w.bloc && w.phase !== "test" ? " " + esc(w.bloc) : ""}
+          · ${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}</p>
+        ${w.intent ? `<p class="cf-intent">${esc(w.intent)}</p>` : ""}
+        ${banner}${feat}
+      </div></section>
+      <div class="wrap">
+        <h3 class="cf-h3">${featId ? "Ensuite" : "Tes séances"}</h3>
+        <div class="cf-list">${rows}${bonus}${wod}</div>
+        ${footer()}
+      </div>`);
 
     app.querySelectorAll("[data-open],[data-sess]").forEach(b => b.onclick = () => location.hash = "#/cf/s/" + (b.dataset.open || b.dataset.sess));
     app.querySelectorAll("[data-decide]").forEach(b => b.onclick = async () => {
@@ -294,7 +306,6 @@ const CycleUI = (() => {
     const u = CycleStore.isCloud() && CycleStore.user();
     return `${syncLine()}<div class="cf-foot">
       <a class="dbtn" href="#/cf/programme">Ton programme</a>
-      <a class="dbtn" href="#/cf/max">Tes max</a>
       <a class="dbtn" href="#/cf/import">Importer un cycle</a>
       ${u ? `<button class="dbtn" id="cfout">${esc(u.email || "compte")} · sortir</button>` : ""}
     </div>`;
