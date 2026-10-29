@@ -211,13 +211,27 @@
     ok("bonus présent", !!document.querySelector(".cf-bonus"));
     ok("pas de carte micro-programme", !document.querySelector("[data-micro]"));
 
-    /* 9. PROGRAMMATION : séance (charges, RX/INT, score, séance faite) */
+    /* 9. PROGRAMMATION : séance plein cadre (un bloc à la fois, charges, jauge, RX/INT, score, séance faite) */
+    const blk = async i => { document.querySelector(`[data-goto="${i}"]`).click(); await tick(); };
+    localStorage.removeItem("perflab.cf.cur");
     await goto("cf/s/w1s1");
-    ok("force : charges vides sans max", document.querySelector(".cf-load").textContent.trim() === "—");
-    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 120, today())); await goto("cf"); await goto("cf/s/w1s1");
-    ok("force : 72,5 / 85 / 95 kg", [...document.querySelectorAll(".cf-load")].map(e => e.textContent.trim()).join("|") === "72,5 kg|85 kg|95 kg");
-    ok("ceinture sur la ligne à 80 %", document.querySelectorAll(".cf-belt").length === 1);
+    ok("séance : s'ouvre sur le 1er bloc", document.querySelector('[data-goto="0"]').getAttribute("aria-current") === "step");
     ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
+    ok("échauffement : page teintée ambre", document.documentElement.dataset.ground === "warmup");
+    ok("1er bloc : bloc suivant, pas encore « Séance faite »", !document.getElementById("cfdone") && !!document.getElementById("cfnextb"));
+    await blk(1);
+    ok("force : charges vides sans max", document.querySelector(".cf-load").textContent.trim() === "—");
+    ok("force sans max : lien vers tes max", !!document.querySelector('.cf-pane a[href="#/cf/max"]') && !document.querySelector(".cf-why-delta"));
+    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 120, today())); await goto("cf"); await goto("cf/s/w1s1");
+    ok("mémoire : la séance rouvre sur le bloc en cours", document.querySelector('[data-goto="1"]').getAttribute("aria-current") === "step");
+    ok("force : 95 / 72,5 / 85 kg", [...document.querySelectorAll(".cf-load")].map(e => e.textContent.trim()).join("|") === "95 kg|72,5 kg|85 kg");
+    ok("ceinture sur la ligne à 80 %", document.querySelectorAll(".cf-belt").length === 1);
+    ok("force : jauge à 80 %, zone 70 à 80", /--pct:\s*80/.test(document.querySelector(".cf-gauge").getAttribute("style")) && /70 à 80 %/.test(document.querySelector(".cf").textContent));
+    ok("force : page teintée bleu", document.documentElement.dataset.ground === "strength");
+    ok("force : ton max dans ce qui l'explique", /120 kg/.test(document.querySelector(".cf-why-max").textContent));
+    ok("semaine 1 : pas d'écart", !document.querySelector(".cf-why-delta"));
+    await blk(2);
+    ok("metcon : « Séance faite » proposée", !!document.getElementById("cfdone"));
     document.querySelector('[data-level="int"]').click(); await tick();
     ok("INT ouvert, RX replié", !!document.querySelector('.cf-level[data-open-level="int"]') && !document.querySelector('.cf-level[data-open-level="rx"]'));
     document.getElementById("cfscore").value = "7+3"; document.querySelector('[data-level="rx"]').click(); await tick();
@@ -241,12 +255,33 @@
     document.getElementById("cfdone").click(); await tick(100);
     await goto("cf");
     ok("w1s2 passe en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s2");
-    await goto("cf/s/w1s2");
+    await goto("cf/s/w1s2"); await blk(1);
     ok("strict press sans max : pas de NaN", !document.getElementById("app").textContent.includes("NaN") && document.querySelector(".cf-load").textContent.trim() === "—");
 
+    /* 9a. séance : écart, mémoire du bloc bornée, bloc de test, bande longue */
+    await goto("cf/s/w2s1"); await blk(1);
+    ok("écart affiché en semaine 2", /−10 kg/.test((document.querySelector(".cf-why-delta") || {}).textContent || ""));
+    localStorage.setItem("perflab.cf.cur", JSON.stringify({ sid: "w1s1", i: 9 })); await goto("cf"); await goto("cf/s/w1s1");
+    ok("mémoire bornée au dernier bloc", document.querySelector('[data-goto="3"]').getAttribute("aria-current") === "step");
+    localStorage.setItem("perflab.cf.cur", JSON.stringify({ sid: "autre", i: 2 })); await goto("cf"); await goto("cf/s/w1s1");
+    ok("mémoire d'une autre séance ignorée", document.querySelector('[data-goto="0"]').getAttribute("aria-current") === "step");
+    const t3 = makeSampleCycle(mon); t3.weeks[0].sessions[0].blocks[1].test = "3RM";
+    await CycleStore.importCycle(t3); await goto("cf"); await goto("cf/s/w1s1"); await blk(1);
+    ok("test : héros = max actuel, à battre, sans écart",
+       document.querySelector(".cf-hero").textContent.trim() === "120 kg" && /à battre/.test(document.querySelector(".cf-pane").textContent) && !document.querySelector(".cf-why-delta"));
+    const long6 = makeSampleCycle(mon);
+    long6.weeks[0].sessions[0].blocks.push(...[1, 2].map(n => ({ kind: "accessory", title: "Mobilité des hanches et des épaules " + n, minutes: 6, optional: true, text: "x" })));
+    await CycleStore.importCycle(long6); document.getElementById("app").style.width = "320px";
+    await goto("cf"); await goto("cf/s/w1s1");
+    const st6 = document.querySelector(".cf-bstrip");
+    ok("bande de 6 blocs sans débordement", st6.querySelectorAll("[data-goto]").length === 6 && st6.scrollWidth <= st6.clientWidth);
+    document.getElementById("app").style.width = "";
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
     /* 9b. PROGRAMMATION : fiches mouvement */
-    await goto("cf/s/w1s1");
+    await goto("cf/s/w1s1"); await blk(2);
     ok("séance : fiches du metcon", !!document.querySelector('.cf-moves a[href="#/cf/m/wall_ball"]'));
+    await blk(1);
     ok("force : lien fiche, plus de lien vidéo direct", !!document.querySelector('a[href="#/cf/m/back_squat"]') && !document.querySelector(".cf-video"));
     await goto("cf/m/wall_ball");
     ok("fiche : points clés, erreurs, RX/INT", document.querySelectorAll(".cf-cues li").length === 1 && !!document.querySelector(".cf-faults") && /RX/.test(document.querySelector(".cf").textContent));
@@ -328,7 +363,7 @@
     document.querySelector('.cf-dday a[href="#/cf/s/w1s1"]').click(); await tick();
     document.getElementById("cfback").click(); await tick();
     ok("séance ouverte depuis le mois : retour au mois", location.hash === "#/cf/mois");
-    await goto("cf/s/w1s1");
+    await goto("cf/s/w1s1"); await blk(2);
     document.querySelector('[data-level="rx"]').click(); await tick();
     document.getElementById("cfscore").value = "9+1";
     document.querySelector('.cf-moves a[href="#/cf/m/wall_ball"]').click(); await tick();

@@ -325,9 +325,11 @@ const CycleUI = (() => {
     };
   }
 
-  /* ---- Séance ----
-     Un bloc = un en-tête qui déplie/replie (force déplié par défaut).
-     Metcon : RX et INT exclusifs, score rangé par séance au niveau choisi. */
+  /* ---- Séance plein cadre ----
+     Un bloc à la fois : la page prend la couleur du bloc en cours, la bande de
+     composition (proportionnelle aux minutes) fait passer d'un bloc à l'autre.
+     Le bloc courant reste sur l'appareil (perflab.cf.cur) : iOS peut tuer la PWA
+     entre deux séries. Metcon : RX et INT exclusifs, score rangé par séance. */
   const FLAG = { tapis: "Tapis", ceinture: "Ceinture" };
   const SCORE_HINT = { time: "Ton temps (mm:ss)", reps: "Tes reps", rounds_reps: "Tours + reps (ex. 5+8)", load: "Ta charge (kg)" };
   const SCORE_MODE = { time: "text", reps: "numeric", rounds_reps: "text", load: "decimal" };
@@ -341,7 +343,7 @@ const CycleUI = (() => {
     return ok.length ? `<div class="cf-moves"><span class="cf-mvl">Fiches</span>${ok.map(id =>
       `<a href="${moveHref(id)}">${esc(mv[id].name)}</a>`).join("")}</div>` : "";
   }
-  let SS = { sid: null };   // état d'écran de la séance ouverte
+  let SS = { sid: null };   // état d'écran de la séance ouverte (cur = bloc courant)
   let sessBack = ["Ta semaine", "#/cf"];   // retour de la séance : l'écran d'où on l'a ouverte
 
   function findSession(cycle, sid){
@@ -353,45 +355,102 @@ const CycleUI = (() => {
     return null;
   }
 
-  function strengthBody(cycle, athlete, b){
-    const lift = cycle.lifts[b.lift];
-    const m = C.liftMax(cycle, athlete.maxes, b.lift);
-    const src = m && m.derived ? cycle.lifts[lift.derive.from] : null;
-    const maxLine = m
-      ? `Calculé sur ton max : <b>${fmtKg(m.kg)}</b>${src ? ` · dérivé du ${esc(src.name.toLowerCase())}` : ""}`
-      : `Pas encore de max pour ce mouvement · <a href="#/cf/max">Saisis ton max</a>`;
-    const rows = C.strengthLines(cycle, athlete.maxes, b).map(l => `
-      <span>${esc(l.sets)} × ${esc(l.reps)}</span><span>${esc(l.pct)} %</span>
-      <span class="cf-kg"><span class="cf-load">${l.kg != null ? fmtKg(l.kg) : "—"}</span>${l.belt ? `<span class="cf-belt">Ceinture</span>` : ""}</span>`).join("");
-    return `<div class="cf-max">${maxLine}</div>
-      <div class="cf-table"><span class="cf-th">Séries</span><span class="cf-th">% du max</span><span class="cf-th">Charge</span>${rows}</div>
-      ${b.rest ? `<div class="cf-rest">Repos : ${esc(b.rest)}</div>` : ""}
-      ${b.notes ? `<div class="cf-text">${lines(b.notes)}</div>` : ""}
-      ${(cycle.movements || {})[b.lift] ? `<a class="cf-flink" href="${moveHref(b.lift)}">Fiche · ${esc(lift.name)}</a>`
-        : lift.video ? `<a class="cf-video" href="${esc(lift.video)}" target="_blank" rel="noopener">▶ Vidéo · ${esc(lift.name)}</a>` : ""}`;
+  const KIND_LABEL = { warmup: "Échauffement", strength: "Force", skill: "Gym", metcon: "Metcon", accessory: "Accessoire" };
+  const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const monthYear = iso => MONTHS[+iso.slice(5, 7) - 1] + " " + iso.slice(0, 4);
+  const fmtDelta = kg => kg === 0 ? "même charge" : (kg > 0 ? "+" : "\u2212") + fmtKg(Math.abs(kg));
+  const optMinutes = s => s.blocks.filter(b => b.optional).reduce((a, b) => a + (Number(b.minutes) || 0), 0);
+  const minutesLine = (s, bonus) => bonus ? `${minutesOf(s) + optMinutes(s)} min, facultative`
+    : `${minutesOf(s)} min${optMinutes(s) ? `, plus ${optMinutes(s)} facultatives` : ""}`;
+  const PLAY = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
+
+  const CUR_KEY = "perflab.cf.cur";
+  function readCur(sid, n){
+    try{
+      const c = JSON.parse(localStorage.getItem(CUR_KEY));
+      if(c && c.sid === sid && Number.isInteger(c.i)) return Math.max(0, Math.min(c.i, n - 1));
+    }catch(e){}
+    return 0;
+  }
+  const writeCur = (sid, i) => { try{ localStorage.setItem(CUR_KEY, JSON.stringify({ sid, i })); }catch(e){} };
+
+  /* bande de composition : un segment par bloc, largeur = minutes ; cur ≥ 0 → segments cliquables */
+  function compo(s, cur = -1){
+    const fx = b => Math.max(Number(b.minutes) || 0, 3);
+    const segs = s.blocks.map((b, i) => {
+      const cls = `cf-cseg${b.optional ? " opt" : ""}`, st = `flex:${fx(b)}`, min = Number(b.minutes) || 0;
+      return cur < 0 ? `<span class="${cls}" data-kind="${esc(b.kind)}" style="${st}"></span>`
+        : `<button type="button" class="${cls}" data-kind="${esc(b.kind)}" data-goto="${i}" style="${st}"${i === cur ? ' aria-current="step"' : ""}
+            aria-label="Bloc ${i + 1} : ${esc(b.title)}${min ? `, ${min} min` : ""}"></button>`;
+    }).join("");
+    if(cur < 0) return `<div class="cf-compo">${segs}</div>`;
+    const labels = s.blocks.map((b, i) => {
+      const min = Number(b.minutes) || 0, t = (i === cur ? KIND_LABEL[b.kind] + (min ? " · " : "") : "") + (min ? min + " min" : "");
+      return `<span style="--f:${fx(b)}"${i === cur ? ' class="on"' : ""}>${esc(t)}</span>`;
+    }).join("");
+    return `<div class="cf-bstrip"><div class="cf-compo">${segs}</div><div class="cf-blabels" aria-hidden="true">${labels}</div></div>`;
   }
 
-  function metconBody(athlete, log, b, sid, readOnly){
-    const levels = ["rx", "int"].map(k => {
-      const open = SS.levelOpen && SS.level === k, t = b.levels[k].text || "";
-      return `<button class="cf-lvh${open ? " on" : ""}" data-level="${k}" aria-expanded="${open}">
-          <span class="cf-lvp lv-${k}">${k === "rx" ? "RX" : "INT"}</span>
-          <span class="cf-lvs">${open ? "" : esc(t.split("\n")[0])}</span><span class="cf-chev">${open ? "−" : "+"}</span></button>
-        ${open ? `<div class="cf-level" data-open-level="${k}">${lines(t)}</div>` : ""}`;
-    }).join("");
+  /* jauge d'intensité : 0 → 100 % du max, curseur sur la série, zone de travail de la semaine */
+  function gauge(pct, zone){
+    const p = Math.min(Math.max(pct, 0), 100);
+    const zt = zone ? (zone.lo === zone.hi ? `${zone.lo}` : `${zone.lo} à ${zone.hi}`) : "";
+    return `<div class="cf-gwrap">
+      <div class="cf-ghead"><span>Intensité</span>${zone ? `<span>Zone de la semaine : ${zt} %</span>` : ""}</div>
+      <div class="cf-gauge" style="--pct:${p}" role="img" aria-label="Série à ${pct} % du max${zone ? `, zone de la semaine ${zt} %` : ""}">
+        <span class="cf-gfill"></span>${zone ? `<span class="cf-gzone" style="left:${zone.lo}%;width:${Math.max(zone.hi - zone.lo, 2)}%"></span>` : ""}<span class="cf-gcur"></span></div>
+      <div class="cf-gscale" aria-hidden="true"><span>0</span><span>50</span><span>100 % du max</span></div></div>`;
+  }
+
+  const heroHtml = (kg, load = true) => `<span class="${load ? "cf-load " : ""}cf-hero">${kg != null
+    ? `<span class="r cf-hn">${String(kg).replace(".", ",")}</span> <span class="r cf-hu">kg</span>` : `<span class="r cf-hn">—</span>`}</span>`;
+  const listFr = xs => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + ", puis " + xs[xs.length - 1];
+
+  /* force : chiffre héros, jauge, « Ce qui l'explique » (max, écart, consigne) */
+  function strengthPane(cycle, athlete, f, b){
+    const lift = cycle.lifts[b.lift], m = C.liftMax(cycle, athlete.maxes, b.lift);
+    const ls = C.strengthLines(cycle, athlete.maxes, b), top = ls[ls.length - 1];
+    const belt = l => l.belt ? ` <span class="cf-belt">Ceinture</span>` : "";
+    const item = l => `${esc(l.sets)} × ${esc(l.reps)} à <span class="cf-load">${l.kg != null ? fmtKg(l.kg) : "—"}</span>${belt(l)}`;
+    const before = b.test ? ls : ls.slice(0, -1);
+    const hero = b.test
+      ? `${heroHtml(m ? m.kg : null, false)}<p class="cf-scheme">Test ${esc(b.test)} · ${m ? "ton max actuel, à battre" : "pas encore de max"}</p>`
+      : `${heroHtml(top.kg)}<p class="cf-scheme">${esc(top.sets)} × ${esc(top.reps)} à ${esc(top.pct)} %${belt(top)}</p>`;
+    const d = C.loadDelta(cycle, athlete.maxes, f.wi, b);
+    const notes = String(b.notes || "").split("\n").map(x => x.trim()).filter(Boolean);
+    const src = m && m.derived ? cycle.lifts[lift.derive.from] : null;
+    const why = m ? `<div class="cf-why-row cf-why-max"><div><p>Ton max${m.derived ? " estimé" : ""}</p>
+          <small>${monthYear(m.d)}${src ? ` · dérivé du ${esc(src.name.toLowerCase())}` : ""}</small></div><span class="r">${fmtKg(m.kg)}</span></div>
+        ${d ? `<div class="cf-why-row cf-why-delta"><div><p>Par rapport à la semaine ${d.ref.wi + 1}</p>
+          <small>${fmtKg(d.ref.kg)} en ${esc(d.ref.scheme)}</small></div><span class="r">${fmtDelta(d.kg)}</span></div>` : ""}`
+      : `<p class="cf-nomax">Pas encore de max pour ce mouvement · <a href="#/cf/max">Saisis ton max</a></p>`;
+    return `<div class="cf-hrow">${hero}</div>
+      ${before.length ? `<p class="cf-before">${b.test ? "Approches" : "Avant"} : ${listFr(before.map(item))}</p>` : ""}
+      ${gauge(top.pct, C.weekZone(cycle, f.wi))}
+      <div class="cf-why"><h3>Ce qui l'explique</h3>${why}
+        ${notes.length ? `<p class="cf-cue">${esc(notes[0])}</p>` : ""}
+        ${notes.length > 1 ? `<div class="cf-text">${notes.slice(1).map(l => `<span>${esc(l)}</span>`).join("")}</div>` : ""}</div>
+      ${(cycle.movements || {})[b.lift] ? `<a class="cf-flink" href="${moveHref(b.lift)}">Fiche · ${esc(lift.name)}</a>`
+        : lift.video ? `<a class="cf-video" href="${esc(lift.video)}" target="_blank" rel="noopener">${PLAY}Vidéo · ${esc(lift.name)}</a>` : ""}`;
+  }
+
+  function metconPane(athlete, log, b, sid, readOnly){
+    const seg = ["rx", "int"].map(k => `<button type="button" data-level="${k}" aria-pressed="${SS.level === k}">${k === "rx" ? "RX" : "Intermédiaire"}</button>`).join("");
     const mine = log.scores[sid];
     // « dernière fois » = avant le score de cette séance, pour ne pas le répéter
     const prev = C.previousScore(athlete, b.bench, mine ? mine.d : today());
     const draft = SS.draft != null ? SS.draft : mine ? mine.text : "";
     const score = readOnly ? "" : `<div class="cf-score">
-        <label for="cfscore">${SCORE_HINT[b.score]} · niveau ${SS.level === "rx" ? "RX" : "INT"}</label>
+        <label for="cfscore">${SCORE_HINT[b.score]} · ${SS.level === "rx" ? "RX" : "Intermédiaire"}</label>
         <div class="cf-srow"><input id="cfscore" type="text" inputmode="${SCORE_MODE[b.score]}" autocomplete="off" value="${esc(draft)}">
-          <button class="dbtn go" id="cfsave">Enregistrer</button></div>
+          <button class="dbtn" id="cfsave">Enregistrer</button></div>
         <div class="cf-err">${esc(SS.err || "")}</div>
         ${mine ? `<div class="cf-sline">Enregistré : <b>${esc(mine.text)}</b> · ${mine.level === "rx" ? "RX" : "INT"}</div>` : ""}
         ${prev ? `<div class="cf-sline">Dernière fois : ${esc(prev.text)} · ${prev.level === "rx" ? "RX" : "INT"} · ${dayLabel(prev.d)}</div>` : ""}
       </div>`;
-    return `${b.text ? `<div class="cf-text">${lines(b.text)}</div>` : ""}<div class="cf-levels">${levels}</div>${score}`;
+    return `${b.text ? `<div class="cf-text">${lines(b.text)}</div>` : ""}
+      <div class="cf-lvseg" role="group" aria-label="Niveau">${seg}</div>
+      <div class="cf-level" data-open-level="${SS.level}">${lines(b.levels[SS.level].text)}</div>${score}`;
   }
 
   function renderSession(sid){
@@ -399,50 +458,54 @@ const CycleUI = (() => {
     const f = cycle && findSession(cycle, sid);
     if(!f){ location.hash = "#/cf"; return; }
     const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle);
-    const metcon = f.s.blocks.find(b => b.kind === "metcon");
+    const bl = f.s.blocks, n = bl.length;
+    const metcon = bl.find(b => b.kind === "metcon");
     if(SS.sid !== sid){
       const prev = metcon && C.previousScore(athlete, metcon.bench, today());
-      SS = { sid, open: new Set(f.s.blocks.map((b, i) => b.kind === "strength" ? i : -1).filter(i => i >= 0)),
-             level: (log.scores[sid] || prev || {}).level || "rx", levelOpen: true, err: "" };
+      SS = { sid, cur: readCur(sid, n), level: (log.scores[sid] || prev || {}).level || "rx", err: "" };
     }
+    const cur = Math.min(SS.cur, n - 1), b = bl[cur];
     const locked = f.wi > C.calendarWeek(cycle, today());
     const doneDate = f.bonus ? log.bonus[sid] : log.done[sid];
+    const lastReq = bl.reduce((a, x, i) => x.optional ? a : i, 0);
 
-    const blocks = f.s.blocks.map((b, i) => {
-      const isMet = b.kind === "metcon", open = isMet || SS.open.has(i);
-      const sub = `${Number(b.minutes) > 0 ? Number(b.minutes) + " min" : ""}${b.optional ? " · facultatif" : ""}`;
-      const head = `<span class="cf-bn">${String(i + 1).padStart(2, "0")}</span>
-        <span class="cf-bt"><b>${esc(b.title)}</b><small>${sub}</small></span>${flagsHtml(b)}`;
-      const body = (b.kind === "strength" ? strengthBody(cycle, athlete, b)
-        : isMet ? metconBody(athlete, log, b, sid, locked)
-        : `<div class="cf-text">${lines(b.text)}</div>`) + movesHtml(cycle, b.moves);
-      return `<section class="cf-blk k-${esc(b.kind)}">
-        ${isMet ? `<div class="cf-bh">${head}</div>`
-          : `<button class="cf-bh" data-block="${i}" aria-expanded="${open}">${head}<span class="cf-chev">${open ? "−" : "+"}</span></button>`}
-        ${open ? `<div class="cf-bb">${body}</div>` : ""}
-      </section>`;
-    }).join("");
-
-    const foot = locked
-      ? `<div class="cf-note">Séance de la semaine ${f.wi + 1} : elle s'ouvre le ${dayLabel(addDays(cycle.start, f.wi * 7))}.</div>`
+    const body = b.kind === "strength" ? strengthPane(cycle, athlete, f, b)
+      : b.kind === "metcon" ? metconPane(athlete, log, b, sid, locked)
+      : `<div class="cf-text cf-big">${lines(b.text)}</div>`;
+    const min = Number(b.minutes) || 0;
+    const right = b.kind === "strength" && b.rest ? `repos ${esc(b.rest)}`
+      : `${min ? min + " min" : ""}${b.optional ? (min ? " · " : "") + "facultatif" : ""}`;
+    const fl = flagsHtml(b);
+    const nav = `<div class="cf-bnav">${cur > 0 ? `<button class="dbtn" id="cfprevb"><span>‹ ${esc(bl[cur - 1].title)}</span></button>` : ""}
+      ${cur < n - 1 ? `<button class="dbtn${cur < lastReq ? " go" : ""}" id="cfnextb"><span>${esc(bl[cur + 1].title)} ›</span></button>` : ""}</div>`;
+    const foot = locked ? ""
       : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
           <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
-    const title = f.bonus ? "BONUS" : `SÉANCE ${f.n}`;
-    shell({ title: f.s.title.replace(/^Bonus · /, ""), sub: esc(title), back: sessBack, context: `Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}` }, `
-      <p class="lede">${minutesOf(f.s)} min, hors blocs facultatifs.</p>
-      <div class="cf-blocks">${blocks}</div>
-      ${foot}`);
+    const sub = (f.bonus ? `Bonus · ${minutesLine(f.s, true)}` : `Séance ${f.n} · ${minutesLine(f.s)}`) + (doneDate ? ` · faite ${dayLabel(doneDate)}` : "");
+    shell({ title: f.s.title.replace(/^Bonus · /, ""), sub: esc(sub), back: sessBack, kind: b.kind,
+            context: `Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}${f.w.bloc && f.w.phase !== "test" ? " " + f.w.bloc : ""}` }, `
+      ${compo(f.s, cur)}
+      ${locked ? `<div class="cf-note">Séance de la semaine ${f.wi + 1} : elle s'ouvre le ${dayLabel(addDays(cycle.start, f.wi * 7))}.</div>` : ""}
+      <section class="cf-pane" aria-label="Bloc ${cur + 1} sur ${n}">
+        <div class="cf-ph"><h2>${esc(b.title)}</h2>${right ? `<span class="cf-pr">${right}</span>` : ""}</div>
+        ${fl ? `<div class="cf-flags">${fl}</div>` : ""}
+        ${body}${movesHtml(cycle, b.moves)}
+      </section>
+      ${nav}${cur >= lastReq ? foot : ""}`);
 
-    app.querySelectorAll("[data-block]").forEach(btn => btn.onclick = () => {
-      const i = +btn.dataset.block;
-      if(SS.open.has(i)) SS.open.delete(i); else SS.open.add(i);
-      renderSession(sid);
-    });
+    const go = i => {
+      const inp = $("#cfscore"); if(inp) SS.draft = inp.value;   // garder la saisie en cours
+      SS.cur = i; writeCur(sid, i); renderSession(sid); window.scrollTo(0, 0);
+    };
+    app.querySelectorAll("[data-goto]").forEach(btn => btn.onclick = () => go(+btn.dataset.goto));
+    const pv = $("#cfprevb"), nx = $("#cfnextb");
+    if(pv) pv.onclick = () => go(cur - 1);
+    if(nx) nx.onclick = () => go(cur + 1);
     app.querySelectorAll("[data-level]").forEach(btn => btn.onclick = () => {
-      const k = btn.dataset.level, inp = $("#cfscore");
-      if(inp) SS.draft = inp.value;   // garder la saisie en cours
-      if(SS.level === k && SS.levelOpen) SS.levelOpen = false; else { SS.level = k; SS.levelOpen = true; }
+      const inp = $("#cfscore");
+      if(inp) SS.draft = inp.value;
+      SS.level = btn.dataset.level;
       renderSession(sid);
     });
     const save = $("#cfsave");
