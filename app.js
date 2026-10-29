@@ -23,7 +23,12 @@ const figFor = a => FIG[a] || FIG.pulse;
 /* ---- helpers ---- */
 const $ = s => document.querySelector(s);
 const app = $("#app");
-const setAccent = hex => document.documentElement.style.setProperty("--accent", hex);
+/* teinte de l'écran : le fond prend la couleur du bloc en cours (null = neutre) */
+const GROUND = { warmup:"#211A0D", strength:"#0A1630", skill:"#0B2118", metcon:"#26130C", accessory:"#1A1630" };
+function setGround(kind){
+  document.documentElement.dataset.ground = kind || "";
+  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.content = GROUND[kind] || "#090C12";
+}
 const rLS = (k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(e){ return d; } };
 const wLS = (k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -88,7 +93,8 @@ function route(){
   const h = location.hash.replace(/^#\/?/,"");
   if(Backend.isCloud() && !Backend.user()){ renderAuth(); return; }
   if(h==="add"){ renderAdd(); return; }
-  if(h.startsWith("cf") && CF && CF.route(h)) return;
+  // # vide = Ta semaine chez Moss (onglet Semaine) ; la bibliothèque est en #/lib
+  if((h==="" || h.startsWith("cf")) && CF && CF.route(h || "cf")) return;
   if(h.startsWith("p/")){
     const prog = LIBRARY.find(p=>p.id===h.slice(2));
     if(prog){ renderProgram(prog); return; }
@@ -99,7 +105,7 @@ window.addEventListener("hashchange", route);
 
 /* ---- AUTH ---- */
 function renderAuth(){
-  setAccent("#ffb02e");
+  setGround(null);
   app.innerHTML = `<div class="view"><div class="wrap auth">
     <div class="kicker">Perf Lab · Compte</div>
     <h1>PERF <em>LAB</em></h1>
@@ -125,7 +131,7 @@ function renderAuth(){
 
 /* ---- LIBRARY ---- */
 function renderLibrary(){
-  setAccent("#ffb02e");
+  setGround(null);
   const cloud = Backend.isCloud(), u = Backend.user();
   const cards = LIBRARY.map(p=>`
     <div class="card" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'#ffb02e')}">
@@ -167,7 +173,6 @@ function renderLibrary(){
       ${assidHtml}
       ${backupHtml}
       <div class="lib">
-        ${CF ? CF.libraryCard() : ""}
         ${cards}
         <div class="card add" data-add>
           <div class="plus">＋</div>
@@ -176,10 +181,9 @@ function renderLibrary(){
         </div>
       </div>
     </header>
-  </div></div>`;
+  </div>${CF ? CF.tabBar("lib") : ""}</div>`;
   app.querySelectorAll("[data-go]").forEach(c=> c.onclick=()=> location.hash="#/p/"+c.dataset.go );
   app.querySelector("[data-add]").onclick=()=> location.hash="#/add";
-  const cfc=app.querySelector("[data-cf]"); if(cfc) cfc.onclick=()=> location.hash="#/cf";
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
     if(b.dataset.prof===Backend.activeProfile()) return;
     Backend.setProfile(b.dataset.prof);
@@ -207,7 +211,7 @@ const TEMPLATE = {
             yt:"https://www.youtube.com/results?search_query=exercice" }] }] }]
 };
 function renderAdd(){
-  setAccent("#ffb02e");
+  setGround(null);
   const list = LIBRARY.map(p=>`
     <div class="mrow">
       <div><div class="mt">${esc(p.title)} ${esc(p.title2||'')}</div><div class="ms">${esc(p.id)}</div></div>
@@ -234,8 +238,8 @@ function renderAdd(){
     </div>
     <div class="blk"><div class="blk-h"><div class="bl">Dans ta bibliothèque</div><div class="line"></div></div>
       ${list||'<div class="blk-note">Aucun programme.</div>'}</div>
-  </div></div>`;
-  $("#back").onclick=()=> location.hash="#/";
+  </div>${CF ? CF.tabBar("lib") : ""}</div>`;
+  $("#back").onclick=()=> location.hash="#/lib";
   $("#tmpl").onclick=()=>{ $("#jsonin").value = JSON.stringify(TEMPLATE,null,2); };
   $("#import").onclick=async()=>{
     let r; try{ r=PL.classifyImport(JSON.parse($("#jsonin").value)); }
@@ -244,7 +248,7 @@ function renderAdd(){
       Backend.importProfilesDoc(r.doc);
       // programmation restaurée : la remettre en file d'envoi, sinon la synchro la réécraserait
       if(CF && (r.doc.profiles||[]).some(p=>p.id==="moss" && p.cycle)) CycleStore.saveAthlete(CycleStore.getAthlete());
-      await hydrate(); toast("Profils importés."); location.hash="#/"; return;
+      await hydrate(); toast("Profils importés."); location.hash="#/lib"; return;
     }
     // ancien format (racine id + sessions) : rattaché au profil Moss, silencieusement
     const p=r.program;
@@ -255,7 +259,7 @@ function renderAdd(){
     } else {
       await Backend.upsertProgramFor("moss", p);
     }
-    await hydrate(); toast("Programme importé."); location.hash="#/";
+    await hydrate(); toast("Programme importé."); location.hash="#/lib";
   };
   const ea=$("#expall"); if(ea) ea.onclick=async()=>{
     const txt=JSON.stringify(Backend.exportAll(),null,2);
@@ -277,7 +281,7 @@ function renderAdd(){
 
 /* ---- PROGRAM ---- */
 function renderProgram(prog){
-  CUR = prog; setAccent(prog.accent||"#ffb02e");
+  CUR = prog; setGround(null);
   activeSession = prog.sessions[0].id;
   const wk = getWeek(prog.id);
   app.innerHTML = `<div class="view"><div class="wrap">
@@ -299,8 +303,8 @@ function renderProgram(prog){
     <main id="main"></main>
     <button class="reset" id="reset">↺ Réinitialiser la semaine</button>
     <footer>${esc(prog.title)} ${esc(prog.title2||'')} · ${Backend.isCloud()?"synchronisé":"local"} · surcharge progressive</footer>
-  </div></div>`;
-  $("#back").onclick=()=> location.hash="#/";
+  </div>${CF ? CF.tabBar("lib") : ""}</div>`;
+  $("#back").onclick=()=> location.hash="#/lib";
   $("#wup").onclick=()=> changeWeek(1);
   $("#wdown").onclick=()=> changeWeek(-1);
   $("#reset").onclick=()=>{ const wk=getWeek(CUR.id); if(confirm("Réinitialiser la semaine "+wk+" ?")){
@@ -316,7 +320,7 @@ function renderTabs(){
   CUR.sessions.forEach(s=>{ const b=document.createElement("button");
     b.className="tab"+(s.id===activeSession?" active":"");
     b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'#ffb02e')}"></span><div class="t">${esc(s.t)} ${esc(s.t2||'')}</div><div class="s">${esc(s.sub||'')}</div>`;
-    b.onclick=()=>{ activeSession=s.id; setAccent(s.accent||"#ffb02e"); renderTabs(); renderSession(); updateGlobal(); };
+    b.onclick=()=>{ activeSession=s.id; renderTabs(); renderSession(); updateGlobal(); };
     tabs.appendChild(b); });
 }
 function tempoGrid(t,key){ const L=["EXC","PAUSE","CONC","PAUSE"];

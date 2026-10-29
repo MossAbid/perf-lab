@@ -50,6 +50,10 @@
 
   try {
     await tick(300); // boot()
+    await goto("lib");   // # vide = Ta semaine chez Moss : la bibliothèque est en #/lib
+    const shellSrc = await (await fetch("../index.html")).text() + await (await fetch("../app.css")).text();
+    ok("plus de police téléchargée", !/fonts\.googleapis|Anton|Sora|JetBrains/.test(shellSrc));
+    ok("fond bleu-noir", getComputedStyle(document.body).backgroundColor === "rgb(9, 12, 18)");
 
     /* 1. bibliothèque : programmes par défaut + programme legacy migré + sélecteur */
     ok("bibliothèque rendue (4 défauts Moss + legacy)", document.querySelectorAll(".card[data-go]").length === 5);
@@ -159,7 +163,7 @@
     ok("sparkline visible après 2 évaluations", !!document.querySelector(".spark"));
 
     /* 6. Moss : bibliothèque complète ; isolation de la progression */
-    await goto("");
+    await goto("lib");
     ok("Moss : bibliothèque avec legacy + import",
        !!document.querySelector('[data-go="legacy-prog"]') && !!document.querySelector('[data-go="import-test"]'));
     ok("rappel de sauvegarde signalé (jamais exporté, données présentes)",
@@ -167,7 +171,9 @@
     document.querySelector('[data-prof="souad"]').click();
     await tick(200);
     ok("progression Moss (lower) invisible chez Souad", !("lower" in Backend.loadProgression()));
-    ok("pas de carte Programmation chez Souad", !document.querySelector("[data-cf]"));
+    ok("Souad : pas de barre d'onglets", !document.querySelector(".tabbar"));
+    await goto(""); ok("Souad : # vide → bibliothèque", !!document.querySelector(".lib"));
+    await goto("cf"); ok("Souad : #/cf → bibliothèque", !!document.querySelector(".lib") && !document.querySelector(".tabbar"));
 
     /* 7. retour chez Moss : bibliothèque intacte, micro-programme retiré */
     document.querySelector('[data-prof="moss"]').click();
@@ -194,8 +200,11 @@
        document.querySelector(".cf-wod .cf-bdate").textContent.trim() === "dim. " + sunCal.slice(8, 10) + "/" + sunCal.slice(5, 7));
     document.querySelector("[data-decide='skip']").click(); await tick();
     ok("passer → w2s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w2s1");
-    await CycleStore.importCycle(makeSampleCycle(mon)); await goto("");
-    ok("carte Programmation chez Moss", !!document.querySelector("[data-cf]"));
+    await CycleStore.importCycle(makeSampleCycle(mon)); await goto("lib");
+    ok("Moss : barre d'onglets à 4 entrées", document.querySelectorAll(".tabbar a").length === 4);
+    ok("Moss : # vide → Ta semaine", (await goto(""), !!document.querySelector('.tabbar a[href="#/cf"][aria-current="page"]')));
+    ok("onglet Mois", (await goto("cf/mois"), !!document.querySelector('.tabbar a[href="#/cf/mois"][aria-current="page"]')));
+    ok("onglet Bibliothèques", (await goto("lib"), !!document.querySelector(".lib") && !!document.querySelector('.tabbar a[href="#/lib"][aria-current="page"]')));
     await goto("cf");
     ok("semaine : 4 séances", document.querySelectorAll(".cf-sess").length === 4);
     ok("w1s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s1");
@@ -260,7 +269,7 @@
 
     /* 9c. PROGRAMMATION : Ton mois */
     await goto("cf");
-    ok("semaine : bascule vers le mois", !!document.querySelector('.cf-seg a[href="#/cf/mois"]'));
+    ok("semaine : onglet Mois dans la barre", !!document.querySelector('.tabbar a[href="#/cf/mois"]'));
     const a9 = CycleStore.getAthlete(); PLCycle.markDone(a9.logs["cycle-1"], "w1s2", today()); await CycleStore.saveAthlete(a9);
     await goto("cf/mois");
     const todayCell = document.querySelector(`.cf-day[data-day="${today()}"]`);
