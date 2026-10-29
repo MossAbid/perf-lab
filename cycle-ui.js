@@ -126,8 +126,8 @@ const CycleUI = (() => {
       const ws = w.sessions.find(y => y.id === x.id);
       const st = x.status === "done" ? "faite " + dayLabel(x.date) : x.status === "skipped" ? "passée"
         : x.status === "locked" && v.state !== "upcoming" ? "semaine suivante" : minutesLine(ws);
-      return `<button class="cf-sess st-${x.status}" data-sess="${esc(x.id)}">
-        <span class="cf-st"><b>${x.status === "done" ? "✓ " : ""}${esc(x.title)}</b><small>${st}</small></span>${mini(ws)}</button>`;
+      return `<button class="cf-sess st-${x.status}${x.id === JUST_DONE ? " cf-just" : ""}" data-sess="${esc(x.id)}">
+        <span class="cf-st"><b>${x.status === "done" ? CHECK : ""}${esc(x.title)}</b><small>${st}</small></span>${mini(ws)}</button>`;
     }).join("");
     const bonus = v.bonus ? `
       <div class="cf-bonus">
@@ -140,6 +140,7 @@ const CycleUI = (() => {
       <span class="cf-st"><b>Team WOD à la salle</b><small>Compté dans ta semaine</small></span>
       <span class="cf-bdate">${dayLabel(addDays(cycle.start, Math.max(0, C.calendarWeek(cycle, today())) * 7 + 6))}</span></div>`;
 
+    JUST_DONE = null;
     shell({ title: "Ta semaine", head: false }, `
       <section class="cf-top"${kind ? ` data-kind="${kind}"` : ""}><div class="wrap">
         <div class="cf-th"><h1>Ta semaine</h1><span class="r cf-count">${done} sur 4</span></div>
@@ -378,6 +379,26 @@ const CycleUI = (() => {
     : `${minutesOf(s)} min${optMinutes(s) ? `, plus ${optMinutes(s)} facultatives` : ""}`;
   const PLAY = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
 
+  /* animations utiles : un chiffre qui change défile, une séance validée se coche */
+  const reduced = () => !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const kgText = kg => String(kg).replace(".", ",");
+  function roll(el, from, to, fmt = kgText){
+    if(!el) return;
+    if(from == null || from === to || reduced()){ el.textContent = fmt(to); return; }
+    const t0 = performance.now(), D = 400;
+    el.textContent = fmt(from);
+    const step = now => {
+      const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = k < 1 ? fmt(Math.round((from + (to - from) * e) * 2) / 2) : fmt(to);
+      if(k < 1 && el.isConnected) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => { el.textContent = fmt(to); }, D + 80);   // sans image (onglet caché), la valeur finale s'affiche quand même
+  }
+  const CHECK = `<svg class="cf-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg>`;
+  const LAST = new Map();   // dernière charge héros affichée, par séance et bloc
+  let JUST_DONE = null;     // séance validée à l'instant : Ta semaine la marque une fois
+
   const CUR_KEY = "perflab.cf.cur";
   function readCur(sid, n){
     try{
@@ -493,9 +514,9 @@ const CycleUI = (() => {
     const nav = `<div class="cf-bnav">${cur > 0 ? `<button class="dbtn" id="cfprevb"><span>‹ ${esc(bl[cur - 1].title)}</span></button>` : ""}
       ${cur < n - 1 ? `<button class="dbtn${cur < lastReq ? " go" : ""}" id="cfnextb"><span>${esc(bl[cur + 1].title)} ›</span></button>` : ""}</div>`;
     const foot = locked ? ""
-      : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
+      : doneDate ? `<button class="donebtn ok${SS.just ? " cf-just" : ""}" id="cfdone" disabled>${CHECK}Faite ${dayLabel(doneDate)}</button>
           <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
-      : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
+      : `<button class="donebtn" id="cfdone">${CHECK}${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
     const sub = (f.bonus ? `Bonus · ${minutesLine(f.s, true)}` : `Séance ${f.n} · ${minutesLine(f.s)}`) + (doneDate ? ` · faite ${dayLabel(doneDate)}` : "");
     shell({ title: f.s.title.replace(/^Bonus · /, ""), sub: esc(sub), back: sessBack, kind: b.kind,
             context: `Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}${f.w.bloc && f.w.phase !== "test" ? " " + f.w.bloc : ""}` }, `
@@ -508,6 +529,12 @@ const CycleUI = (() => {
       </section>
       ${nav}${cur >= lastReq ? foot : ""}`);
 
+    SS.just = false;
+    if(b.kind === "strength" && !b.test){
+      const ls = C.strengthLines(cycle, athlete.maxes, b), kg = ls[ls.length - 1].kg, key = `${cycle.id}:${sid}:${cur}`;
+      const before = LAST.get(key); LAST.set(key, kg);
+      if(before != null && kg != null) roll($(".cf-hero .cf-hn"), before, kg);
+    }
     const go = i => {
       const inp = $("#cfscore"); if(inp) SS.draft = inp.value;   // garder la saisie en cours
       SS.cur = i; writeCur(sid, i); renderSession(sid); window.scrollTo(0, 0);
@@ -547,6 +574,7 @@ const CycleUI = (() => {
       const a = CycleStore.getAthlete(), l = logFor(a, cycle);
       if(f.bonus) C.markBonus(l, sid, today()); else C.markDone(l, sid, today());
       await CycleStore.saveAthlete(a);
+      SS.just = true; JUST_DONE = sid;
       toast(f.bonus ? "Bonus noté." : "Séance enregistrée — bien joué.");
       renderSession(sid);
     };
@@ -564,7 +592,7 @@ const CycleUI = (() => {
       if(!x) return `<div class="cf-bar empty" data-wi="${wi}"><span></span><i></i></div>`;
       if(x.test) return `<div class="cf-bar test" data-wi="${wi}" style="--h:100"><span>${esc(x.test)}</span><i></i></div>`;
       const cls = wi < v.weekIndex ? "past" : wi === v.weekIndex ? "now" : "future";
-      return `<div class="cf-bar ${cls}" data-wi="${wi}" style="--h:${x.kg != null ? Math.round(x.kg / m.kg * 100) : 0}">
+      return `<div class="cf-bar ${cls}" data-wi="${wi}" style="--h:${x.kg != null ? Math.round(x.kg / m.kg * 100) : 0};--i:${wi}">
         <span class="r">${x.kg != null ? kgNum(x.kg) : ""}</span><i></i></div>`;
     }).join("");
     const axis = cycle.weeks.map((w, wi) => `<span${wi === v.weekIndex ? ' class="on"' : ""}>${w.phase === "test" ? "Test" : "S" + (wi + 1)}</span>`).join("");
@@ -620,7 +648,12 @@ const CycleUI = (() => {
             <span class="r">${fmtKg(e.kg)}</span></div>`).join("")}
           <a class="dbtn" href="#/cf/max">Modifier tes max</a></section>` : ""}
       </div>`);
-    app.querySelectorAll("[data-lift-pick]").forEach(b => b.onclick = () => { PG.lift = b.dataset.liftPick; renderProgres(); });
+    app.querySelectorAll("[data-lift-pick]").forEach(b => b.onclick = () => {
+      if(b.dataset.liftPick === PG.lift) return;
+      const from = C.liftMax(cycle, athlete.maxes, PG.lift).kg;
+      PG.lift = b.dataset.liftPick; renderProgres();
+      roll($(".cf-pmax .cf-hn"), from, C.liftMax(cycle, athlete.maxes, PG.lift).kg);
+    });
     const on = app.querySelector('[data-lift-pick][aria-pressed="true"]');
     if(on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
   }

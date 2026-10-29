@@ -233,6 +233,7 @@
     ok("ceinture sur la ligne à 80 %", document.querySelectorAll(".cf-belt").length === 1);
     ok("force : jauge à 80 %, zone 70 à 80", /--pct:\s*80/.test(document.querySelector(".cf-gauge").getAttribute("style")) && /70 à 80 %/.test(document.querySelector(".cf").textContent));
     ok("force : page teintée bleu", document.documentElement.dataset.ground === "strength");
+    ok("jauge animée", getComputedStyle(document.querySelector(".cf-gauge .cf-gfill")).animationName === "cf-fill");
     ok("force : ton max dans ce qui l'explique", /120 kg/.test(document.querySelector(".cf-why-max").textContent));
     ok("semaine 1 : pas d'écart", !document.querySelector(".cf-why-delta"));
     await blk(2);
@@ -258,7 +259,9 @@
     ok("annuler : la séance redevient à faire",
        !CycleStore.getAthlete().logs["cycle-1"].done.w1s1 && !document.getElementById("cfdone").disabled);
     document.getElementById("cfdone").click(); await tick(100);
+    ok("validation marquée", document.getElementById("cfdone").classList.contains("cf-just"));
     await goto("cf");
+    ok("semaine : la séance validée se marque", !!document.querySelector('.cf-sess.cf-just[data-sess="w1s1"]'));
     ok("w1s2 passe en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s2");
     await goto("cf/s/w1s2"); await blk(1);
     ok("strict press sans max : pas de NaN", !document.getElementById("app").textContent.includes("NaN") && document.querySelector(".cf-load").textContent.trim() === "—");
@@ -409,6 +412,9 @@
     await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "snatch", 55, today())); await goto("cf/max"); await goto("cf/progres");
     document.querySelector('[data-lift-pick="snatch"]').click(); await tick();
     ok("progrès : pastille arraché", document.querySelector(".cf-pmax").dataset.kg === "55" && document.querySelector('[data-lift-pick="snatch"]').getAttribute("aria-pressed") === "true");
+    ok("chiffre en train de défiler", document.querySelector(".cf-pmax .cf-hn").textContent !== "55");
+    await tick(700);
+    ok("chiffre défilé jusqu'à 55", document.querySelector(".cf-pmax .cf-hn").textContent === "55");
     ok("progrès : lien Tes max", !!document.querySelector('a[href="#/cf/max"]'));
     await goto("cf/max"); document.getElementById("cfback").click(); await tick();
     ok("tes max : retour vers Progrès", location.hash === "#/cf/progres");
