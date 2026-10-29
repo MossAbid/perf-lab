@@ -19,11 +19,11 @@ Deux parties :
 ## Fichiers clés
 - `index.html` : coque, scripts dans l'ordre `config.js → programs.js → progression.js → cycle.js → (CDN Supabase) → backend.js → cyclestore.js → cycle-ui.js → app.js` (`cycle-ui.js` avant `app.js` : `boot()` route dès le chargement)
 - `app.js` : moteur — routeur, rendu des bibliothèques, écran d'ajout, timer ; délègue les routes `#/cf…` à `CycleUI`
-- `app.css` : design + animations (section `/* ===== Programmation ===== */`, classes `cf-`)
+- `app.css` : design + animations. Identité « Plein cadre » (refonte du 29/10/2026) : sombre uniquement, jetons sur `:root`, une couleur par type de bloc (`--k-<kind>`, posée par `data-kind`, fond teinté par `setGround()`), polices système SF Pro et SF Pro Rounded (classe `.r` pour les chiffres), aucune police téléchargée. Section `/* ===== Programmation ===== */`, classes `cf-`
 - `progression.js` : règle RPE, paliers, validation & migration du schéma (logique pure, testée en Node)
 - `cycle.js` (`PLCycle`) : format `perflab-cycle-v1`, validation, max et charges, semaine/file/rattraper-passer, scores (logique pure, testée en Node)
 - `cyclestore.js` (`CycleStore`) : données de la Programmation, LOCAL ou CLOUD (tables `cycles`/`cycle_athletes`, blob `state` clé `cycle`), cache offline, file d'une opération
-- `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Ton mois, Ton programme, Séance, Fiches mouvement, Tes max, Importer un cycle, connexion
+- `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Ton mois, Progrès, Ton programme, Séance (un bloc à la fois), Fiches mouvement, Tes max, Importer un cycle, connexion ; barre d'onglets (`tabBar`, profil Moss) ; `#/` = Ta semaine chez Moss, la bibliothèque est en `#/lib`
 - `backend.js` : couche local/cloud des bibliothèques — profils, auth, sync, cache offline, file d'attente
 - `programs.js` : programmes par défaut (semés à la première utilisation), champ `assign` pour le routage par profil
 - `config.js` : clés Supabase (vide = mode LOCAL), `SUPABASE_*` pour les bibliothèques, `CYCLE_SUPABASE_*` pour la Programmation
@@ -42,7 +42,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - Backend optionnel : Supabase — Postgres + Auth + Row Level Security, client chargé via CDN jsDelivr (`@supabase/supabase-js@2.118.0`, version épinglée et testée), pas de dépendance npm.
 - Aucun `package.json` / aucun outil de build.
 - Tests : scripts Node purs avec `assert` + un harnais e2e HTML exécuté dans Chrome headless.
-- PWA : `manifest.webmanifest` + `sw.js` (code HTML/CSS/JS en network-first borné à 3 s puis cache ; icônes et polices en cache-first).
+- PWA : `manifest.webmanifest` + `sw.js` (code HTML/CSS/JS en network-first borné à 3 s puis cache ; icônes en cache-first).
 
 ## Commandes réelles
 - Pas de build : les fichiers sont directement déployables.
@@ -51,7 +51,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - **Tests unitaires** : `node tests/progression.test.js && node tests/backend.test.js && node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js`.
 - **Tests e2e** : `python3 tools/serve.py 8741` à la racine, puis `chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"` → aucune ligne `E2E-FAIL` dans `#results`. (Avec `python3 -m http.server`, la file de 5 connexions fait échouer des scripts au hasard.)
 - **Vérifier un cycle** : `node tools/validate-cycle.js content/cycle-1.json`.
-- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v13`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
+- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v14`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
 
 ## Schéma des données
 Aucun fichier `.json` de schéma dans le dépôt :

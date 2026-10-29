@@ -1,7 +1,7 @@
 /* Perf Lab — service worker
    Bump CACHE quand tu modifies la coque (pas nécessaire pour programs.js
    grâce au network-first ci-dessous, mais conseillé après gros changements). */
-const CACHE = "perflab-v13";
+const CACHE = "perflab-v14";
 const NET_TIMEOUT = 3000;   // ms avant de servir la coque depuis le cache
 
 const SHELL = [
