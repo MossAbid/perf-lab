@@ -393,6 +393,32 @@
        location.hash === "#/cf/s/w1s1" && !!document.querySelector('.cf-level[data-open-level="rx"]') && document.getElementById("cfscore").value === "9+1");
     await CycleStore.importCycle(makeSampleCycle(mon));
 
+    /* 9f. PROGRAMMATION : Progrès (max, charge semaine par semaine, assiduité) */
+    await goto("cf/progres");
+    ok("progrès : onglet actif", !!document.querySelector('.tabbar a[href="#/cf/progres"][aria-current="page"]'));
+    ok("progrès : max 120", (document.querySelector(".cf-pmax") || {dataset:{}}).dataset.kg === "120");
+    ok("progrès : 2 colonnes, semaine en cours marquée", document.querySelectorAll(".cf-bar").length === 2 && document.querySelectorAll(".cf-bar.now").length === 1);
+    ok("progrès : hauteur 95/120", /--h:\s*79/.test((document.querySelector('.cf-bar[data-wi="0"]') || { getAttribute: () => "" }).getAttribute("style")));
+    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "snatch", 55, today())); await goto("cf/max"); await goto("cf/progres");
+    document.querySelector('[data-lift-pick="snatch"]').click(); await tick();
+    ok("progrès : pastille arraché", document.querySelector(".cf-pmax").dataset.kg === "55" && document.querySelector('[data-lift-pick="snatch"]').getAttribute("aria-pressed") === "true");
+    ok("progrès : lien Tes max", !!document.querySelector('a[href="#/cf/max"]'));
+    await goto("cf/max"); document.getElementById("cfback").click(); await tick();
+    ok("tes max : retour vers Progrès", location.hash === "#/cf/progres");
+    await CycleStore.importCycle(makeSampleCycle(nextMon, "cycle-next")); await goto("cf/max"); await goto("cf/progres");
+    ok("progrès avant le début : assiduité à venir", /s'affiche après ta première semaine/.test(document.querySelector(".cf").textContent));
+    await CycleStore.importCycle(makeSampleCycle(prevMon, "cycle-att"));
+    const aA = CycleStore.getAthlete(); aA.logs["cycle-att"] = PLCycle.newLog();
+    PLCycle.markDone(aA.logs["cycle-att"], "w1s1", prevMon); aA.logs["cycle-att"].skipped = ["w1s2"];
+    await CycleStore.saveAthlete(aA); await goto("cf/max"); await goto("cf/progres");
+    const att1 = document.querySelector('.cf-attw[data-wi="0"]');
+    ok("assiduité : S1 faite 1, passée 1, manquées 2", !!att1 && att1.querySelectorAll(".cf-adot.done").length === 1
+       && att1.querySelectorAll(".cf-adot.skipped").length === 1 && att1.querySelectorAll(".cf-adot.missed").length === 2);
+    const keepMax = JSON.parse(JSON.stringify(aA.maxes)); aA.maxes = {}; await CycleStore.saveAthlete(aA); await goto("cf/max"); await goto("cf/progres");
+    ok("progrès sans max : invitation à saisir", /Saisis tes max/.test(document.querySelector(".cf").textContent) && !document.querySelector("[data-lift-pick]"));
+    aA.maxes = keepMax; await CycleStore.saveAthlete(aA);
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";

@@ -4,6 +4,7 @@
      #/cf/s/<sid>   une séance
      #/cf/mois      ton mois (calendrier des séances faites)
      #/cf/programme ton programme (objectifs, semaines, charges)
+     #/cf/progres   progrès (max, charge semaine par semaine, assiduité)
      #/cf/max       tes max
      #/cf/import    importer un cycle
      #/cf/m         fiches mouvement (index)
@@ -549,6 +550,79 @@ const CycleUI = (() => {
     };
   }
 
+  /* ---- Progrès : ton max, ta charge semaine par semaine, ton assiduité ---- */
+  let PG = { lift: null };
+  const dayMonth = iso => +iso.slice(8) + " " + MONTHS[+iso.slice(5, 7) - 1];
+  const rangeFr = (a, b) => a.slice(5, 7) === b.slice(5, 7) ? `du ${+a.slice(8)} au ${dayMonth(b)}` : `du ${dayMonth(a)} au ${dayMonth(b)}`;
+  const kgNum = kg => String(kg).replace(".", ",");
+
+  function liftTop(cycle, athlete, id, v, td){
+    const lift = cycle.lifts[id], m = C.liftMax(cycle, athlete.maxes, id), nt = C.nextTest(cycle, id, td);
+    const bars = C.liftSeries(cycle, athlete.maxes, id).map((x, wi) => {
+      if(!x) return `<div class="cf-bar empty" data-wi="${wi}"><span></span><i></i></div>`;
+      if(x.test) return `<div class="cf-bar test" data-wi="${wi}" style="--h:100"><span>${esc(x.test)}</span><i></i></div>`;
+      const cls = wi < v.weekIndex ? "past" : wi === v.weekIndex ? "now" : "future";
+      return `<div class="cf-bar ${cls}" data-wi="${wi}" style="--h:${x.kg != null ? Math.round(x.kg / m.kg * 100) : 0}">
+        <span class="r">${x.kg != null ? kgNum(x.kg) : ""}</span><i></i></div>`;
+    }).join("");
+    const axis = cycle.weeks.map((w, wi) => `<span${wi === v.weekIndex ? ' class="on"' : ""}>${w.phase === "test" ? "Test" : "S" + (wi + 1)}</span>`).join("");
+    return `<div class="cf-pmax" data-kg="${m.kg}">${heroHtml(m.kg, false)}</div>
+      <p class="cf-pname">Ton max de ${esc(lift.name.toLowerCase())}</p>
+      <p class="cf-ptest">${monthYear(m.d)}.${nt ? ` Prochain test : ${esc(nt.test)} en semaine ${nt.wi + 1}, ${rangeFr(nt.start, nt.end)}.` : ""}</p>
+      <h2 class="cf-ch2">Ta charge de travail, semaine par semaine</h2>
+      <div class="cf-chart" role="img" aria-label="Charge de la dernière série de ${esc(lift.name.toLowerCase())}, semaine par semaine">
+        <span class="cf-maxl">max ${kgNum(m.kg)}</span>${bars}</div>
+      <div class="cf-axis" aria-hidden="true">${axis}</div>`;
+  }
+
+  function attendanceHtml(at){
+    const plural = (n, w) => `${n} ${w}${n > 1 ? "s" : ""}`;
+    const extras = [at.late ? plural(at.late, "rattrapée") : "", at.skipped ? plural(at.skipped, "passée") : ""].filter(Boolean).join(" · ");
+    const weeks = at.weeks.map(x => `<div class="cf-attw" data-wi="${x.wi}"><p>S${x.wi + 1}</p>
+      <div>${x.dots.map(d => `<span class="cf-adot ${d}"></span>`).join("")}</div></div>`).join("");
+    const DOTS = [["done", "faite"], ["late", "rattrapée"], ["skipped", "passée"], ["missed", "manquée"]];
+    return `<section class="cf-att">
+      <div class="cf-atth"><h2>Assiduité</h2>${at.bonusTotal ? `<span>Bonus : ${at.bonusDone} sur ${at.bonusTotal}</span>` : ""}</div>
+      ${at.closed ? `<div class="cf-attn"><span class="r">${at.done} sur ${at.total}</span>
+          <span>séances, ${at.closed > 1 ? `semaines 1 à ${at.closed}` : "semaine 1"}</span></div>${extras ? `<p class="cf-attx">${extras}</p>` : ""}`
+        : `<p class="cf-attx">Ton assiduité s'affiche après ta première semaine.</p>`}
+      ${weeks ? `<div class="cf-attg">${weeks}</div>
+        <div class="cf-dlegend">${DOTS.map(([k, l]) => `<span><span class="cf-adot ${k}"></span>${l}</span>`).join("")}</div>` : ""}
+    </section>`;
+  }
+
+  function renderProgres(){
+    const cycle = CycleStore.getCycle();
+    if(!cycle){
+      shell({ title: "Progrès", tab: "progres" }, `<div class="cf-empty"><p>Importe d'abord un cycle : tes max et ton assiduité en dépendent.</p>
+        <a class="dbtn go" href="#/cf/import">Importer un cycle</a></div>`);
+      return;
+    }
+    const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle), td = today();
+    const own = Object.keys(cycle.lifts).filter(id => (athlete.maxes[id] || []).length);
+    if(!own.includes(PG.lift)) PG.lift = own[0] || null;
+    const v = C.weekView(cycle, log, td), id = PG.lift;
+    const chips = own.map(x => `<button type="button" class="cf-lchip" data-lift-pick="${esc(x)}" aria-pressed="${x === id}">${esc(cycle.lifts[x].name)}</button>`).join("");
+    const hist = id ? athlete.maxes[id].slice().sort((a, b) => a.d < b.d ? 1 : a.d > b.d ? -1 : 0) : [];
+    shell({ title: "Progrès", tab: "progres", head: false }, `
+      <section class="cf-top cf-ptop"${id ? ' data-kind="strength"' : ""}><div class="wrap">
+        <h1>Progrès</h1>
+        ${id ? `<div class="cf-lchips" role="group" aria-label="Mouvement">${chips}</div>${liftTop(cycle, athlete, id, v, td)}`
+          : `<p class="cf-intent">Saisis tes max pour suivre ta progression : ils calculent toutes tes charges.</p>
+             <a class="dbtn go cf-mt" href="#/cf/max">Saisis tes max</a>`}
+      </div></section>
+      <div class="wrap">
+        ${attendanceHtml(C.attendance(cycle, log, td))}
+        ${id ? `<section class="cf-hist"><h2>Historique de ton max</h2>
+          ${hist.map((e, k) => `<div class="cf-hline"><span>${monthYear(e.d)}</span>${hist[k + 1] ? `<span class="cf-hd">${fmtDelta(e.kg - hist[k + 1].kg)}</span>` : ""}
+            <span class="r">${fmtKg(e.kg)}</span></div>`).join("")}
+          <a class="dbtn" href="#/cf/max">Modifier tes max</a></section>` : ""}
+      </div>`);
+    app.querySelectorAll("[data-lift-pick]").forEach(b => b.onclick = () => { PG.lift = b.dataset.liftPick; renderProgres(); });
+    const on = app.querySelector('[data-lift-pick][aria-pressed="true"]');
+    if(on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
   /* ---- Tes max ----
      Max saisis (le plus récent par mouvement) ; les mouvements sans max
      — dont les dérivés, avec leur estimation — dans « Pas encore de repère ».
@@ -715,6 +789,7 @@ const CycleUI = (() => {
       if(!back) PS = { wi: c ? C.weekView(c, logFor(CycleStore.getAthlete(), c), today()).weekIndex : 0 };
       renderProgramme();
     }
+    else if(h === "cf/progres") renderProgres();
     else if(h === "cf/max"){ editLift = null; renderMax(); }
     else if(h === "cf/import") renderImport();
     else renderWeek();
