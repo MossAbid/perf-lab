@@ -9,7 +9,7 @@ Coque multi-programmes : **Upper Power Lab**, **Core Lab**, **Lower Lab** (Moss)
 
 ## Fichiers
 - `index.html` · coque
-- `app.css` · design + animations (identité sombre « Plein cadre », couleur = type de bloc, polices système)
+- `app.css` · design + animations
 - `app.js` · moteur (routeur, rendu, écran d'ajout, timer)
 - `progression.js` · règle RPE, paliers, validation & migration du schéma JSON (logique pure, testée en Node)
 - `backend.js` · couche local/cloud (profils + auth + sync + cache offline + file d'attente)

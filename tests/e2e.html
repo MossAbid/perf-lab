@@ -50,10 +50,6 @@
 
   try {
     await tick(300); // boot()
-    await goto("lib");   // # vide = Ta semaine chez Moss : la bibliothèque est en #/lib
-    const shellSrc = await (await fetch("../index.html")).text() + await (await fetch("../app.css")).text();
-    ok("plus de police téléchargée", !/fonts\.googleapis|Anton|Sora|JetBrains/.test(shellSrc));
-    ok("fond bleu-noir", getComputedStyle(document.body).backgroundColor === "rgb(9, 12, 18)");
 
     /* 1. bibliothèque : programmes par défaut + programme legacy migré + sélecteur */
     ok("bibliothèque rendue (4 défauts Moss + legacy)", document.querySelectorAll(".card[data-go]").length === 5);
@@ -65,7 +61,6 @@
     ok("semaine legacy migrée", Backend.getWeek("legacy-prog") === 2);
     ok("sélecteur profils Moss/Souad", document.querySelectorAll(".profbtn").length === 2);
     ok("profil actif par défaut : Moss", Backend.activeProfile() === "moss");
-    ok("bibliothèque : plus d'emoji", !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{2712}\u{2714}-\u{27BF}\u{FF0B}\u{FE0F}]/u.test(document.getElementById("app").textContent));
 
     /* 2. bascule Souad : bibliothèque indépendante */
     document.querySelector('[data-prof="souad"]').click();
@@ -133,11 +128,9 @@
     ok("saisie RPE présente", !!rpe);
     // repos inline : après la 1re série cochée il apparaît, après la dernière il s'arrête
     const rdlBtns = [...document.querySelectorAll('.setbtn[data-k="rdl"]')];
-    ok("Lower Lab : plus d'emoji", !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{2712}\u{2714}-\u{27BF}\u{FF0B}\u{FE0F}]/u.test(document.getElementById("app").textContent));
     rdlBtns[0].click(); await tick();
-    ok("série faite en bleu force", getComputedStyle(rdlBtns[0]).backgroundColor === "rgb(77, 141, 255)");
     const restEl = rdlBtns[0].closest("[data-ex]").querySelector("[data-rest]");
-    ok("repos inline affiché après une série", !restEl.hidden && restEl.textContent.includes("Repos"));
+    ok("repos inline affiché après une série", !restEl.hidden && restEl.textContent.includes("REPOS"));
     // toutes les séries du RDL + RPE 5 → doit proposer le palier supérieur (70 kg)
     rdlBtns.slice(1).forEach(b => b.click()); await tick();
     ok("repos masqué après la dernière série", restEl.hidden);
@@ -166,7 +159,7 @@
     ok("sparkline visible après 2 évaluations", !!document.querySelector(".spark"));
 
     /* 6. Moss : bibliothèque complète ; isolation de la progression */
-    await goto("lib");
+    await goto("");
     ok("Moss : bibliothèque avec legacy + import",
        !!document.querySelector('[data-go="legacy-prog"]') && !!document.querySelector('[data-go="import-test"]'));
     ok("rappel de sauvegarde signalé (jamais exporté, données présentes)",
@@ -174,9 +167,7 @@
     document.querySelector('[data-prof="souad"]').click();
     await tick(200);
     ok("progression Moss (lower) invisible chez Souad", !("lower" in Backend.loadProgression()));
-    ok("Souad : pas de barre d'onglets", !document.querySelector(".tabbar"));
-    await goto(""); ok("Souad : # vide → bibliothèque", !!document.querySelector(".lib"));
-    await goto("cf"); ok("Souad : #/cf → bibliothèque", !!document.querySelector(".lib") && !document.querySelector(".tabbar"));
+    ok("pas de carte Programmation chez Souad", !document.querySelector("[data-cf]"));
 
     /* 7. retour chez Moss : bibliothèque intacte, micro-programme retiré */
     document.querySelector('[data-prof="moss"]').click();
@@ -190,8 +181,6 @@
     await goto("p/lower");
     ok("LOWER LAB toujours fonctionnel",
        document.querySelectorAll(".tab").length === 2 && !!document.querySelector(".target.tier"));
-    document.getElementById("back").click(); await tick();
-    ok("programme : retour vers #/lib", location.hash === "#/lib" && !!document.querySelector(".lib"));
 
     /* 8. PROGRAMMATION (Moss) : carte, semaine, rattraper ou passer */
     const isoUTC = d => d.toISOString().slice(0, 10);
@@ -205,39 +194,21 @@
        document.querySelector(".cf-wod .cf-bdate").textContent.trim() === "dim. " + sunCal.slice(8, 10) + "/" + sunCal.slice(5, 7));
     document.querySelector("[data-decide='skip']").click(); await tick();
     ok("passer → w2s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w2s1");
-    await CycleStore.importCycle(makeSampleCycle(mon)); await goto("lib");
-    ok("Moss : barre d'onglets à 4 entrées", document.querySelectorAll(".tabbar a").length === 4);
-    ok("Moss : # vide → Ta semaine", (await goto(""), !!document.querySelector('.tabbar a[href="#/cf"][aria-current="page"]')));
-    ok("onglet Mois", (await goto("cf/mois"), !!document.querySelector('.tabbar a[href="#/cf/mois"][aria-current="page"]')));
-    ok("onglet Bibliothèques", (await goto("lib"), !!document.querySelector(".lib") && !!document.querySelector('.tabbar a[href="#/lib"][aria-current="page"]')));
+    await CycleStore.importCycle(makeSampleCycle(mon)); await goto("");
+    ok("carte Programmation chez Moss", !!document.querySelector("[data-cf]"));
     await goto("cf");
-    ok("semaine : 1 séance en avant + 3 ensuite", !!document.querySelector(".cf-next [data-open]") && document.querySelectorAll(".cf-sess").length === 3);
+    ok("semaine : 4 séances", document.querySelectorAll(".cf-sess").length === 4);
     ok("w1s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s1");
     ok("bonus présent", !!document.querySelector(".cf-bonus"));
     ok("pas de carte micro-programme", !document.querySelector("[data-micro]"));
 
-    /* 9. PROGRAMMATION : séance plein cadre (un bloc à la fois, charges, jauge, RX/INT, score, séance faite) */
-    const blk = async i => { document.querySelector(`[data-goto="${i}"]`).click(); await tick(); };
-    localStorage.removeItem("perflab.cf.cur");
+    /* 9. PROGRAMMATION : séance (charges, RX/INT, score, séance faite) */
     await goto("cf/s/w1s1");
-    ok("séance : s'ouvre sur le 1er bloc", document.querySelector('[data-goto="0"]').getAttribute("aria-current") === "step");
-    ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
-    ok("échauffement : page teintée ambre", document.documentElement.dataset.ground === "warmup");
-    ok("1er bloc : bloc suivant, pas encore « Séance faite »", !document.getElementById("cfdone") && !!document.getElementById("cfnextb"));
-    await blk(1);
     ok("force : charges vides sans max", document.querySelector(".cf-load").textContent.trim() === "—");
-    ok("force sans max : lien vers tes max", !!document.querySelector('.cf-pane a[href="#/cf/max"]') && !document.querySelector(".cf-why-delta"));
     await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 120, today())); await goto("cf"); await goto("cf/s/w1s1");
-    ok("mémoire : la séance rouvre sur le bloc en cours", document.querySelector('[data-goto="1"]').getAttribute("aria-current") === "step");
-    ok("force : 95 / 72,5 / 85 kg", [...document.querySelectorAll(".cf-load")].map(e => e.textContent.trim()).join("|") === "95 kg|72,5 kg|85 kg");
+    ok("force : 72,5 / 85 / 95 kg", [...document.querySelectorAll(".cf-load")].map(e => e.textContent.trim()).join("|") === "72,5 kg|85 kg|95 kg");
     ok("ceinture sur la ligne à 80 %", document.querySelectorAll(".cf-belt").length === 1);
-    ok("force : jauge à 80 %, zone 70 à 80", /--pct:\s*80/.test(document.querySelector(".cf-gauge").getAttribute("style")) && /70 à 80 %/.test(document.querySelector(".cf").textContent));
-    ok("force : page teintée bleu", document.documentElement.dataset.ground === "strength");
-    ok("jauge animée", getComputedStyle(document.querySelector(".cf-gauge .cf-gfill")).animationName === "cf-fill");
-    ok("force : ton max dans ce qui l'explique", /120 kg/.test(document.querySelector(".cf-why-max").textContent));
-    ok("semaine 1 : pas d'écart", !document.querySelector(".cf-why-delta"));
-    await blk(2);
-    ok("metcon : « Séance faite » proposée", !!document.getElementById("cfdone"));
+    ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
     document.querySelector('[data-level="int"]').click(); await tick();
     ok("INT ouvert, RX replié", !!document.querySelector('.cf-level[data-open-level="int"]') && !document.querySelector('.cf-level[data-open-level="rx"]'));
     document.getElementById("cfscore").value = "7+3"; document.querySelector('[data-level="rx"]').click(); await tick();
@@ -259,79 +230,14 @@
     ok("annuler : la séance redevient à faire",
        !CycleStore.getAthlete().logs["cycle-1"].done.w1s1 && !document.getElementById("cfdone").disabled);
     document.getElementById("cfdone").click(); await tick(100);
-    ok("validation marquée", document.getElementById("cfdone").classList.contains("cf-just"));
     await goto("cf");
-    ok("semaine : la séance validée se marque", !!document.querySelector('.cf-sess.cf-just[data-sess="w1s1"]'));
     ok("w1s2 passe en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s2");
-    await goto("cf/s/w1s2"); await blk(1);
+    await goto("cf/s/w1s2");
     ok("strict press sans max : pas de NaN", !document.getElementById("app").textContent.includes("NaN") && document.querySelector(".cf-load").textContent.trim() === "—");
 
-    /* 9a. séance : écart, mémoire du bloc bornée, bloc de test, bande longue */
-    await goto("cf/s/w2s1"); await blk(1);
-    ok("écart affiché en semaine 2", /−10 kg/.test((document.querySelector(".cf-why-delta") || {}).textContent || ""));
-    localStorage.setItem("perflab.cf.cur", JSON.stringify({ sid: "w1s1", i: 9 })); await goto("cf"); await goto("cf/s/w1s1");
-    ok("mémoire bornée au dernier bloc", document.querySelector('[data-goto="3"]').getAttribute("aria-current") === "step");
-    localStorage.setItem("perflab.cf.cur", JSON.stringify({ sid: "autre", i: 2 })); await goto("cf"); await goto("cf/s/w1s1");
-    ok("mémoire d'une autre séance ignorée", document.querySelector('[data-goto="0"]').getAttribute("aria-current") === "step");
-    const aT = CycleStore.getAthlete(); PLCycle.unmarkDone(aT.logs["cycle-1"], "w1s1"); await CycleStore.saveAthlete(aT);   // w1s1 en tête de Ta semaine
-    const t1 = makeSampleCycle(mon); t1.weeks[0].sessions[0].blocks[1].test = "1RM";
-    await CycleStore.importCycle(t1); await goto("cf"); await goto("cf/s/w1s1"); await blk(1);
-    ok("test 1RM : héros = max actuel, à battre, sans écart",
-       document.querySelector(".cf-hero").textContent.trim() === "120 kg" && /à battre/.test(document.querySelector(".cf-pane").textContent) && !document.querySelector(".cf-why-delta"));
-    await goto("cf");
-    ok("test 1RM : Ta semaine montre aussi le max à battre", document.querySelector(".cf-next .cf-hero").textContent.trim() === "120 kg" && /test 1RM/.test(document.querySelector(".cf-next").textContent));
-    const t3 = makeSampleCycle(mon); t3.weeks[0].sessions[0].blocks[1].test = "3RM";
-    await CycleStore.importCycle(t3); await goto("cf/max"); await goto("cf/s/w1s1"); await blk(1);
-    ok("test 3RM : héros = dernière approche, pas le 1RM à battre",
-       document.querySelector(".cf-hero").textContent.trim() === "95 kg" && /jusqu'à ton 3RM du jour/.test(document.querySelector(".cf-pane").textContent)
-       && !/à battre/.test(document.querySelector(".cf-pane").textContent) && !document.querySelector(".cf-why-delta"));
-    await goto("cf");
-    ok("test 3RM : Ta semaine montre la dernière approche", document.querySelector(".cf-next .cf-hero").textContent.trim() === "95 kg");
-    /* gros chiffre à 5 caractères sur un iPhone de 375 px : il tient dans la largeur */
-    await CycleStore.importCycle(makeSampleCycle(mon));
-    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 185, today()));
-    document.getElementById("app").style.width = "375px"; await goto("cf/max"); await goto("cf/s/w1s1"); await blk(1);
-    const pane5 = document.querySelector(".cf-pane"), hero5 = document.querySelector(".cf-hero");
-    ok("héros 147,5 kg tient en 375 px", hero5.textContent.trim() === "147,5 kg" && hero5.getBoundingClientRect().right <= pane5.getBoundingClientRect().right + 0.5);
-    document.getElementById("app").style.width = "";
-    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 120, today()));
-    const aT2 = CycleStore.getAthlete(); PLCycle.markDone(aT2.logs["cycle-1"], "w1s1", today()); await CycleStore.saveAthlete(aT2);
-    ok("barre d'onglets hors du fondu de l'écran", !!document.querySelector(".tabbar") && !document.querySelector(".view .tabbar"));
-    ok("barre d'onglets teintée comme l'écran", document.querySelector(".tabbar").dataset.kind === "strength");
-    const long6 = makeSampleCycle(mon);
-    long6.weeks[0].sessions[0].blocks.push(...[1, 2].map(n => ({ kind: "accessory", title: "Mobilité des hanches et des épaules " + n, minutes: 6, optional: true, text: "x" })));
-    await CycleStore.importCycle(long6); document.getElementById("app").style.width = "320px";
-    await goto("cf"); await goto("cf/s/w1s1");
-    const st6 = document.querySelector(".cf-bstrip");
-    ok("bande de 6 blocs sans débordement", st6.querySelectorAll("[data-goto]").length === 6 && st6.scrollWidth <= st6.clientWidth);
-    document.getElementById("app").style.width = "";
-    await CycleStore.importCycle(makeSampleCycle(mon));
-
-    /* 8b. Ta semaine : héros, teinte, cycle à venir, semaine bouclée */
-    await goto("cf");
-    ok("semaine : haut teinté force", document.querySelector(".cf-top").dataset.kind === "strength");
-    ok("semaine : héros sans max = —", document.querySelector(".cf-next .cf-load").textContent.trim() === "—");
-    const aW = CycleStore.getAthlete(); PLCycle.unmarkDone(aW.logs["cycle-1"], "w1s1"); await CycleStore.saveAthlete(aW);
-    await goto("cf/max"); await goto("cf");
-    ok("semaine : héros 95 kg", document.querySelector(".cf-next .cf-load").textContent.trim() === "95 kg");
-    PLCycle.markDone(aW.logs["cycle-1"], "w1s1", today()); await CycleStore.saveAthlete(aW);
-    const nextMon = isoUTC(new Date(t0 + (7 - dow) * 864e5));
-    await CycleStore.importCycle(makeSampleCycle(nextMon, "cycle-next")); await goto("cf/max"); await goto("cf");
-    ok("cycle à venir : date de début et aperçu de la séance 1",
-       /Le cycle démarre/.test(document.querySelector(".cf").textContent) && !!document.querySelector('.cf-next [data-open="w1s1"]')
-       && /Voir la séance/.test(document.querySelector(".cf-next [data-open]").textContent) && document.querySelectorAll(".cf-sess").length === 3);
-    await goto("cf/s/w1s1");
-    ok("cycle à venir : séance verrouillée", /elle s'ouvre le/.test(document.querySelector(".cf-note").textContent) && !document.getElementById("cfdone"));
-    await CycleStore.importCycle(makeSampleCycle(mon, "cycle-loop"));
-    const aL = CycleStore.getAthlete(); ["w1s1", "w1s2", "w1s3", "w1s4"].forEach(sid => PLCycle.markDone(aL.logs["cycle-loop"] = aL.logs["cycle-loop"] || PLCycle.newLog(), sid, today()));
-    await CycleStore.saveAthlete(aL); await goto("cf/max"); await goto("cf");
-    ok("semaine bouclée : message et 4 séances", /Semaine bouclée/.test(document.querySelector(".cf").textContent) && document.querySelectorAll(".cf-sess").length === 4);
-    await CycleStore.importCycle(makeSampleCycle(mon));
-
     /* 9b. PROGRAMMATION : fiches mouvement */
-    await goto("cf/s/w1s1"); await blk(2);
+    await goto("cf/s/w1s1");
     ok("séance : fiches du metcon", !!document.querySelector('.cf-moves a[href="#/cf/m/wall_ball"]'));
-    await blk(1);
     ok("force : lien fiche, plus de lien vidéo direct", !!document.querySelector('a[href="#/cf/m/back_squat"]') && !document.querySelector(".cf-video"));
     await goto("cf/m/wall_ball");
     ok("fiche : points clés, erreurs, RX/INT", document.querySelectorAll(".cf-cues li").length === 1 && !!document.querySelector(".cf-faults") && /RX/.test(document.querySelector(".cf").textContent));
@@ -354,7 +260,7 @@
 
     /* 9c. PROGRAMMATION : Ton mois */
     await goto("cf");
-    ok("semaine : onglet Mois dans la barre", !!document.querySelector('.tabbar a[href="#/cf/mois"]'));
+    ok("semaine : bascule vers le mois", !!document.querySelector('.cf-seg a[href="#/cf/mois"]'));
     const a9 = CycleStore.getAthlete(); PLCycle.markDone(a9.logs["cycle-1"], "w1s2", today()); await CycleStore.saveAthlete(a9);
     await goto("cf/mois");
     const todayCell = document.querySelector(`.cf-day[data-day="${today()}"]`);
@@ -376,8 +282,6 @@
     ok("programme : semaine en cours choisie", document.querySelector('[data-week][aria-pressed="true"]').dataset.week === "0");
     ok("programme : charge calculée", /Back squat · 4 × 3 à 80 % · 95 kg/.test(document.querySelector('[data-psess="w1s1"]').textContent));
     ok("programme : séance faite", /faite/.test(document.querySelector('[data-psess="w1s1"]').textContent));
-    ok("programme : plus de couleur de phase", ![...document.querySelectorAll(".cf-wbar")].some(e => /background/.test(e.getAttribute("style") || ""))
-       && /--h:\s*80/.test(document.querySelector('[data-week="0"] .cf-wbar').getAttribute("style")));
     document.querySelector('[data-week="1"]').click(); await tick();
     ok("programme : semaine 2", /Semaine 2/.test(document.querySelector(".cf").textContent) && !!document.querySelector('[data-psess="w2s1"]'));
     document.querySelector('[data-psess="w2s1"]').click(); await tick();
@@ -415,48 +319,13 @@
     document.querySelector('.cf-dday a[href="#/cf/s/w1s1"]').click(); await tick();
     document.getElementById("cfback").click(); await tick();
     ok("séance ouverte depuis le mois : retour au mois", location.hash === "#/cf/mois");
-    await goto("cf/s/w1s1"); await blk(2);
+    await goto("cf/s/w1s1");
     document.querySelector('[data-level="rx"]').click(); await tick();
     document.getElementById("cfscore").value = "9+1";
     document.querySelector('.cf-moves a[href="#/cf/m/wall_ball"]').click(); await tick();
     document.getElementById("cfback").click(); await tick();
     ok("retour de fiche : séance conservée (niveau, saisie)",
        location.hash === "#/cf/s/w1s1" && !!document.querySelector('.cf-level[data-open-level="rx"]') && document.getElementById("cfscore").value === "9+1");
-    await CycleStore.importCycle(makeSampleCycle(mon));
-
-    /* 9f. PROGRAMMATION : Progrès (max, charge semaine par semaine, assiduité) */
-    await goto("cf/progres");
-    ok("progrès : onglet actif", !!document.querySelector('.tabbar a[href="#/cf/progres"][aria-current="page"]'));
-    ok("progrès : max 120", (document.querySelector(".cf-pmax") || {dataset:{}}).dataset.kg === "120");
-    ok("progrès : 2 colonnes, semaine en cours marquée", document.querySelectorAll(".cf-bar").length === 2 && document.querySelectorAll(".cf-bar.now").length === 1);
-    ok("progrès : hauteur 95/120", /--h:\s*79/.test((document.querySelector('.cf-bar[data-wi="0"]') || { getAttribute: () => "" }).getAttribute("style")));
-    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "snatch", 55, today())); await goto("cf/max"); await goto("cf/progres");
-    document.querySelector('[data-lift-pick="snatch"]').click(); await tick();
-    ok("progrès : pastille arraché", document.querySelector(".cf-pmax").dataset.kg === "55" && document.querySelector('[data-lift-pick="snatch"]').getAttribute("aria-pressed") === "true");
-    ok("chiffre en train de défiler", document.querySelector(".cf-pmax .cf-hn").textContent !== "55");
-    await tick(700);
-    ok("chiffre défilé jusqu'à 55", document.querySelector(".cf-pmax .cf-hn").textContent === "55");
-    const aH = CycleStore.getAthlete(); PLCycle.setMax(aH, "snatch", 82.7, "2026-01-10"); PLCycle.setMax(aH, "snatch", 80.1, "2025-06-10");
-    await CycleStore.saveAthlete(aH); await goto("cf/max"); await goto("cf/progres");
-    ok("historique : écart arrondi", [...document.querySelectorAll(".cf-hd")].some(e => e.textContent === "+2,6 kg")
-       && ![...document.querySelectorAll(".cf-hd")].some(e => /\d{4,}/.test(e.textContent)));
-    delete aH.maxes.snatch; PLCycle.setMax(aH, "snatch", 55, today()); await CycleStore.saveAthlete(aH); await goto("cf/max"); await goto("cf/progres");
-    ok("progrès : lien Tes max", !!document.querySelector('a[href="#/cf/max"]'));
-    await goto("cf/max"); document.getElementById("cfback").click(); await tick();
-    ok("tes max : retour vers Progrès", location.hash === "#/cf/progres");
-    await CycleStore.importCycle(makeSampleCycle(nextMon, "cycle-next")); await goto("cf/max"); await goto("cf/progres");
-    ok("progrès avant le début : assiduité à venir", /s'affiche après ta première semaine/.test(document.querySelector(".cf").textContent));
-    await CycleStore.importCycle(makeSampleCycle(prevMon, "cycle-att"));
-    const aA = CycleStore.getAthlete(); aA.logs["cycle-att"] = PLCycle.newLog();
-    PLCycle.markDone(aA.logs["cycle-att"], "w1s1", prevMon); aA.logs["cycle-att"].skipped = ["w1s2"];
-    await CycleStore.saveAthlete(aA); await goto("cf/max"); await goto("cf/progres");
-    const att1 = document.querySelector('.cf-attw[data-wi="0"]');
-    ok("assiduité : semaine en cours visible (contour ≥ 3:1)", getComputedStyle(document.querySelector(".cf-attw .cf-adot.todo")).borderTopColor === "rgb(127, 136, 155)");
-    ok("assiduité : S1 faite 1, passée 1, manquées 2", !!att1 && att1.querySelectorAll(".cf-adot.done").length === 1
-       && att1.querySelectorAll(".cf-adot.skipped").length === 1 && att1.querySelectorAll(".cf-adot.missed").length === 2);
-    const keepMax = JSON.parse(JSON.stringify(aA.maxes)); aA.maxes = {}; await CycleStore.saveAthlete(aA); await goto("cf/max"); await goto("cf/progres");
-    ok("progrès sans max : invitation à saisir", /Saisis tes max/.test(document.querySelector(".cf").textContent) && !document.querySelector("[data-lift-pick]"));
-    aA.maxes = keepMax; await CycleStore.saveAthlete(aA);
     await CycleStore.importCycle(makeSampleCycle(mon));
 
     /* 10. PROGRAMMATION : importer un cycle, tes max */
@@ -475,10 +344,6 @@
     document.querySelector('[data-edit="snatch"]').click(); await tick();
     document.getElementById("cfmkg").value = "55"; document.getElementById("cfmsave").click(); await tick(100);
     ok("tes max : snatch 55 kg", document.querySelector('[data-lift="snatch"] .cf-mkg').textContent.trim() === "55 kg");
-    const aS = CycleStore.getAthlete(); PLCycle.setMax(aS, "deadlift", 140, "2025-01-01"); await CycleStore.saveAthlete(aS); await goto("cf/progres"); await goto("cf/max");
-    ok("max ancien : souligné, plus d'orange", !!document.querySelector(".cf-mdate.stale")
-       && getComputedStyle(document.querySelector(".cf-mdate.stale")).color !== "rgb(255, 178, 91)" && /Date soulignée/.test(document.querySelector(".cf").textContent));
-    delete aS.maxes.deadlift; await CycleStore.saveAthlete(aS); await goto("cf/progres"); await goto("cf/max");
     ok("tes max : front squat estimé : 102 kg", document.querySelector('[data-lift="front_squat"]').textContent.includes("estimé : 102 kg"));
     const mossExp = Backend.exportAll().profiles.find(p => p.id === "moss");
     ok("export : programmation incluse (max, séances faites)",

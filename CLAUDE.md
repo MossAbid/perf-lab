@@ -19,11 +19,11 @@ Deux parties :
 ## Fichiers clés
 - `index.html` : coque, scripts dans l'ordre `config.js → programs.js → progression.js → cycle.js → (CDN Supabase) → backend.js → cyclestore.js → cycle-ui.js → app.js` (`cycle-ui.js` avant `app.js` : `boot()` route dès le chargement)
 - `app.js` : moteur — routeur, rendu des bibliothèques, écran d'ajout, timer ; délègue les routes `#/cf…` à `CycleUI`
-- `app.css` : design + animations. Identité « Plein cadre » (refonte du 29/10/2026) : sombre uniquement, jetons sur `:root`, une couleur par type de bloc (`--k-<kind>`, posée par `data-kind`, fond teinté par `setGround()`), polices système SF Pro et SF Pro Rounded (classe `.r` pour les chiffres), aucune police téléchargée. Section `/* ===== Programmation ===== */`, classes `cf-`
+- `app.css` : design + animations (section `/* ===== Programmation ===== */`, classes `cf-`)
 - `progression.js` : règle RPE, paliers, validation & migration du schéma (logique pure, testée en Node)
 - `cycle.js` (`PLCycle`) : format `perflab-cycle-v1`, validation, max et charges, semaine/file/rattraper-passer, scores (logique pure, testée en Node)
 - `cyclestore.js` (`CycleStore`) : données de la Programmation, LOCAL ou CLOUD (tables `cycles`/`cycle_athletes`, blob `state` clé `cycle`), cache offline, file d'une opération
-- `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Ton mois, Progrès, Ton programme, Séance (un bloc à la fois), Fiches mouvement, Tes max, Importer un cycle, connexion ; barre d'onglets (`tabBar`, profil Moss) ; `#/` = Ta semaine chez Moss, la bibliothèque est en `#/lib`
+- `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Ton mois, Ton programme, Séance, Fiches mouvement, Tes max, Importer un cycle, connexion
 - `backend.js` : couche local/cloud des bibliothèques — profils, auth, sync, cache offline, file d'attente
 - `programs.js` : programmes par défaut (semés à la première utilisation), champ `assign` pour le routage par profil
 - `config.js` : clés Supabase (vide = mode LOCAL), `SUPABASE_*` pour les bibliothèques, `CYCLE_SUPABASE_*` pour la Programmation
@@ -42,7 +42,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - Backend optionnel : Supabase — Postgres + Auth + Row Level Security, client chargé via CDN jsDelivr (`@supabase/supabase-js@2.118.0`, version épinglée et testée), pas de dépendance npm.
 - Aucun `package.json` / aucun outil de build.
 - Tests : scripts Node purs avec `assert` + un harnais e2e HTML exécuté dans Chrome headless.
-- PWA : `manifest.webmanifest` + `sw.js` (code HTML/CSS/JS en network-first borné à 3 s puis cache ; icônes en cache-first).
+- PWA : `manifest.webmanifest` + `sw.js` (code HTML/CSS/JS en network-first borné à 3 s puis cache, relu sans le cache HTTP — GitHub Pages sert en max-age 600 — et coque réinstallée en `cache: "reload"` ; icônes et polices en cache-first).
 
 ## Commandes réelles
 - Pas de build : les fichiers sont directement déployables.
