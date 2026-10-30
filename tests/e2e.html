@@ -273,10 +273,31 @@
     ok("mémoire bornée au dernier bloc", document.querySelector('[data-goto="3"]').getAttribute("aria-current") === "step");
     localStorage.setItem("perflab.cf.cur", JSON.stringify({ sid: "autre", i: 2 })); await goto("cf"); await goto("cf/s/w1s1");
     ok("mémoire d'une autre séance ignorée", document.querySelector('[data-goto="0"]').getAttribute("aria-current") === "step");
-    const t3 = makeSampleCycle(mon); t3.weeks[0].sessions[0].blocks[1].test = "3RM";
-    await CycleStore.importCycle(t3); await goto("cf"); await goto("cf/s/w1s1"); await blk(1);
-    ok("test : héros = max actuel, à battre, sans écart",
+    const aT = CycleStore.getAthlete(); PLCycle.unmarkDone(aT.logs["cycle-1"], "w1s1"); await CycleStore.saveAthlete(aT);   // w1s1 en tête de Ta semaine
+    const t1 = makeSampleCycle(mon); t1.weeks[0].sessions[0].blocks[1].test = "1RM";
+    await CycleStore.importCycle(t1); await goto("cf"); await goto("cf/s/w1s1"); await blk(1);
+    ok("test 1RM : héros = max actuel, à battre, sans écart",
        document.querySelector(".cf-hero").textContent.trim() === "120 kg" && /à battre/.test(document.querySelector(".cf-pane").textContent) && !document.querySelector(".cf-why-delta"));
+    await goto("cf");
+    ok("test 1RM : Ta semaine montre aussi le max à battre", document.querySelector(".cf-next .cf-hero").textContent.trim() === "120 kg" && /test 1RM/.test(document.querySelector(".cf-next").textContent));
+    const t3 = makeSampleCycle(mon); t3.weeks[0].sessions[0].blocks[1].test = "3RM";
+    await CycleStore.importCycle(t3); await goto("cf/max"); await goto("cf/s/w1s1"); await blk(1);
+    ok("test 3RM : héros = dernière approche, pas le 1RM à battre",
+       document.querySelector(".cf-hero").textContent.trim() === "95 kg" && /jusqu'à ton 3RM du jour/.test(document.querySelector(".cf-pane").textContent)
+       && !/à battre/.test(document.querySelector(".cf-pane").textContent) && !document.querySelector(".cf-why-delta"));
+    await goto("cf");
+    ok("test 3RM : Ta semaine montre la dernière approche", document.querySelector(".cf-next .cf-hero").textContent.trim() === "95 kg");
+    /* gros chiffre à 5 caractères sur un iPhone de 375 px : il tient dans la largeur */
+    await CycleStore.importCycle(makeSampleCycle(mon));
+    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 185, today()));
+    document.getElementById("app").style.width = "375px"; await goto("cf/max"); await goto("cf/s/w1s1"); await blk(1);
+    const pane5 = document.querySelector(".cf-pane"), hero5 = document.querySelector(".cf-hero");
+    ok("héros 147,5 kg tient en 375 px", hero5.textContent.trim() === "147,5 kg" && hero5.getBoundingClientRect().right <= pane5.getBoundingClientRect().right + 0.5);
+    document.getElementById("app").style.width = "";
+    await CycleStore.saveAthlete(PLCycle.setMax(CycleStore.getAthlete(), "back_squat", 120, today()));
+    const aT2 = CycleStore.getAthlete(); PLCycle.markDone(aT2.logs["cycle-1"], "w1s1", today()); await CycleStore.saveAthlete(aT2);
+    ok("barre d'onglets hors du fondu de l'écran", !!document.querySelector(".tabbar") && !document.querySelector(".view .tabbar"));
+    ok("barre d'onglets teintée comme l'écran", document.querySelector(".tabbar").dataset.kind === "strength");
     const long6 = makeSampleCycle(mon);
     long6.weeks[0].sessions[0].blocks.push(...[1, 2].map(n => ({ kind: "accessory", title: "Mobilité des hanches et des épaules " + n, minutes: 6, optional: true, text: "x" })));
     await CycleStore.importCycle(long6); document.getElementById("app").style.width = "320px";
@@ -415,6 +436,11 @@
     ok("chiffre en train de défiler", document.querySelector(".cf-pmax .cf-hn").textContent !== "55");
     await tick(700);
     ok("chiffre défilé jusqu'à 55", document.querySelector(".cf-pmax .cf-hn").textContent === "55");
+    const aH = CycleStore.getAthlete(); PLCycle.setMax(aH, "snatch", 82.7, "2026-01-10"); PLCycle.setMax(aH, "snatch", 80.1, "2025-06-10");
+    await CycleStore.saveAthlete(aH); await goto("cf/max"); await goto("cf/progres");
+    ok("historique : écart arrondi", [...document.querySelectorAll(".cf-hd")].some(e => e.textContent === "+2,6 kg")
+       && ![...document.querySelectorAll(".cf-hd")].some(e => /\d{4,}/.test(e.textContent)));
+    delete aH.maxes.snatch; PLCycle.setMax(aH, "snatch", 55, today()); await CycleStore.saveAthlete(aH); await goto("cf/max"); await goto("cf/progres");
     ok("progrès : lien Tes max", !!document.querySelector('a[href="#/cf/max"]'));
     await goto("cf/max"); document.getElementById("cfback").click(); await tick();
     ok("tes max : retour vers Progrès", location.hash === "#/cf/progres");
@@ -425,6 +451,7 @@
     PLCycle.markDone(aA.logs["cycle-att"], "w1s1", prevMon); aA.logs["cycle-att"].skipped = ["w1s2"];
     await CycleStore.saveAthlete(aA); await goto("cf/max"); await goto("cf/progres");
     const att1 = document.querySelector('.cf-attw[data-wi="0"]');
+    ok("assiduité : semaine en cours visible (contour ≥ 3:1)", getComputedStyle(document.querySelector(".cf-attw .cf-adot.todo")).borderTopColor === "rgb(127, 136, 155)");
     ok("assiduité : S1 faite 1, passée 1, manquées 2", !!att1 && att1.querySelectorAll(".cf-adot.done").length === 1
        && att1.querySelectorAll(".cf-adot.skipped").length === 1 && att1.querySelectorAll(".cf-adot.missed").length === 2);
     const keepMax = JSON.parse(JSON.stringify(aA.maxes)); aA.maxes = {}; await CycleStore.saveAthlete(aA); await goto("cf/max"); await goto("cf/progres");

@@ -38,13 +38,13 @@ const CycleUI = (() => {
   const CHEV = `<svg viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2 2 10l8 8"/></svg>`;
   function shell({ title, sub = "", back = null, context = "", tab = "week", kind = null, head = true }, body){
     setGround(kind);
-    if(!head){ app.innerHTML = `<div class="view cf">${body}${tabBar(tab)}</div>`; return; }
+    if(!head){ app.innerHTML = `<div class="view cf">${body}</div>${tabBar(tab, kind)}`; return; }
     const top = back || context ? `<div class="topbar">${back
       ? `<button class="back" id="cfback">${CHEV}<span>${esc(back[0])}</span></button>` : "<span></span>"}${context ? `<span class="ctx">${esc(context)}</span>` : ""}</div>` : "";
     app.innerHTML = `<div class="view cf"${kind ? ` data-kind="${kind}"` : ""}><div class="wrap">
       <header>${top}<h1${back ? ' class="sm"' : ""}>${esc(title)}</h1>${sub ? `<p class="sub">${sub}</p>` : ""}</header>
       ${body}
-    </div>${tabBar(tab)}</div>`;
+    </div></div>${tabBar(tab, kind)}`;
     if(back) $("#cfback").onclick = () => location.hash = back[1];
   }
 
@@ -55,9 +55,9 @@ const CycleUI = (() => {
     ["progres", "#/cf/progres", "Progrès", '<path d="M4 20h16"/><path d="M5 16l4.5-4.5 3.5 3L19 8"/><path d="M15 8h4v4"/>'],
     ["lib", "#/lib", "Bibliothèques", '<path d="M5 4.5h3.5v15H5z"/><path d="M10.5 4.5H14v15h-3.5z"/><path d="M15.6 5.6l3.2-.9 3 14.4-3.2.9z"/>']
   ];
-  function tabBar(active){
+  function tabBar(active, kind = null){
     if(!isMoss()) return "";
-    return `<nav class="tabbar" aria-label="Onglets">${TABS.map(([k, href, label, icon]) => `<a href="${href}"${k === active ? ' aria-current="page"' : ""}>
+    return `<nav class="tabbar" aria-label="Onglets"${kind ? ` data-kind="${kind}"` : ""}>${TABS.map(([k, href, label, icon]) => `<a href="${href}"${k === active ? ' aria-current="page"' : ""}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg><span>${label}</span></a>`).join("")}</nav>`;
   }
 
@@ -110,7 +110,8 @@ const CycleUI = (() => {
       let hero = "";
       if(hb.kind === "strength"){
         const ls = C.strengthLines(cycle, athlete.maxes, hb), t = ls[ls.length - 1], name = esc(cycle.lifts[hb.lift].name);
-        hero = `<div class="cf-nhero">${heroHtml(t.kg)}<span class="cf-nsch">${name}<br>${hb.test ? `test ${esc(hb.test)}` : esc(C.schemeOf(t))}</span></div>`;
+        const th = hb.test ? testHero(C.liftMax(cycle, athlete.maxes, hb.lift), ls, hb.test) : null;
+        hero = `<div class="cf-nhero">${th ? heroHtml(th.kg, th.load) : heroHtml(t.kg)}<span class="cf-nsch">${name}<br>${hb.test ? `test ${esc(hb.test)}` : esc(C.schemeOf(t))}</span></div>`;
       }
       feat = `<div class="cf-next">
         <h2>${esc(s.title)}</h2><p class="cf-nm">Séance ${i + 1} · ${minutesLine(s)}</p>
@@ -373,7 +374,8 @@ const CycleUI = (() => {
   const KIND_LABEL = { warmup: "Échauffement", strength: "Force", skill: "Gym", metcon: "Metcon", accessory: "Accessoire" };
   const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   const monthYear = iso => MONTHS[+iso.slice(5, 7) - 1] + " " + iso.slice(0, 4);
-  const fmtDelta = kg => kg === 0 ? "même charge" : (kg > 0 ? "+" : "\u2212") + fmtKg(Math.abs(kg));
+  const fmtDelta = kg => { const r = Math.round(kg * 10) / 10;
+    return r === 0 ? "même charge" : (r > 0 ? "+" : "\u2212") + fmtKg(Math.abs(r)); };
   const optMinutes = s => s.blocks.filter(b => b.optional).reduce((a, b) => a + (Number(b.minutes) || 0), 0);
   const minutesLine = (s, bonus) => bonus ? `${minutesOf(s) + optMinutes(s)} min, facultative`
     : `${minutesOf(s)} min${optMinutes(s) ? `, plus ${optMinutes(s)} facultatives` : ""}`;
@@ -437,8 +439,14 @@ const CycleUI = (() => {
       <div class="cf-gscale" aria-hidden="true"><span>0</span><span>50</span><span>100 % du max</span></div></div>`;
   }
 
-  const heroHtml = (kg, load = true) => `<span class="${load ? "cf-load " : ""}cf-hero">${kg != null
+  const heroHtml = (kg, load = true) => `<span class="${load ? "cf-load " : ""}cf-hero cf-n${kg != null ? String(kg).length : 1}">${kg != null
     ? `<span class="r cf-hn">${String(kg).replace(".", ",")}</span> <span class="r cf-hu">kg</span>` : `<span class="r cf-hn">—</span>`}</span>`;
+  function testHero(m, ls, test){
+    const last = ls[ls.length - 1];
+    return test === "1RM"
+      ? { kg: m ? m.kg : null, load: false, line: m ? "ton max actuel, à battre" : "pas encore de max", before: ls }
+      : { kg: last.kg, load: true, line: `dernière approche (${esc(last.sets)} × ${esc(last.reps)} à ${esc(last.pct)} %), puis monte jusqu'à ton ${esc(test)} du jour`, before: ls.slice(0, -1) };
+  }
   const listFr = xs => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + ", puis " + xs[xs.length - 1];
 
   /* force : chiffre héros, jauge, « Ce qui l'explique » (max, écart, consigne) */
@@ -447,9 +455,10 @@ const CycleUI = (() => {
     const ls = C.strengthLines(cycle, athlete.maxes, b), top = ls[ls.length - 1];
     const belt = l => l.belt ? ` <span class="cf-belt">Ceinture</span>` : "";
     const item = l => `${esc(l.sets)} × ${esc(l.reps)} à <span class="cf-load">${l.kg != null ? fmtKg(l.kg) : "—"}</span>${belt(l)}`;
-    const before = b.test ? ls : ls.slice(0, -1);
-    const hero = b.test
-      ? `${heroHtml(m ? m.kg : null, false)}<p class="cf-scheme">Test ${esc(b.test)} · ${m ? "ton max actuel, à battre" : "pas encore de max"}</p>`
+    const th = b.test ? testHero(m, ls, b.test) : null;
+    const before = th ? th.before : ls.slice(0, -1);
+    const hero = th
+      ? `${heroHtml(th.kg, th.load)}<p class="cf-scheme sm">Test ${esc(b.test)} · ${th.line}</p>`
       : `${heroHtml(top.kg)}<p class="cf-scheme">${esc(top.sets)} × ${esc(top.reps)} à ${esc(top.pct)} %${belt(top)}</p>`;
     const d = C.loadDelta(cycle, athlete.maxes, f.wi, b);
     const notes = String(b.notes || "").split("\n").map(x => x.trim()).filter(Boolean);

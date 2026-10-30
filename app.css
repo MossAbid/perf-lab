@@ -274,7 +274,7 @@ footer{margin-top:30px;text-align:center;font-size:13px;line-height:1.6;color:va
 .cf-next h2{font-size:22px;font-weight:700;line-height:1.15;letter-spacing:-.01em}
 .cf-nm{margin-top:3px;font-size:15px;color:var(--c-soft)}
 .cf-nhero{display:flex;align-items:baseline;gap:8px;margin-top:8px}
-.cf-nhero .cf-hn{font-size:76px}
+.cf-nhero{--hs:76px}
 .cf-nhero .cf-hu{font-size:24px}
 .cf-nsch{margin-left:auto;font-size:15px;color:var(--c-pale);text-align:right}
 .cf-next .cf-compo{margin-top:14px}
@@ -309,7 +309,7 @@ footer{margin-top:30px;text-align:center;font-size:13px;line-height:1.6;color:va
 .cf-lchip{flex:none;min-height:40px;padding:0 16px;border:0;border-radius:20px;background:rgba(169,195,245,.12);color:var(--c-pale);font-size:15px;font-weight:500;cursor:pointer}
 .cf-lchip[aria-pressed="true"]{background:var(--c);color:#06102A;font-weight:600}
 .cf-pmax{margin-top:18px}
-.cf-pmax .cf-hn{font-size:104px}
+.cf-pmax{--hs:104px}
 .cf-pmax .cf-hu{font-size:28px}
 .cf-pname{margin-top:8px;font-size:17px;font-weight:600}
 .cf-ptest{margin-top:3px;font-size:15px;color:var(--c-soft)}
@@ -342,8 +342,8 @@ footer{margin-top:30px;text-align:center;font-size:13px;line-height:1.6;color:va
 .cf-adot.done{background:var(--ink)}
 .cf-adot.late{background:var(--ink);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--ink-2)}
 .cf-adot.skipped{border:1.5px dashed var(--ink-2)}
-.cf-adot.missed{border:1.5px solid #5B6478}
-.cf-adot.todo{border:1.5px solid var(--line)}
+.cf-adot.missed{background:#5B6478}
+.cf-adot.todo{border:1.5px solid var(--ink-3)}   /* 5,5:1 sur le fond : la semaine en cours reste lisible */
 .cf-dlegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;font-size:12px;color:var(--ink-2)}
 .cf-dlegend > span{display:inline-flex;align-items:center;gap:6px}
 .cf-attw .cf-adot.late,.cf-dlegend .cf-adot.late{margin:0 2px}
@@ -375,10 +375,15 @@ button.cf-cseg[aria-current]::before{opacity:1}
 .cf-flag,.cf-belt{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;color:var(--c-pale);box-shadow:inset 0 0 0 1px var(--c-faint)}
 .cf-hrow{margin-top:4px}
 .cf-hero{display:inline-flex;align-items:baseline;gap:8px;color:var(--c)}
-.cf-hn{font-size:120px;font-weight:700;line-height:.92;letter-spacing:-.03em}
+/* taille du gros chiffre : --hs selon l'écran, --k selon le nombre de caractères (147,5 doit tenir en 375 px) */
+.cf-hero{--k:1;--m:1}
+.cf-hero.cf-n4{--k:.87}
+.cf-hero.cf-n5,.cf-hero.cf-n6{--k:.74}
+.cf-hn{font-size:calc(var(--hs, 120px) * var(--k) * var(--m));font-weight:700;line-height:.92;letter-spacing:-.03em}
 .cf-hu{font-size:30px;font-weight:600;color:var(--c-soft)}
-@media (max-width:359px){.cf-hn{font-size:96px}}
+@media (max-width:359px){.cf-hero{--m:.8}}
 .cf-scheme{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:22px;font-weight:600}
+.cf-scheme.sm{font-size:17px;line-height:1.35}
 .cf-before{margin-top:4px;font-size:15px;color:var(--c-soft)}
 .cf-before .cf-belt{margin-left:4px;vertical-align:1px}
 .cf-gwrap{margin-top:24px}

@@ -181,7 +181,7 @@ function renderLibrary(){
         </button>
       </div>
     </header>
-  </div>${CF ? CF.tabBar("lib") : ""}</div>`;
+  </div></div>${CF ? CF.tabBar("lib") : ""}`;
   app.querySelectorAll("[data-go]").forEach(c=> c.onclick=()=> location.hash="#/p/"+c.dataset.go );
   app.querySelector("[data-add]").onclick=()=> location.hash="#/add";
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
@@ -237,7 +237,7 @@ function renderAdd(){
     </div>
     <div class="blk"><div class="blk-h"><div class="bl">Dans ta bibliothèque</div><div class="line"></div></div>
       ${list||'<div class="blk-note">Aucun programme.</div>'}</div>
-  </div>${CF ? CF.tabBar("lib") : ""}</div>`;
+  </div></div>${CF ? CF.tabBar("lib") : ""}`;
   $("#back").onclick=()=> location.hash="#/lib";
   $("#tmpl").onclick=()=>{ $("#jsonin").value = JSON.stringify(TEMPLATE,null,2); };
   $("#import").onclick=async()=>{
@@ -302,7 +302,7 @@ function renderProgram(prog){
     <main id="main"></main>
     <button class="dbtn reset" id="reset">Réinitialiser la semaine</button>
     <footer>${esc(prog.title)} ${esc(prog.title2||'')} · ${Backend.isCloud()?"synchronisé":"local"} · surcharge progressive</footer>
-  </div>${CF ? CF.tabBar("lib") : ""}</div>`;
+  </div></div>${CF ? CF.tabBar("lib") : ""}`;
   $("#back").onclick=()=> location.hash="#/lib";
   $("#wup").onclick=()=> changeWeek(1);
   $("#wdown").onclick=()=> changeWeek(-1);
