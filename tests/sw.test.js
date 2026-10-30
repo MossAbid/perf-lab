@@ -13,7 +13,7 @@ const res = body => ({ ok: true, body, clone() { return res(body); } });
 /* Charge sw.js dans un contexte simulé ; fetchImpl et cached pilotent réseau et cache. */
 function bootSW(fetchImpl, cached) {
   const handlers = {}, puts = [];
-  const self = { addEventListener: (type, fn) => { handlers[type] = fn; }, clients: { claim() {} } };
+  const self = { addEventListener: (type, fn) => { handlers[type] = fn; }, clients: { claim() {} }, skipWaiting: async () => {} };
   const caches = {
     match: async req => (req === "./index.html" ? res("index") : cached),
     open: async () => ({ put: (req, res) => puts.push(res), addAll: async () => {} }),
@@ -25,8 +25,11 @@ function bootSW(fetchImpl, cached) {
     request: { method: "GET", url: "https://perflab.test" + url },
     respondWith: p => resolve({ p })   // emballé : sinon resolve() adopterait la promesse de réponse
   }));
-  return { get, puts };
+  const install = () => new Promise(resolve => handlers.install({ waitUntil: p => resolve(p) }));
+  return { get, puts, install };
 }
+/* fetch espion : garde (url, options) de chaque appel */
+const spy = () => { const calls = []; const f = async (url, init) => { calls.push({ url, init }); return res("réseau"); }; f.calls = calls; return f; };
 const within = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r("bloqué"), ms))]);
 
 t("code : réseau qui ne répond pas → l'app part du cache en quelques secondes", async () => {
@@ -48,6 +51,21 @@ t("code : hors-ligne et absent du cache → repli sur index.html", async () => {
   const { get } = bootSW(async () => { throw new TypeError("offline"); }, undefined);
   const r = await within((await get("/inconnu.js")).p, 5000);
   assert.equal(r.body, "index");
+});
+
+t("code : le réseau est relu sans le cache HTTP (max-age 600 de GitHub Pages)", async () => {
+  const f = spy(), { get } = bootSW(f, res("cache"));
+  await within((await get("/app.js")).p, 5000);
+  assert.equal(f.calls[0].url, "https://perflab.test/app.js");
+  assert.equal((f.calls[0].init || {}).cache, "no-cache");
+});
+
+t("installation : la coque est relue sur le réseau, pas dans le cache HTTP", async () => {
+  const f = spy(), { install, puts } = bootSW(f, undefined);
+  await install();
+  assert.ok(f.calls.length > 5, "la coque n'est pas téléchargée");
+  assert.ok(f.calls.every(c => (c.init || {}).cache === "reload"), "un fichier de la coque peut venir du cache HTTP");
+  assert.equal(puts.length, f.calls.length);
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });

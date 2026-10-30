@@ -1,7 +1,7 @@
 /* Perf Lab — service worker
    Bump CACHE quand tu modifies la coque (pas nécessaire pour programs.js
    grâce au network-first ci-dessous, mais conseillé après gros changements). */
-const CACHE = "perflab-v14";
+const CACHE = "perflab-v15";
 const NET_TIMEOUT = 3000;   // ms avant de servir la coque depuis le cache
 
 const SHELL = [
@@ -25,7 +25,12 @@ const SHELL = [
 ];
 
 self.addEventListener("install", e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
+  // relue sur le réseau (cache: reload) : sinon le cache HTTP de GitHub Pages (max-age 600)
+  // rangerait l'ancienne version de la coque sous le nouveau nom de cache
+  e.waitUntil(caches.open(CACHE).then(c=>Promise.all(SHELL.map(u=>fetch(u, { cache:"reload" }).then(r=>{
+    if(!r.ok) throw new Error(u+" : "+r.status);
+    return c.put(u, r);
+  })))).then(()=>self.skipWaiting()));
 });
 
 self.addEventListener("activate", e=>{
@@ -49,7 +54,8 @@ self.addEventListener("fetch", e=>{
   // sans copie en cache, on attend quand même le réseau.
   const isCode = sameOrigin && /\.(html|css|js)$/.test(url.pathname) || (sameOrigin && url.pathname.endsWith("/"));
   if(isCode){
-    const net = fetch(req).then(res=>{
+    // no-cache : on revalide auprès du serveur (304 si rien n'a changé) au lieu de lire le cache HTTP
+    const net = fetch(req.url, { cache:"no-cache" }).then(res=>{
       const copy = res.clone();
       caches.open(CACHE).then(c=>c.put(req, copy));
       return res;
