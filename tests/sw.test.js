@@ -9,10 +9,11 @@ let n = 0, chain = Promise.resolve();
 const t = (name, fn) => { chain = chain.then(fn).then(() => { n++; console.log("  ✓ " + name); }); };
 
 const res = body => ({ ok: true, body, clone() { return res(body); } });
+const bad = status => ({ ok: false, status, body: "erreur " + status, clone() { return bad(status); } });
 
 /* Charge sw.js dans un contexte simulé ; fetchImpl et cached pilotent réseau et cache. */
 function bootSW(fetchImpl, cached) {
-  const handlers = {}, puts = [];
+  const handlers = {}, puts = [], waits = [];
   const self = { addEventListener: (type, fn) => { handlers[type] = fn; }, clients: { claim() {} }, skipWaiting: async () => {} };
   const caches = {
     match: async req => (req === "./index.html" ? res("index") : cached),
@@ -23,10 +24,11 @@ function bootSW(fetchImpl, cached) {
     (self, caches, fetchImpl, { origin: "https://perflab.test" });
   const get = url => new Promise(resolve => handlers.fetch({
     request: { method: "GET", url: "https://perflab.test" + url },
-    respondWith: p => resolve({ p })   // emballé : sinon resolve() adopterait la promesse de réponse
+    respondWith: p => resolve({ p }),   // emballé : sinon resolve() adopterait la promesse de réponse
+    waitUntil: p => waits.push(p)
   }));
   const install = () => new Promise(resolve => handlers.install({ waitUntil: p => resolve(p) }));
-  return { get, puts, install };
+  return { get, puts, waits, install };
 }
 /* fetch espion : garde (url, options) de chaque appel */
 const spy = () => { const calls = []; const f = async (url, init) => { calls.push({ url, init }); return res("réseau"); }; f.calls = calls; return f; };
@@ -66,6 +68,38 @@ t("installation : la coque est relue sur le réseau, pas dans le cache HTTP", as
   assert.ok(f.calls.length > 5, "la coque n'est pas téléchargée");
   assert.ok(f.calls.every(c => (c.init || {}).cache === "reload"), "un fichier de la coque peut venir du cache HTTP");
   assert.equal(puts.length, f.calls.length);
+});
+
+t("code : une erreur du serveur (404, 500) n'écrase pas la copie en cache", async () => {
+  for(const status of [404, 500]){
+    const { get, puts, waits } = bootSW(async () => bad(status), res("cache"));
+    await within((await get("/app.js")).p, 5000);
+    await Promise.all(waits); await new Promise(r => setTimeout(r, 0));
+    assert.equal(puts.length, 0, "réponse " + status + " mise en cache");
+  }
+});
+
+t("code : la mise en cache est attendue par le service worker (waitUntil)", async () => {
+  const { get, puts, waits } = bootSW(async () => res("réseau"), res("cache"));
+  await within((await get("/app.js")).p, 5000);
+  assert.ok(waits.length >= 1, "écriture du cache non attendue : iOS peut la couper");
+  await Promise.all(waits);
+  assert.equal(puts.length, 1);
+});
+
+t("reste (icônes, polices) : une erreur n'est pas mise en cache", async () => {
+  const { get, puts, waits } = bootSW(async () => bad(404), undefined);
+  await within((await get("/icons/inconnue.png")).p, 5000);
+  await Promise.all(waits); await new Promise(r => setTimeout(r, 0));
+  assert.equal(puts.length, 0);
+});
+
+t("coque : chaque fichier existe dans le dépôt, polices comprises (hors ligne dès l'installation)", async () => {
+  const f = spy(), { install } = bootSW(f, undefined);
+  await install();
+  const files = f.calls.map(c => c.url).filter(u => u !== "./");
+  files.forEach(u => assert.ok(fs.existsSync(path.join(__dirname, "..", u)), u + " absent"));
+  assert.ok(files.filter(u => u.endsWith(".woff2")).length >= 3, "polices absentes de la coque");
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });

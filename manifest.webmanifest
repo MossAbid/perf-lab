@@ -1,7 +1,8 @@
 {
   "name": "Perf Lab — Bibliothèque d'entraînement",
   "short_name": "Perf Lab",
-  "description": "Tes programmes d'entraînement : animations, timer et suivi de charge, hors-ligne.",
+  "id": "./index.html",
+  "description": "Ta programmation CrossFit et tes programmes d'entraînement : charges calculées, séances, progression, hors-ligne.",
   "lang": "fr",
   "dir": "ltr",
   "start_url": "./index.html",

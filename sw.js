@@ -1,7 +1,7 @@
 /* Perf Lab — service worker
    Bump CACHE quand tu modifies la coque (pas nécessaire pour programs.js
    grâce au network-first ci-dessous, mais conseillé après gros changements). */
-const CACHE = "perflab-v18";
+const CACHE = "perflab-v19";
 const NET_TIMEOUT = 3000;   // ms avant de servir la coque depuis le cache
 
 const SHELL = [
@@ -21,7 +21,13 @@ const SHELL = [
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
-  "./icons/favicon.png"
+  "./icons/favicon.png",
+  "./fonts/anton-latin.woff2",
+  "./fonts/anton-latin-ext.woff2",
+  "./fonts/sora-latin.woff2",
+  "./fonts/sora-latin-ext.woff2",
+  "./fonts/jetbrains-mono-latin.woff2",
+  "./fonts/jetbrains-mono-latin-ext.woff2"
 ];
 
 self.addEventListener("install", e=>{
@@ -55,11 +61,8 @@ self.addEventListener("fetch", e=>{
   const isCode = sameOrigin && /\.(html|css|js)$/.test(url.pathname) || (sameOrigin && url.pathname.endsWith("/"));
   if(isCode){
     // no-cache : on revalide auprès du serveur (304 si rien n'a changé) au lieu de lire le cache HTTP
-    const net = fetch(req.url, { cache:"no-cache" }).then(res=>{
-      const copy = res.clone();
-      caches.open(CACHE).then(c=>c.put(req, copy));
-      return res;
-    });
+    const net = fetch(req.url, { cache:"no-cache" });
+    e.waitUntil(store(req, net));
     const late = new Promise((_, no)=> setTimeout(()=> no(new Error("réseau lent")), NET_TIMEOUT));
     e.respondWith(
       Promise.race([net, late]).catch(()=> caches.match(req).then(r=> r ||
@@ -68,17 +71,21 @@ self.addEventListener("fetch", e=>{
     return;
   }
 
-  // Reste (icônes, polices Google, etc.) : cache-first + mise en cache à la volée.
-  e.respondWith(
-    caches.match(req).then(cached=>{
-      if(cached) return cached;
-      return fetch(req).then(res=>{
-        if(res && (res.ok || res.type === "opaque")){
-          const copy = res.clone();
-          caches.open(CACHE).then(c=>c.put(req, copy));
-        }
-        return res;
-      }).catch(()=> cached);
-    })
-  );
+  // Reste (icônes, polices, client Supabase du CDN) : cache-first + mise en cache à la volée.
+  // store() s'abonne à la réponse avant respondWith : la copie est prise avant que la page ne lise le corps
+  e.respondWith(caches.match(req).then(cached=>{
+    if(cached) return cached;
+    const net = fetch(req);
+    e.waitUntil(store(req, net));
+    return net;
+  }));
 });
+
+/* copie en cache d'une réponse réseau valide ; une page d'erreur (404, 500) ne remplace jamais la bonne copie */
+function store(req, pending){
+  return pending.then(res=>{
+    if(!res || !res.ok) return;
+    const copy = res.clone();
+    return caches.open(CACHE).then(c=>c.put(req, copy));
+  }).catch(()=>{});
+}

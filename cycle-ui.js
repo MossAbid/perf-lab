@@ -14,7 +14,7 @@
    ================================================================================= */
 const CycleUI = (() => {
   const C = window.PLCycle;
-  const ACC = "#d7f25a";
+  const ACC = "var(--lime)";
   const PHASE = { base: "Base", montee: "Montée", surcharge: "Surcharge", decharge: "Décharge", test: "Test" };
   const DAYS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
 
@@ -250,7 +250,7 @@ const CycleUI = (() => {
   }
 
   /* ---- Ton programme : le cycle, ses objectifs, chaque semaine en charges ---- */
-  const PHASE_COLOR = { base: "#8ab4ff", montee: "#d7f25a", surcharge: "#ffb25b", decharge: "#9ba1ac", test: "#ff7a7a" };
+  const PHASE_COLOR = { base: "var(--phase-base)", montee: "var(--phase-montee)", surcharge: "var(--phase-surcharge)", decharge: "var(--phase-decharge)", test: "var(--phase-test)" };
   let PS = { wi: 0 };
   function progLine(l){
     if(l.kind === "strength") return `<span>${esc(l.name)} · ${l.test
@@ -271,7 +271,7 @@ const CycleUI = (() => {
       ${cycle.goals.map(g => `<div class="cf-goal"><span class="cf-glab">${esc(g.label)}</span><span>${esc(g.text)}</span></div>`).join("")}</div>` : "";
     const strip = cycle.weeks.map((w, i) => `<button class="cf-wk" data-week="${i}" aria-pressed="${i === PS.wi}"
         aria-label="Semaine ${i + 1}, ${esc(PHASE[w.phase] || w.phase)}"><span>${i + 1}</span>
-        <span class="cf-wbar" style="background:${PHASE_COLOR[w.phase] || "#9ba1ac"}"></span></button>`).join("");
+        <span class="cf-wbar" style="background:${PHASE_COLOR[w.phase] || PHASE_COLOR.decharge}"></span></button>`).join("");
     const legend = Object.keys(PHASE).map(k => `<span><span class="cf-wbar" style="background:${PHASE_COLOR[k]}"></span>${PHASE[k]}</span>`).join("");
     const card = (sid, head, body, st) => `<button class="cf-pcard" data-psess="${esc(sid)}">
         <span class="cf-pbody"><b>${head}</b>${body}</span>${st ? `<span class="cf-bdate">${st}</span>` : ""}</button>`;
@@ -286,7 +286,7 @@ const CycleUI = (() => {
       <div class="cf-strip">${strip}</div>
       <div class="cf-plegend">${legend}</div>
       <div class="cf-whead">
-        <div class="cf-lab" style="color:${PHASE_COLOR[p.phase] || "#9ba1ac"}">Semaine ${p.n} · ${esc(PHASE[p.phase] || p.phase)}${p.bloc && p.phase !== "test" ? ` · Bloc ${esc(p.bloc)}` : ""}</div>
+        <div class="cf-lab" style="color:${PHASE_COLOR[p.phase] || PHASE_COLOR.decharge}">Semaine ${p.n} · ${esc(PHASE[p.phase] || p.phase)}${p.bloc && p.phase !== "test" ? ` · Bloc ${esc(p.bloc)}` : ""}</div>
         <div class="cf-wdates">${ddmm(p.start)} → ${ddmm(p.end)}</div>
         ${p.intent ? `<p class="cf-p">${esc(p.intent)}</p>` : ""}
       </div>

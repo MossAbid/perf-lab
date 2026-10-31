@@ -366,7 +366,7 @@ function exCard(s,ex,blockTimer){
         :entry.next<entry.tier?"→ retour à : "+PL.tierLabel(ex.tiers,entry.next)
         :"→ maintien du palier") : "";
     const rv=d.rpe!=null?+d.rpe:null;
-    rpeHtml=`<div class="setlab" style="margin-top:12px">RPE 0-10 après l'exercice — ≤6 monte · 7-8 maintient · ≥9 ou douleur descend</div>
+    rpeHtml=`<div class="setlab top">RPE 0-10 après l'exercice — ≤6 monte · 7-8 maintient · ≥9 ou douleur descend</div>
       <div class="rpe-pick" role="group" aria-label="RPE de l'exercice">${Array.from({length:11},(_,v)=>
         `<button class="rpe-b${rv===v?" on":""}" data-rs="${esc(s.id)}" data-rk="${esc(ex.k)}" data-v="${v}" aria-pressed="${rv===v}">${v}</button>`).join("")}</div>
       <div class="rpe-row">
@@ -379,7 +379,7 @@ function exCard(s,ex,blockTimer){
     const cur=tests.find(t=>t.d===today());
     const hist=tests.slice(-6).map(t=>
       `<span class="tres${t.reps>0?" win":""}">${esc(t.d.slice(5).split("-").reverse().join("/"))} → ${t.reps}</span>`).join("");
-    testHtml=`<div class="setlab" style="margin-top:12px">Résultat du jour — répétitions strictes réussies</div>
+    testHtml=`<div class="setlab top">Résultat du jour — répétitions strictes réussies</div>
       <div class="rpe-row">
         <input class="load tin" type="number" inputmode="numeric" min="0" placeholder="–" value="${cur?cur.reps:""}" data-tt="${esc(ex.k)}" aria-label="Répétitions strictes réussies">
         <span class="rpe-next" data-tout="${esc(ex.k)}"></span>
