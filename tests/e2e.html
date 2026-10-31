@@ -47,6 +47,10 @@
   const ok = (name, cond) => out.push((cond ? "E2E-PASS " : "E2E-FAIL ") + name);
   const tick = (ms = 60) => new Promise(r => setTimeout(r, ms));
   const goto = async h => { location.hash = h; await tick(); };
+  const lum = c => .2126 * ch(c, 0) + .7152 * ch(c, 1) + .0722 * ch(c, 2);
+  const ch = (c, i) => { const v = +c.match(/[\d.]+/g)[i] / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const EMOJI = /[\u{1F4BE}\u{1F4F6}\u{1F3AF}\u{26A1}\u{1F389}]/u;   // 💾 📶 🎯 ⚡ 🎉
 
   const wl = { n: 0, released: 0, request(){ wl.n++; const s = new EventTarget();
     s.release = async () => { wl.released++; s.dispatchEvent(new Event("release")); }; return Promise.resolve(s); } };
@@ -64,6 +68,16 @@
     ok("clé legacy supprimée", localStorage.getItem("perflab.programs") === null);
     ok("semaine legacy migrée", Backend.getWeek("legacy-prog") === 2);
     ok("sélecteur profils Moss/Souad", document.querySelectorAll(".profbtn").length === 2);
+    ok("cartes de la bibliothèque : de vrais liens",
+       [...document.querySelectorAll(".card[data-go]")].every(c => c.tagName === "A" && c.getAttribute("href") === "#/p/" + c.dataset.go)
+       && document.querySelector("[data-add]").tagName === "A");
+    ok("profil actif annoncé (aria-pressed)", document.querySelector(".profbtn.active").getAttribute("aria-pressed") === "true"
+       && document.querySelector(".profbtn:not(.active)").getAttribute("aria-pressed") === "false");
+    ok("bibliothèque sans emoji", !EMOJI.test(document.getElementById("app").innerHTML));
+    toast("test");
+    ok("toast lu par le lecteur d'écran", document.getElementById("toast").getAttribute("role") === "status");
+    const idx = await (await fetch("../index.html", { cache: "no-store" })).text();
+    ok("zoom autorisé (plus de user-scalable=no ni maximum-scale)", !/user-scalable\s*=\s*no|maximum-scale/.test(idx));
     ok("profil actif par défaut : Moss", Backend.activeProfile() === "moss");
 
     /* 2. bascule Souad : bibliothèque indépendante */
@@ -100,6 +114,8 @@
 
     /* 3. import ancien format pendant que Souad est actif → rattaché à Moss, silencieusement */
     await goto("add");
+    ok("JSON à coller : 16 px et étiqueté", parseFloat(getComputedStyle(document.getElementById("jsonin")).fontSize) >= 16
+       && !!document.getElementById("jsonin").getAttribute("aria-label"));
     document.getElementById("jsonin").value = JSON.stringify(
       { id:"import-test", title:"IMPORT", sessions:[{ id:"s1", blocks:[] }] });
     document.getElementById("import").click();
@@ -134,6 +150,17 @@
     ok("série, charge, RPE et douleur : 44 px au moins",
        h44('.setbtn[data-k="rdl"]') && h44('.load[data-lk="rdl"]') && h44('.rpe-b[data-rk="rdl"]') && h44('.painbtn[data-pk="rdl"]'));
     ok("charge saisie en 16 px (pas de zoom iOS au focus)", parseFloat(getComputedStyle(document.querySelector(".load")).fontSize) >= 16);
+    const exTop = document.querySelector("[data-ex] .ex-top");
+    ok("en-tête d'exercice : un bouton replié", exTop.tagName === "BUTTON" && exTop.getAttribute("aria-expanded") === "false");
+    exTop.click(); await tick();
+    ok("en-tête d'exercice : déplié annoncé", exTop.getAttribute("aria-expanded") === "true" && exTop.closest("[data-ex]").classList.contains("open"));
+    const ld = document.querySelector('.load[data-lk="rdl"]');
+    ok("charge : champ étiqueté", /Charge série 1/.test(ld.getAttribute("aria-label") || ""));
+    ok("bord des champs : contraste ≥ 3:1 (WCAG 1.4.11)", ratio(getComputedStyle(ld).borderTopColor, getComputedStyle(ld.closest(".ex")).backgroundColor) >= 3);
+    ok("semaine : boutons étiquetés", document.getElementById("wup").getAttribute("aria-label") === "Semaine suivante"
+       && document.getElementById("wdown").getAttribute("aria-label") === "Semaine précédente");
+    ok("Animer, Vidéo et Réinitialiser : 44 px", h44(".gbtn") && h44("#reset"));
+    ok("séance de bibliothèque sans emoji", !EMOJI.test(document.getElementById("main").innerHTML));
     const wbtn = document.getElementById("wup"), wr = wbtn.getBoundingClientRect();
     ok("stepper semaine : zone de tap élargie à 44 px", document.elementFromPoint(wr.left + wr.width / 2, wr.top - 5) === wbtn
        && document.elementFromPoint(wr.left + wr.width / 2, wr.bottom + 5) === wbtn);
@@ -147,6 +174,8 @@
     rdlBtns[0].click(); await tick();
     const restEl = rdlBtns[0].closest("[data-ex]").querySelector("[data-rest]");
     ok("repos inline affiché après une série", !restEl.hidden && restEl.textContent.includes("REPOS"));
+    ok("repos : un bouton", restEl.tagName === "BUTTON");
+    ok("série cochée annoncée (aria-pressed)", rdlBtns[0].getAttribute("aria-pressed") === "true" && rdlBtns[1].getAttribute("aria-pressed") === "false");
     // écran verrouillé : les intervalles ralentissent, le repos doit suivre l'heure réelle
     const realNow = Date.now; Date.now = () => realNow() + 10 * 60e3; await tick(400); Date.now = realNow;
     ok("repos calé sur l'heure réelle : fini après 10 min d'écran verrouillé", restEl.hidden);
@@ -160,6 +189,7 @@
     // douleur → retour au palier précédent (50 kg)
     document.querySelector('.painbtn[data-pk="rdl"]').click();
     await tick();
+    ok("douleur annoncée (aria-pressed)", document.querySelector('.painbtn[data-pk="rdl"]').getAttribute("aria-pressed") === "true");
     ok("douleur → retour à 50 kg", next.textContent.includes("50 kg"));
     // état persistant
     const prog = Backend.loadProgression();
@@ -252,7 +282,9 @@
     await goto("cf"); await goto("cf/s/w1s1");
     ok("score de la séance non répété en « Dernière fois »",
        ![...document.querySelectorAll(".cf-sline")].some(e => e.textContent.includes("Dernière fois")));
-    document.getElementById("cfdone").click(); await tick(100);
+    const cfd = document.getElementById("cfdone"); cfd.click();
+    ok("séance faite : bouton désactivé pendant l'envoi", cfd.disabled);
+    await tick(100);
     document.getElementById("cfundo").click(); await tick(100);
     ok("annuler : la séance redevient à faire",
        !CycleStore.getAthlete().logs["cycle-1"].done.w1s1 && !document.getElementById("cfdone").disabled);

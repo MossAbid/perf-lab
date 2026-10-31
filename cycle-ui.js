@@ -31,6 +31,8 @@ const CycleUI = (() => {
   }
   const minutesOf = s => s.blocks.filter(b => !b.optional).reduce((a, b) => a + (Number(b.minutes) || 0), 0);
   const isMoss = () => Backend.activeProfile() === "moss";
+  /* bouton désactivé pendant l'envoi : pas de double tap pendant que Supabase répond */
+  const busy = fn => async function(){ if(this.disabled) return; this.disabled = true; try{ await fn(); } finally{ this.disabled = false; } };
 
   /* gabarit commun ; le défilement est remis en haut par route(), pas ici :
      déplier un bloc re-rend l'écran sans faire sauter la page */
@@ -61,12 +63,12 @@ const CycleUI = (() => {
         : "Semaine bouclée. Reste le team WOD.";
       meta = `Semaine ${v.weekIndex + 1}/${cycle.weeks.length} · ${done}/4`;
     }
-    return `<div class="card cfcard" data-cf style="--c-accent:${ACC}">
+    return `<a class="card cfcard" href="#/cf" data-cf style="--c-accent:${ACC}">
       <div class="tag">Programmation</div><div class="dot"></div>
       <div class="ct">TA <em>SEMAINE</em></div>
       <div class="cb">${blurb}</div>
       <div class="cs">${meta}</div>
-    </div>`;
+    </a>`;
   }
 
   /* ---- Ta semaine ---- */
@@ -154,20 +156,20 @@ const CycleUI = (() => {
       ${footer()}`);
 
     app.querySelectorAll("[data-open],[data-sess]").forEach(b => b.onclick = () => location.hash = "#/cf/s/" + (b.dataset.open || b.dataset.sess));
-    app.querySelectorAll("[data-decide]").forEach(b => b.onclick = async () => {
+    app.querySelectorAll("[data-decide]").forEach(b => b.onclick = busy(async () => {
       const a = CycleStore.getAthlete();
       C.applyDecision(logFor(a, cycle), cycle, today(), b.dataset.decide);
       await CycleStore.saveAthlete(a);
       toast(b.dataset.decide === "skip" ? "Séances passées : on reprend au calendrier." : "On rattrape dans l'ordre.");
       renderWeek();
-    });
-    app.querySelectorAll("[data-bonus]").forEach(b => b.onclick = async () => {
+    }));
+    app.querySelectorAll("[data-bonus]").forEach(b => b.onclick = busy(async () => {
       const a = CycleStore.getAthlete();
       C.markBonus(logFor(a, cycle), b.dataset.bonus, today());
       await CycleStore.saveAthlete(a);
       toast("Bonus noté.");
       renderWeek();
-    });
+    }));
     bindFooter();
   }
 
@@ -319,7 +321,7 @@ const CycleUI = (() => {
   }
   function bindFooter(){
     const o = $("#cfout");
-    if(o) o.onclick = async () => { await CycleStore.signOut(); toast("Déconnecté."); renderLogin(); };
+    if(o) o.onclick = busy(async () => { await CycleStore.signOut(); toast("Déconnecté."); renderLogin(); });
   }
 
   /* ---- connexion (CLOUD) : pas de création de compte ici ---- */
@@ -327,12 +329,12 @@ const CycleUI = (() => {
     shell("Programmation", "TA <em>SEMAINE</em>", `
       <p class="lede">Connecte-toi pour retrouver ta programmation sur tous tes appareils.</p>
       <div class="authbox">
-        <input id="cfemail" type="email" inputmode="email" autocomplete="email" placeholder="email">
-        <input id="cfpw" type="password" autocomplete="current-password" placeholder="mot de passe">
+        <input id="cfemail" type="email" inputmode="email" autocomplete="email" placeholder="email" aria-label="Email">
+        <input id="cfpw" type="password" autocomplete="current-password" placeholder="mot de passe" aria-label="Mot de passe">
         <div class="autherr" id="cferr"></div>
         <div class="authbtns"><button class="dbtn go" id="cfsignin">Se connecter</button></div>
       </div>`);
-    $("#cfsignin").onclick = async () => {
+    $("#cfsignin").onclick = busy(async () => {
       const e = $("#cfemail").value.trim(), p = $("#cfpw").value;
       if(!e || !p){ $("#cferr").textContent = "Email et mot de passe requis."; return; }
       try{
@@ -340,7 +342,7 @@ const CycleUI = (() => {
         await CycleStore.refresh();
         if(location.hash === "#/cf") renderWeek(); else location.hash = "#/cf";
       }catch(ex){ $("#cferr").textContent = (ex && ex.message) || String(ex) || "Connexion impossible."; }
-    };
+    });
   }
 
   /* ---- Séance ----
@@ -464,7 +466,7 @@ const CycleUI = (() => {
       renderSession(sid);
     });
     const save = $("#cfsave");
-    if(save) save.onclick = async () => {
+    if(save) save.onclick = busy(async () => {
       let sc;
       try{ sc = C.parseScore(metcon.score, $("#cfscore").value); }
       catch(m){ SS.err = String(m); $(".cf-err").textContent = SS.err; return; }
@@ -474,23 +476,23 @@ const CycleUI = (() => {
       await CycleStore.saveAthlete(a);
       toast("Score enregistré.");
       renderSession(sid);
-    };
+    });
     const undo = $("#cfundo");
-    if(undo) undo.onclick = async () => {
+    if(undo) undo.onclick = busy(async () => {
       const a = CycleStore.getAthlete(), l = logFor(a, cycle);
       if(f.bonus) C.unmarkBonus(l, sid); else C.unmarkDone(l, sid);
       await CycleStore.saveAthlete(a);
       toast("Séance remise à faire.");
       renderSession(sid);
-    };
+    });
     const done = $("#cfdone");
-    if(done && !done.disabled) done.onclick = async () => {
+    if(done && !done.disabled) done.onclick = busy(async () => {
       const a = CycleStore.getAthlete(), l = logFor(a, cycle);
       if(f.bonus) C.markBonus(l, sid, today()); else C.markDone(l, sid, today());
       await CycleStore.saveAthlete(a);
       toast(f.bonus ? "Bonus noté." : "Séance enregistrée — bien joué.");
       renderSession(sid);
-    };
+    });
   }
 
   /* ---- Tes max ----
@@ -506,8 +508,8 @@ const CycleUI = (() => {
       : `<span class="cf-mest">${est ? `estimé : ${fmtKg(Math.round(est.kg))}` : "à tester"}</span>`;
     const editor = editLift === id ? `
       <div class="cf-medit">
-        <input id="cfmkg" type="text" inputmode="decimal" placeholder="kg" value="${own ? String(own.kg).replace(".", ",") : ""}">
-        <input id="cfmdate" type="date" value="${today()}">
+        <input id="cfmkg" type="text" inputmode="decimal" placeholder="kg" aria-label="Max en kg" value="${own ? String(own.kg).replace(".", ",") : ""}">
+        <input id="cfmdate" type="date" value="${today()}" aria-label="Date du max">
         <button class="dbtn go" id="cfmsave">OK</button>
         <div class="cf-err" id="cfmerr"></div>
       </div>` : "";
@@ -545,7 +547,7 @@ const CycleUI = (() => {
       const k = $("#cfmkg"); if(k) k.focus();
     });
     const save = $("#cfmsave");
-    if(save) save.onclick = async () => {
+    if(save) save.onclick = busy(async () => {
       const kg = parseFloat(String($("#cfmkg").value).replace(",", ".").replace(/\s*kg$/i, ""));
       const d = $("#cfmdate").value || today();
       if(!(kg > 0 && kg < 500)){ $("#cfmerr").textContent = "Une charge en kg est attendue (ex. 57,5)."; return; }
@@ -556,7 +558,7 @@ const CycleUI = (() => {
       toast(`${cycle.lifts[editLift].name} : ${fmtKg(kg)}`);
       editLift = null;
       renderMax();
-    };
+    });
   }
 
   /* ---- Importer un cycle (JSON perflab-cycle-v1) ---- */
@@ -564,17 +566,17 @@ const CycleUI = (() => {
     const cur = CycleStore.getCycle();
     shell("Programmation", "IMPORTER <em>UN CYCLE</em>", `
       <p class="lede">Colle le JSON du cycle. Il remplace le cycle en cours${cur ? ` (${esc(cur.title)})` : ""} ; tes séances faites, tes scores et tes max sont conservés.</p>
-      <textarea id="cfjson" class="cf-json" spellcheck="false" placeholder='{ "schema": "perflab-cycle-v1", … }'></textarea>
+      <textarea id="cfjson" class="cf-json" spellcheck="false" placeholder='{ "schema": "perflab-cycle-v1", … }' aria-label="JSON du cycle"></textarea>
       <div class="cf-err" id="cfimperr"></div>
       <button class="dbtn go cf-wide" id="cfimport">Importer</button>`, ["Ta semaine", "#/cf"]);
-    $("#cfimport").onclick = async () => {
+    $("#cfimport").onclick = busy(async () => {
       const err = m => { $("#cfimperr").textContent = m; };
       let cycle;
       try{ cycle = JSON.parse($("#cfjson").value); }catch(e){ return err("JSON invalide : " + e.message); }
       try{ await CycleStore.importCycle(cycle); }catch(m){ return err((m && m.message) || String(m)); }
       toast("Cycle importé.");
       location.hash = "#/cf";
-    };
+    });
   }
 
   /* ---- Fiches mouvement ----

@@ -68,7 +68,7 @@ function weekState(pid,wk){ PROGRESS[pid]=PROGRESS[pid]||{}; PROGRESS[pid]["w"+w
 
 /* ---- toast ---- */
 let toastT=null;
-function toast(msg){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t); }
+function toast(msg){ let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; t.setAttribute("role","status"); t.setAttribute("aria-live","polite"); document.body.appendChild(t); }
   t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
 
 /* ---- BOOT ---- */
@@ -135,8 +135,8 @@ function renderAuth(){
     <h1>PERF <em>LAB</em></h1>
     <p class="lede">Connecte-toi pour retrouver tes programmes et tes charges sur tous tes appareils.</p>
     <div class="authbox">
-      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="email">
-      <input id="pw" type="password" autocomplete="current-password" placeholder="mot de passe">
+      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="email" aria-label="Email">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="mot de passe" aria-label="Mot de passe">
       <div class="autherr" id="autherr"></div>
       <div class="authbtns">
         <button class="dbtn go" id="signin">Se connecter</button>
@@ -158,15 +158,15 @@ function renderLibrary(){
   setAccent("#ffb02e");
   const cloud = Backend.isCloud(), u = Backend.user();
   const cards = LIBRARY.map(p=>`
-    <div class="card" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'#ffb02e')}">
+    <a class="card" href="#/p/${esc(p.id)}" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'#ffb02e')}">
       <div class="tag">${esc(p.tag||'')}</div><div class="dot"></div>
       <div class="ct">${esc(p.title||'')} <em>${esc(p.title2||'')}</em></div>
       <div class="cb">${esc(p.blurb||'')}</div>
       <div class="cmeta">${(p.meta||[]).map(m=>`<span>${esc(m)}</span>`).join("")}</div>
-    </div>`).join("");
+    </a>`).join("");
   const prof = Backend.activeProfile();
   const profSel = cloud ? "" : `<div class="profsel">${Backend.profiles().map(p=>
-    `<button class="profbtn${p.id===prof?" active":""}" data-prof="${esc(p.id)}">${esc(p.name)}</button>`).join("")}</div>`;
+    `<button class="profbtn${p.id===prof?" active":""}" data-prof="${esc(p.id)}" aria-pressed="${p.id===prof}">${esc(p.name)}</button>`).join("")}</div>`;
   /* assiduité : 14 derniers jours du journal de séances du profil */
   const log = Backend.getLog();
   const doneDays = new Set(log.map(e=>e.d));
@@ -183,7 +183,7 @@ function renderLibrary(){
   const staleDays = le ? Math.floor((Date.now()-le)/864e5) : null;
   const warn = (!le && hasData) || (staleDays!=null && staleDays>7);
   const backupHtml = cloud ? "" : `<div class="backup${warn?" warn":""}">
-      <span>💾 Sauvegarde : ${le ? (staleDays===0?"aujourd'hui":"il y a "+staleDays+" j") : "jamais"}</span>
+      <span>Sauvegarde : ${le ? (staleDays===0?"aujourd'hui":"il y a "+staleDays+" j") : "jamais"}</span>
       <button class="dbtn" id="backup">Exporter</button>
     </div>`;
   app.innerHTML = `<div class="view"><div class="wrap">
@@ -199,17 +199,14 @@ function renderLibrary(){
       <div class="lib">
         ${CF ? CF.libraryCard() : ""}
         ${cards}
-        <div class="card add" data-add>
+        <a class="card add" href="#/add" data-add>
           <div class="plus">＋</div>
           <div class="ct">AJOUTER</div>
           <div class="cb">Colle un programme (JSON) — il apparaît partout.</div>
-        </div>
+        </a>
       </div>
     </header>
   </div></div>`;
-  app.querySelectorAll("[data-go]").forEach(c=> c.onclick=()=> location.hash="#/p/"+c.dataset.go );
-  app.querySelector("[data-add]").onclick=()=> location.hash="#/add";
-  const cfc=app.querySelector("[data-cf]"); if(cfc) cfc.onclick=()=> location.hash="#/cf";
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
     if(b.dataset.prof===Backend.activeProfile()) return;
     Backend.setProfile(b.dataset.prof);
@@ -254,7 +251,7 @@ function renderAdd(){
       <p class="lede">Colle un programme au format JSON puis <b>Importer</b>. Astuce : demande à Claude « génère-moi un programme Perf Lab pour … » et colle sa réponse ici.</p>
     </header>
     <div class="addbox">
-      <textarea id="jsonin" spellcheck="false" placeholder="{ ... programme JSON ... }"></textarea>
+      <textarea id="jsonin" spellcheck="false" placeholder="{ ... programme JSON ... }" aria-label="JSON du programme"></textarea>
       <div class="autherr" id="adderr"></div>
       <div class="authbtns">
         <button class="dbtn go" id="import">Importer</button>
@@ -318,9 +315,9 @@ function renderProgram(prog){
       <p class="lede">${esc(prog.intro||'')}</p>
       <div class="meta">
         <div class="weekbox"><span class="wl">Semaine</span>
-          <button class="wbtn" id="wdown">−</button>
+          <button class="wbtn" id="wdown" aria-label="Semaine précédente">−</button>
           <div class="wnum" id="wnum">${wk}</div>
-          <button class="wbtn" id="wup">+</button></div>
+          <button class="wbtn" id="wup" aria-label="Semaine suivante">+</button></div>
         <div class="gprog"><div class="bar"><div class="fill" id="gfill"></div></div>
           <div class="lab"><span id="gtxt">0 / 0</span><span id="gpct">0%</span></div></div>
       </div>
@@ -344,7 +341,7 @@ function changeWeek(d){
 function renderTabs(){
   const tabs=$("#tabs"); tabs.innerHTML="";
   CUR.sessions.forEach(s=>{ const b=document.createElement("button");
-    b.className="tab"+(s.id===activeSession?" active":"");
+    b.className="tab"+(s.id===activeSession?" active":""); b.setAttribute("aria-pressed",s.id===activeSession);
     b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'#ffb02e')}"></span><div class="t">${esc(sText(s))}</div><div class="s">${esc(s.sub||'')}</div>`;
     b.onclick=()=>{ activeSession=s.id; setAccent(s.accent||"#ffb02e"); renderTabs(); renderSession(); updateGlobal(); };
     tabs.appendChild(b); });
@@ -356,12 +353,12 @@ function exCard(s,ex,blockTimer){
   const d=(st[s.id]&&st[s.id][ex.k])||{done:[],load:[]};
   const sets=ex.sets||1; let setsHtml="";
   for(let i=0;i<sets;i++){ const done=d.done&&d.done[i]; const lv=(d.load&&d.load[i]!=null)?d.load[i]:"";
-    setsHtml+=`<div class="setcol"><button class="setbtn${done?" done":""}" data-s="${esc(s.id)}" data-k="${esc(ex.k)}" data-i="${i}">${i+1}</button>${ex.load?`<input class="load" type="number" inputmode="decimal" placeholder="–" value="${esc(lv)}" data-ls="${esc(s.id)}" data-lk="${esc(ex.k)}" data-li="${i}"><div class="loadu">kg</div>`:""}</div>`; }
+    setsHtml+=`<div class="setcol"><button class="setbtn${done?" done":""}" data-s="${esc(s.id)}" data-k="${esc(ex.k)}" data-i="${i}" aria-label="Série ${i+1}" aria-pressed="${!!done}">${i+1}</button>${ex.load?`<input class="load" type="number" inputmode="decimal" placeholder="–" value="${esc(lv)}" data-ls="${esc(s.id)}" data-lk="${esc(ex.k)}" data-li="${i}" aria-label="Charge série ${i+1} (kg)"><div class="loadu" aria-hidden="true">kg</div>`:""}</div>`; }
   const entry=PROGRESSION[CUR.id]&&PROGRESSION[CUR.id][ex.k];
   let tierHtml="", rpeHtml="", testHtml="";
   if(ex.tiers && Array.isArray(ex.tiers.steps) && ex.tiers.steps.length){
     const ti=PL.effectiveTier(PROGRESSION,CUR.id,ex.k,wk,ex.tiers);
-    tierHtml=`<div class="target tier"><span class="t-ico">📶</span>Palier ${ti+1}/${ex.tiers.steps.length} — ${esc(PL.tierLabel(ex.tiers,ti))}</div>`;
+    tierHtml=`<div class="target tier">Palier ${ti+1}/${ex.tiers.steps.length} — ${esc(PL.tierLabel(ex.tiers,ti))}</div>`;
     const spark=PL.sparklineSVG(entry&&entry.hist, ex.tiers);
     if(spark) tierHtml+=`<div class="sparkrow">${spark}<span class="sparklab">évolution du palier</span></div>`;
     const prop=(entry&&entry.week===wk&&entry.next!=null)
@@ -373,7 +370,7 @@ function exCard(s,ex,blockTimer){
       <div class="rpe-pick" role="group" aria-label="RPE de l'exercice">${Array.from({length:11},(_,v)=>
         `<button class="rpe-b${rv===v?" on":""}" data-rs="${esc(s.id)}" data-rk="${esc(ex.k)}" data-v="${v}" aria-pressed="${rv===v}">${v}</button>`).join("")}</div>
       <div class="rpe-row">
-        <button class="painbtn${d.pain?" on":""}" data-ps="${esc(s.id)}" data-pk="${esc(ex.k)}">⚡ Douleur</button>
+        <button class="painbtn${d.pain?" on":""}" data-ps="${esc(s.id)}" data-pk="${esc(ex.k)}" aria-pressed="${!!d.pain}">Douleur</button>
         <span class="rpe-next" data-ns="${esc(s.id)}" data-nk="${esc(ex.k)}">${esc(prop)}</span>
       </div>`;
   }
@@ -384,24 +381,24 @@ function exCard(s,ex,blockTimer){
       `<span class="tres${t.reps>0?" win":""}">${esc(t.d.slice(5).split("-").reverse().join("/"))} → ${t.reps}</span>`).join("");
     testHtml=`<div class="setlab" style="margin-top:12px">Résultat du jour — répétitions strictes réussies</div>
       <div class="rpe-row">
-        <input class="load tin" type="number" inputmode="numeric" min="0" placeholder="–" value="${cur?cur.reps:""}" data-tt="${esc(ex.k)}">
+        <input class="load tin" type="number" inputmode="numeric" min="0" placeholder="–" value="${cur?cur.reps:""}" data-tt="${esc(ex.k)}" aria-label="Répétitions strictes réussies">
         <span class="rpe-next" data-tout="${esc(ex.k)}"></span>
       </div>
       ${hist?`<div class="tresrow">${hist}</div>`:""}`;
   }
   return `<div class="ex" data-ex data-rest-s="${blockTimer||90}">
-    <div class="ex-top" data-toggle>
-      <div class="anim a-${esc(ex.anim||'pulse')}">${figFor(ex.anim)}</div>
-      <div class="ex-id"><div class="ex-name">${esc(ex.name)}</div><div class="ex-scheme">${esc(ex.reps||'')}</div></div>
-      <div class="chev">▶</div></div>
+    <button class="ex-top" data-toggle aria-expanded="false">
+      <span class="anim a-${esc(ex.anim||'pulse')}">${figFor(ex.anim)}</span>
+      <span class="ex-id"><span class="ex-name">${esc(ex.name)}</span><span class="ex-scheme">${esc(ex.reps||'')}</span></span>
+      <span class="chev" aria-hidden="true">▶</span></button>
     <div class="ex-body"><div class="ex-inner">
       <div class="cue">${esc(ex.cue||'')}</div>
-      ${ex.target?`<div class="target"><span class="t-ico">🎯</span>Charge cible — ${esc(ex.target)}</div>`:""}
+      ${ex.target?`<div class="target">Charge cible — ${esc(ex.target)}</div>`:""}
       ${tierHtml}
       ${ex.tempo?tempoGrid(ex.tempo,ex.key||0):""}
       <div class="setlab">Séries — coche${ex.load?" + note ta charge":""}</div>
       <div class="sets">${setsHtml}</div>
-      <div class="rest" data-rest hidden></div>
+      <button class="rest" data-rest hidden></button>
       ${rpeHtml}
       ${testHtml}
       <div class="exbtns">
@@ -460,10 +457,10 @@ function startRest(card, sec){
 }
 function bindSession(){
   const main=$("#main");
-  main.querySelectorAll("[data-toggle]").forEach(t=>{ t.onclick=e=>{ if(e.target.closest("[data-play]")||e.target.closest("a"))return; t.closest("[data-ex]").classList.toggle("open"); }; });
+  main.querySelectorAll("[data-toggle]").forEach(t=>{ t.onclick=()=>{ t.setAttribute("aria-expanded", t.closest("[data-ex]").classList.toggle("open")); }; });
   main.querySelectorAll(".setbtn").forEach(b=>{ b.onclick=()=>{ const {s,k,i}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     unlockAudio();
-    st[s]=st[s]||{}; st[s][k]=st[s][k]||{done:[],load:[]}; st[s][k].done[i]=!st[s][k].done[i]; b.classList.toggle("done",st[s][k].done[i]);
+    st[s]=st[s]||{}; st[s][k]=st[s][k]||{done:[],load:[]}; st[s][k].done[i]=!st[s][k].done[i]; b.classList.toggle("done",st[s][k].done[i]); b.setAttribute("aria-pressed",!!st[s][k].done[i]);
     Backend.saveProgress(CUR.id,wk,st); updateGlobal(); reevaluate(s,k);
     // repos auto après une série cochée, sauf la dernière de l'exercice
     if(st[s][k].done[i]){
@@ -482,7 +479,7 @@ function bindSession(){
     Backend.saveProgress(CUR.id,wk,st); reevaluate(rs,rk); }; });
   main.querySelectorAll(".painbtn").forEach(b=>{ b.onclick=()=>{ const {ps,pk}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[ps]=st[ps]||{}; st[ps][pk]=st[ps][pk]||{done:[],load:[]};
-    st[ps][pk].pain=!st[ps][pk].pain; b.classList.toggle("on",st[ps][pk].pain);
+    st[ps][pk].pain=!st[ps][pk].pain; b.classList.toggle("on",st[ps][pk].pain); b.setAttribute("aria-pressed",st[ps][pk].pain);
     Backend.saveProgress(CUR.id,wk,st); reevaluate(ps,pk); }; });
   main.querySelectorAll(".tin").forEach(inp=>{ inp.onchange=()=>{ const k=inp.dataset.tt;
     if(inp.value==="") return;
@@ -490,7 +487,7 @@ function bindSession(){
     PL.recordTest(PROGRESSION,CUR.id,k,today(),v);
     Backend.saveProgression(PROGRESSION);
     const out=main.querySelector(`[data-tout="${k}"]`);
-    if(out) out.textContent = v>0 ? "🎉 "+v+" stricte"+(v>1?"s":"")+" — enregistré" : "enregistré — la prochaine est pour bientôt";
+    if(out) out.textContent = v>0 ? "✓ "+v+" stricte"+(v>1?"s":"")+" — enregistré" : "enregistré — la prochaine est pour bientôt";
     toast("Test enregistré."); }; });
   main.querySelectorAll("[data-play]").forEach(p=>{ p.onclick=()=>{ const a=p.closest("[data-ex]").querySelector(".anim"); const on=a.classList.toggle("go"); p.classList.toggle("on",on); }; });
 }
