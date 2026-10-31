@@ -113,8 +113,8 @@ const CycleUI = (() => {
     if(v.nextId){
       const i = w.sessions.findIndex(x => x.id === v.nextId), s = w.sessions[i];
       next = `<div class="cf-next">
-        <div class="cf-lab">Prochaine séance</div>
-        <div class="cf-nt">Séance ${i + 1} · ${esc(s.title)}</div>
+        <div class="cf-lab">Prochaine séance · ${i + 1} sur 4</div>
+        <div class="cf-nt">${esc(s.title)}</div>
         <div class="cf-nm">${minutesOf(s)} min · ${s.blocks.filter(b => !b.optional).map(b => esc(b.title)).join(" · ")}</div>
         <button class="dbtn go" data-open="${esc(s.id)}">Ouvrir</button>
       </div>`;
@@ -144,7 +144,8 @@ const CycleUI = (() => {
     shell("Programmation", "TA <em>SEMAINE</em>", `
       ${segHtml("week")}
       <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length}${w.bloc && w.phase !== "test" ? ` · Bloc ${esc(w.bloc)}` : ""} · ${esc(PHASE[w.phase] || w.phase)}
-        · ${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}${w.intent ? `<br>${esc(w.intent)}` : ""}</p>
+        <br><span class="nw">${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}</span></p>
+      ${w.intent ? `<p class="cf-intent">${esc(w.intent)}</p>` : ""}
       ${banner}
       <div class="cf-prog"><div class="cf-bar"><div style="width:${done * 25}%"></div></div><span>${done} sur 4</span></div>
       ${next}
@@ -277,7 +278,7 @@ const CycleUI = (() => {
       + (p.bonus ? card(p.bonus.id, `Bonus · ${esc(p.bonus.title.replace(/^Bonus · /, ""))}`, `<span>Facultatif</span>`,
           (log.bonus || {})[p.bonus.id] ? `fait ${ddmm(log.bonus[p.bonus.id])}` : "") : "");
     shell("Programmation", "TON <em>PROGRAMME</em>", `
-      <p class="lede">${esc(cycle.title)} · ${nW} semaines · ${ddmm(cycle.start)} → ${ddmm(C.cycleEnd(cycle))}</p>
+      <p class="lede">${esc(cycle.title)} · ${nW} semaines · <span class="nw">${ddmm(cycle.start)} → ${ddmm(C.cycleEnd(cycle))}</span></p>
       ${goals}
       <div class="cf-lab cf-mt">Les ${nW} semaines</div>
       <div class="cf-strip">${strip}</div>
@@ -309,12 +310,12 @@ const CycleUI = (() => {
   }
   function footer(){
     const u = CycleStore.isCloud() && CycleStore.user();
-    return `${syncLine()}<div class="cf-foot">
-      <a class="dbtn" href="#/cf/programme">Ton programme</a>
-      <a class="dbtn" href="#/cf/max">Tes max</a>
-      <a class="dbtn" href="#/cf/import">Importer un cycle</a>
-      ${u ? `<button class="dbtn" id="cfout">${esc(u.email || "compte")} · sortir</button>` : ""}
-    </div>`;
+    return `${syncLine()}<div class="cf-list cf-foot">
+      <a class="cf-link" href="#/cf/programme"><span class="cf-st"><b>Ton programme</b><small>Toutes les semaines du cycle</small></span><span class="cf-chev">›</span></a>
+      <a class="cf-link" href="#/cf/max"><span class="cf-st"><b>Tes max</b><small>Ils calculent toutes tes charges</small></span><span class="cf-chev">›</span></a>
+      <a class="cf-link" href="#/cf/import"><span class="cf-st"><b>Importer un cycle</b><small>Le prochain, préparé avec Claude</small></span><span class="cf-chev">›</span></a>
+    </div>
+    ${u ? `<button class="dbtn cf-out" id="cfout">${esc(u.email || "compte")} · sortir</button>` : ""}`;
   }
   function bindFooter(){
     const o = $("#cfout");

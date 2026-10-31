@@ -8,7 +8,7 @@ const DEFAULT_PROGRAMS = [
 
 /* ============================ UPPER POWER LAB ============================ */
 {
-  id:"upper", assign:["moss"],
+  id:"upper", assign:["moss"], v:1,
   title:"UPPER", title2:"POWER",
   tag:"Haut du corps",
   accent:"#ffb02e",
@@ -32,7 +32,7 @@ const DEFAULT_PROGRAMS = [
              cue:"Grip ferme, gainage actif, épaules engagées. Renforce la prise pour les tractions lourdes.",yt:YT("weighted dead hang")}
           ]}
       ]},
-    { id:"s2", t:"PUISS-", t2:"ANCE", sub:"Contraste · explosivité", accent:"#4dd2ff", pill:"~14 MIN",
+    { id:"s2", t:"", t2:"PUISSANCE", sub:"Contraste · explosivité", accent:"#4dd2ff", pill:"~14 MIN",
       focus:"Développer la vitesse de production de force. Tirage explosif + poussée pliométrique en contraste.",
       blocks:[
         { label:"EMOM 14′ — alternance / minute", emom:14, note:"Repos réel entre efforts. Vitesse > fatigue : si la vitesse chute, baisse les reps.",
@@ -48,7 +48,7 @@ const DEFAULT_PROGRAMS = [
              cue:"Projection explosive à hauteur de poitrine. Tout est dans l'intention de vitesse.",yt:YT("medicine ball chest pass explosive")}
           ]}
       ]},
-    { id:"s3", t:"HYPER-", t2:"TROPHIE", sub:"Dos · pec · bras", accent:"#b6f24e", pill:"~14 MIN",
+    { id:"s3", t:"", t2:"HYPERTROPHIE", sub:"Dos · pec · bras", accent:"#b6f24e", pill:"~14 MIN",
       focus:"Construire du muscle sur les gros groupes : tirage horizontal lourd, poussée, puis finisher bras.",
       blocks:[
         { label:"SUPERSET A — 4 tours", note:"Charge sub-maximale (RPE 8), tempo contrôlé, on cherche la congestion.",

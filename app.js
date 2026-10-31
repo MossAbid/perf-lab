@@ -27,6 +27,9 @@ const setAccent = hex => document.documentElement.style.setProperty("--accent", 
 const rLS = (k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(e){ return d; } };
 const wLS = (k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* titre de séance : t2 suit t, sans espace quand t finit par un tiret (« ANTI-EXTENSION ») */
+const sGlue = s => (s.t||"").endsWith("-") ? "" : " ";
+const sText = s => ((s.t||"") + sGlue(s) + (s.t2||"")).trim();
 const today = ()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 /* téléchargement d'un fichier (sauvegarde JSON) */
 function dl(name, text){
@@ -146,7 +149,7 @@ function renderLibrary(){
     const iso = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
     assid += `<span class="aday${doneDays.has(iso)?" on":""}" title="${iso.split("-").reverse().join("/")}"></span>`;
   }
-  const assidHtml = `<div class="assid"><span class="alab">14 derniers jours</span>${assid}<span class="acount">${log.length} séance${log.length>1?"s":""}</span></div>`;
+  const assidHtml = `<div class="assid"><span class="alab">14 jours</span>${assid}<span class="acount">${log.length} séance${log.length>1?"s":""}</span></div>`;
   /* rappel de sauvegarde : jamais exporté avec des données, ou > 7 jours */
   const le = Backend.lastExport();
   const hasData = log.length>0 || Object.keys(PROGRESSION).length>0;
@@ -159,7 +162,7 @@ function renderLibrary(){
   app.innerHTML = `<div class="view"><div class="wrap">
     <header>
       <div class="topbar">
-        <div class="kicker">Perf Lab · Bibliothèque</div>
+        <div class="kicker">Bibliothèque</div>
         ${cloud&&u?`<button class="back" id="signout">${esc(u.email||'compte')} · sortir</button>`:profSel}
       </div>
       <h1>PERF<br><em>LAB</em></h1>
@@ -315,7 +318,7 @@ function renderTabs(){
   const tabs=$("#tabs"); tabs.innerHTML="";
   CUR.sessions.forEach(s=>{ const b=document.createElement("button");
     b.className="tab"+(s.id===activeSession?" active":"");
-    b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'#ffb02e')}"></span><div class="t">${esc(s.t)} ${esc(s.t2||'')}</div><div class="s">${esc(s.sub||'')}</div>`;
+    b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'#ffb02e')}"></span><div class="t">${esc(sText(s))}</div><div class="s">${esc(s.sub||'')}</div>`;
     b.onclick=()=>{ activeSession=s.id; setAccent(s.accent||"#ffb02e"); renderTabs(); renderSession(); updateGlobal(); };
     tabs.appendChild(b); });
 }
@@ -380,7 +383,7 @@ function exCard(s,ex,blockTimer){
 function renderSession(){
   stopRest();
   const s=CUR.sessions.find(x=>x.id===activeSession);
-  let html=`<div class="shead"><h2>${esc(s.t)} <em>${esc(s.t2||'')}</em></h2><div class="pill">${esc(s.pill||'')}</div></div><p class="sfocus">${esc(s.focus||'')}</p>`;
+  let html=`<div class="shead"><h2>${esc(s.t||'')}${sGlue(s)}<em>${esc(s.t2||'')}</em></h2><div class="pill">${esc(s.pill||'')}</div></div><p class="sfocus">${esc(s.focus||'')}</p>`;
   s.blocks.forEach(b=>{ html+=`<div class="blk"><div class="blk-h"><div class="bl">${esc(b.label||'')}</div><div class="line"></div>`;
     html+=`</div>`; if(b.note) html+=`<div class="blk-note">${esc(b.note)}</div>`;
     (b.ex||[]).forEach(ex=> html+=exCard(s,ex,b.timer)); html+=`</div>`; });
@@ -464,7 +467,7 @@ function updateGlobal(){
   let total=0,done=0;
   s.blocks.forEach(b=>(b.ex||[]).forEach(ex=>{ const n=ex.sets||1; total+=n; const arr=(st[s.id]&&st[s.id][ex.k]&&st[s.id][ex.k].done)||[]; for(let i=0;i<n;i++) if(arr[i]) done++; }));
   const pct=total?Math.round(done/total*100):0;
-  $("#gfill").style.width=pct+"%"; $("#gtxt").textContent=`${done} / ${total} séries · ${s.t} ${s.t2||''}`; $("#gpct").textContent=pct+"%";
+  $("#gfill").style.width=pct+"%"; $("#gtxt").textContent=`${done} / ${total} séries · ${sText(s)}`; $("#gpct").textContent=pct+"%";
 }
 
 /* ---- service worker + go ---- */
