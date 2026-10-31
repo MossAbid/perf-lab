@@ -38,7 +38,25 @@ function dl(name, text){
   a.href=u; a.download=name; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(u); a.remove(); },500);
 }
-function softBeep(){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(); const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start(); setTimeout(()=>{o.stop();c.close();},160);}catch(e){} }
+/* bip de fin de repos : iOS ne joue le son que si l'AudioContext a été débloqué par un toucher */
+let audio=null;
+function unlockAudio(){ try{ audio=audio||new (window.AudioContext||window.webkitAudioContext)(); if(audio.state==="suspended") audio.resume(); }catch(e){} }
+function softBeep(){ try{ if(!audio) return; const o=audio.createOscillator(),g=audio.createGain(); o.connect(g);g.connect(audio.destination);o.frequency.value=880;g.gain.value=.15;o.start(); o.stop(audio.currentTime+.16);}catch(e){} }
+/* écran gardé allumé pendant une séance (Wake Lock ; ignoré si le navigateur ne l'a pas) */
+let wake=null, wakeOn=false, wakeBusy=false;
+async function keepAwake(on){
+  wakeOn=on;
+  if(!on){ if(wake){ const w=wake; wake=null; w.release(); } return; }
+  if(wake || wakeBusy || !navigator.wakeLock || document.visibilityState!=="visible") return;
+  wakeBusy=true;
+  try{
+    const w=await navigator.wakeLock.request("screen");
+    w.addEventListener("release",()=>{ if(wake===w) wake=null; });   // iOS relâche le verrou en arrière-plan
+    if(wakeOn) wake=w; else w.release();
+  }catch(e){}
+  finally{ wakeBusy=false; }
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && wakeOn) keepAwake(true); });
 
 /* ---- state ---- */
 const PL = window.PLProgression;
@@ -87,8 +105,17 @@ function syncCycle(){
 }
 
 /* ---- ROUTER ---- */
+let lastRoute=null;
 function route(){
   const h = location.hash.replace(/^#\/?/,"");
+  renderRoute(h);
+  // fondu seulement quand on change d'écran : un re-rendu du même écran (clic, synchro) ne clignote pas
+  const v = app.querySelector(".view");
+  if(v && h!==lastRoute) v.classList.add("enter");
+  lastRoute = h;
+  keepAwake(/^(p\/|cf\/s\/)/.test(h));
+}
+function renderRoute(h){
   if(Backend.isCloud() && !Backend.user()){ renderAuth(); return; }
   if(h==="add"){ renderAdd(); return; }
   if(h.startsWith("cf") && CF && CF.route(h)) return;
@@ -341,9 +368,11 @@ function exCard(s,ex,blockTimer){
       ? (entry.next>entry.tier?"→ prochaine séance : "+PL.tierLabel(ex.tiers,entry.next)
         :entry.next<entry.tier?"→ retour à : "+PL.tierLabel(ex.tiers,entry.next)
         :"→ maintien du palier") : "";
+    const rv=d.rpe!=null?+d.rpe:null;
     rpeHtml=`<div class="setlab" style="margin-top:12px">RPE 0-10 après l'exercice — ≤6 monte · 7-8 maintient · ≥9 ou douleur descend</div>
+      <div class="rpe-pick" role="group" aria-label="RPE de l'exercice">${Array.from({length:11},(_,v)=>
+        `<button class="rpe-b${rv===v?" on":""}" data-rs="${esc(s.id)}" data-rk="${esc(ex.k)}" data-v="${v}" aria-pressed="${rv===v}">${v}</button>`).join("")}</div>
       <div class="rpe-row">
-        <input class="load rpe" type="number" inputmode="numeric" min="0" max="10" placeholder="–" value="${d.rpe!=null?esc(d.rpe):""}" data-rs="${esc(s.id)}" data-rk="${esc(ex.k)}">
         <button class="painbtn${d.pain?" on":""}" data-ps="${esc(s.id)}" data-pk="${esc(ex.k)}">⚡ Douleur</button>
         <span class="rpe-next" data-ns="${esc(s.id)}" data-nk="${esc(ex.k)}">${esc(prop)}</span>
       </div>`;
@@ -421,17 +450,19 @@ function stopRest(){ clearInterval(restInt); restInt=null; if(restEl){ restEl.hi
 function startRest(card, sec){
   stopRest();
   const el=card.querySelector("[data-rest]"); if(!el) return;
-  let rem=sec; restEl=el; el.hidden=false;
+  const end=Date.now()+sec*1000; restEl=el; el.hidden=false;
   const fmt=r=>Math.floor(r/60)+":"+String(r%60).padStart(2,"0");
-  const draw=()=>{ el.textContent="REPOS "+fmt(rem)+" · toucher pour arrêter"; };
-  draw();
+  const draw=rem=>{ el.textContent="REPOS "+fmt(rem)+" · toucher pour arrêter"; };
+  draw(sec);
   el.onclick=stopRest;
-  restInt=setInterval(()=>{ rem--; if(rem<=0){ softBeep(); stopRest(); } else draw(); },1000);
+  // calé sur l'heure de fin : écran verrouillé, les intervalles ralentissent mais le repos reste juste
+  restInt=setInterval(()=>{ const rem=Math.ceil((end-Date.now())/1000); if(rem<=0){ softBeep(); stopRest(); } else draw(rem); },250);
 }
 function bindSession(){
   const main=$("#main");
   main.querySelectorAll("[data-toggle]").forEach(t=>{ t.onclick=e=>{ if(e.target.closest("[data-play]")||e.target.closest("a"))return; t.closest("[data-ex]").classList.toggle("open"); }; });
   main.querySelectorAll(".setbtn").forEach(b=>{ b.onclick=()=>{ const {s,k,i}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
+    unlockAudio();
     st[s]=st[s]||{}; st[s][k]=st[s][k]||{done:[],load:[]}; st[s][k].done[i]=!st[s][k].done[i]; b.classList.toggle("done",st[s][k].done[i]);
     Backend.saveProgress(CUR.id,wk,st); updateGlobal(); reevaluate(s,k);
     // repos auto après une série cochée, sauf la dernière de l'exercice
@@ -441,13 +472,14 @@ function bindSession(){
       const card=b.closest("[data-ex]");
       if(done<n) startRest(card, +card.dataset.restS||90); else stopRest();
     } else stopRest(); }; });
-  main.querySelectorAll(".load:not(.rpe)").forEach(inp=>{ inp.onchange=()=>{ const {ls,lk,li}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
+  main.querySelectorAll(".load[data-ls]").forEach(inp=>{ inp.onchange=()=>{ const {ls,lk,li}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[ls]=st[ls]||{}; st[ls][lk]=st[ls][lk]||{done:[],load:[]}; st[ls][lk].load[li]=inp.value; Backend.saveProgress(CUR.id,wk,st); }; });
-  main.querySelectorAll(".rpe").forEach(inp=>{ inp.onchange=()=>{ const {rs,rk}=inp.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
+  main.querySelectorAll(".rpe-b").forEach(b=>{ b.onclick=()=>{ const {rs,rk}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[rs]=st[rs]||{}; st[rs][rk]=st[rs][rk]||{done:[],load:[]};
-    const v=inp.value===""?null:Math.max(0,Math.min(10,Math.round(+inp.value)));
-    if(v!=null) inp.value=v;
-    st[rs][rk].rpe=v; Backend.saveProgress(CUR.id,wk,st); reevaluate(rs,rk); }; });
+    const v=+b.dataset.v;
+    st[rs][rk].rpe = st[rs][rk].rpe===v ? null : v;   // retoucher la valeur l'efface (comme vider l'ancien champ)
+    b.parentNode.querySelectorAll(".rpe-b").forEach(x=>{ const on=+x.dataset.v===st[rs][rk].rpe; x.classList.toggle("on",on); x.setAttribute("aria-pressed",on); });
+    Backend.saveProgress(CUR.id,wk,st); reevaluate(rs,rk); }; });
   main.querySelectorAll(".painbtn").forEach(b=>{ b.onclick=()=>{ const {ps,pk}=b.dataset; const wk=getWeek(CUR.id); const st=weekState(CUR.id,wk);
     st[ps]=st[ps]||{}; st[ps][pk]=st[ps][pk]||{done:[],load:[]};
     st[ps][pk].pain=!st[ps][pk].pain; b.classList.toggle("on",st[ps][pk].pain);
