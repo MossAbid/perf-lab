@@ -44,7 +44,7 @@ const CycleUI = (() => {
           <button class="back" id="cfback">◂ ${esc(back[0])}</button></div>
         <h1>${title}</h1>
       </header>
-      ${body}
+      <main>${body}</main>
     </div></div>`;
     $("#cfback").onclick = () => location.hash = back[1];
   }

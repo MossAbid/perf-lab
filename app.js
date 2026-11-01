@@ -130,7 +130,7 @@ window.addEventListener("hashchange", route);
 /* ---- AUTH ---- */
 function renderAuth(){
   setAccent("#ffb02e");
-  app.innerHTML = `<div class="view"><div class="wrap auth">
+  app.innerHTML = `<div class="view"><main class="wrap auth">
     <div class="kicker">Perf Lab · Compte</div>
     <h1>PERF <em>LAB</em></h1>
     <p class="lede">Connecte-toi pour retrouver tes programmes et tes charges sur tous tes appareils.</p>
@@ -143,7 +143,7 @@ function renderAuth(){
         <button class="dbtn" id="signup">Créer un compte</button>
       </div>
     </div>
-  </div></div>`;
+  </main></div>`;
   const err = m => { $("#autherr").textContent = m; };
   const creds = ()=>({ e:$("#email").value.trim(), p:$("#pw").value });
   $("#signin").onclick = async ()=>{ const {e,p}=creds(); if(!e||!p)return err("Email et mot de passe requis.");
@@ -187,7 +187,7 @@ function renderLibrary(){
       <button class="dbtn" id="backup">Exporter</button>
     </div>`;
   app.innerHTML = `<div class="view"><div class="wrap">
-    <header>
+    <header class="libhead">
       <div class="topbar">
         <div class="kicker">Bibliothèque</div>
         ${cloud&&u?`<button class="back" id="signout">${esc(u.email||'compte')} · sortir</button>`:profSel}
@@ -196,6 +196,8 @@ function renderLibrary(){
       <p class="lede">${LIBRARY.length} programme${LIBRARY.length>1?"s":""} · ${cloud?"synchronisé sur tes appareils":"profil "+esc(prof.charAt(0).toUpperCase()+prof.slice(1))+" · stocké sur cet appareil"}.</p>
       ${assidHtml}
       ${backupHtml}
+    </header>
+    <main>
       <div class="lib">
         ${CF ? CF.libraryCard() : ""}
         ${cards}
@@ -205,7 +207,7 @@ function renderLibrary(){
           <div class="cb">Colle un programme (JSON) — il apparaît partout.</div>
         </a>
       </div>
-    </header>
+    </main>
   </div></div>`;
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
     if(b.dataset.prof===Backend.activeProfile()) return;
@@ -250,6 +252,7 @@ function renderAdd(){
       <h1>＋ <em>PROGRAMME</em></h1>
       <p class="lede">Colle un programme au format JSON puis <b>Importer</b>. Astuce : demande à Claude « génère-moi un programme Perf Lab pour … » et colle sa réponse ici.</p>
     </header>
+    <main>
     <div class="addbox">
       <textarea id="jsonin" spellcheck="false" placeholder="{ ... programme JSON ... }" aria-label="JSON du programme"></textarea>
       <div class="autherr" id="adderr"></div>
@@ -261,6 +264,7 @@ function renderAdd(){
     </div>
     <div class="blk"><div class="blk-h"><div class="bl">Dans ta bibliothèque</div><div class="line"></div></div>
       ${list||'<div class="blk-note">Aucun programme.</div>'}</div>
+    </main>
   </div></div>`;
   $("#back").onclick=()=> location.hash="#/";
   $("#tmpl").onclick=()=>{ $("#jsonin").value = JSON.stringify(TEMPLATE,null,2); };

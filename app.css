@@ -44,6 +44,8 @@ a{color:inherit}
 
 /* HEADER */
 header{padding:30px 0 16px}
+.libhead{padding-bottom:0}
+.libhead+main .lib{margin-bottom:16px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .kicker{min-width:0;font-size:11px;letter-spacing:.30em;color:var(--kicker);display:flex;align-items:center;gap:10px}
 .kicker::before{content:"";width:24px;height:2px;background:var(--kicker)}

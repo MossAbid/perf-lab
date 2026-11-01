@@ -74,6 +74,8 @@
     ok("profil actif annoncé (aria-pressed)", document.querySelector(".profbtn.active").getAttribute("aria-pressed") === "true"
        && document.querySelector(".profbtn:not(.active)").getAttribute("aria-pressed") === "false");
     ok("bibliothèque sans emoji", !EMOJI.test(document.getElementById("app").innerHTML));
+    const oneMain = () => document.querySelectorAll("main").length === 1 && !document.querySelector("header main");
+    ok("accueil : une zone principale <main> (Lighthouse)", oneMain() && !!document.querySelector("main .lib"));
     toast("test");
     ok("toast lu par le lecteur d'écran", document.getElementById("toast").getAttribute("role") === "status");
     const idx = await (await fetch("../index.html", { cache: "no-store" })).text();
@@ -114,6 +116,7 @@
 
     /* 3. import ancien format pendant que Souad est actif → rattaché à Moss, silencieusement */
     await goto("add");
+    ok("Ajouter : une zone principale <main>", oneMain());
     ok("JSON à coller : 16 px et étiqueté", parseFloat(getComputedStyle(document.getElementById("jsonin")).fontSize) >= 16
        && !!document.getElementById("jsonin").getAttribute("aria-label"));
     document.getElementById("jsonin").value = JSON.stringify(
@@ -263,6 +266,7 @@
     ok("force : 72,5 / 85 / 95 kg", [...document.querySelectorAll(".cf-load")].map(e => e.textContent.trim()).join("|") === "72,5 kg|85 kg|95 kg");
     ok("ceinture sur la ligne à 80 %", document.querySelectorAll(".cf-belt").length === 1);
     ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
+    ok("séance de la Programmation : une zone principale <main>", oneMain() && !!document.querySelector("main .cf-blocks"));
     ok("charge lisible à bout de bras (26 px)", parseFloat(getComputedStyle(document.querySelector(".cf-load")).fontSize) >= 26);
     ok("fondu à l'arrivée sur la séance", document.querySelector(".view").classList.contains("enter"));
     document.querySelector('[data-level="int"]').click(); await tick();
