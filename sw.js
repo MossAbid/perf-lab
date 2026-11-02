@@ -1,7 +1,7 @@
 /* Perf Lab — service worker
    Bump CACHE quand tu modifies la coque (pas nécessaire pour programs.js
    grâce au network-first ci-dessous, mais conseillé après gros changements). */
-const CACHE = "perflab-v20";
+const CACHE = "perflab-v21";
 const NET_TIMEOUT = 3000;   // ms avant de servir la coque depuis le cache
 
 const SHELL = [
@@ -22,12 +22,14 @@ const SHELL = [
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
   "./icons/favicon.png",
-  "./fonts/anton-latin.woff2",
-  "./fonts/anton-latin-ext.woff2",
-  "./fonts/sora-latin.woff2",
-  "./fonts/sora-latin-ext.woff2",
-  "./fonts/jetbrains-mono-latin.woff2",
-  "./fonts/jetbrains-mono-latin-ext.woff2"
+  "./fonts/zen-kaku-gothic-new-300-latin.woff2",
+  "./fonts/zen-kaku-gothic-new-300-latin-ext.woff2",
+  "./fonts/zen-kaku-gothic-new-400-latin.woff2",
+  "./fonts/zen-kaku-gothic-new-400-latin-ext.woff2",
+  "./fonts/zen-kaku-gothic-new-500-latin.woff2",
+  "./fonts/zen-kaku-gothic-new-500-latin-ext.woff2",
+  "./fonts/zen-kaku-gothic-new-700-latin.woff2",
+  "./fonts/zen-kaku-gothic-new-700-latin-ext.woff2"
 ];
 
 self.addEventListener("install", e=>{

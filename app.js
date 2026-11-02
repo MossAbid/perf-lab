@@ -129,7 +129,7 @@ window.addEventListener("hashchange", route);
 
 /* ---- AUTH ---- */
 function renderAuth(){
-  setAccent("#ffb02e");
+  setAccent("var(--lib-accent)");
   app.innerHTML = `<div class="view"><main class="wrap auth">
     <div class="kicker">Perf Lab · Compte</div>
     <h1>PERF <em>LAB</em></h1>
@@ -155,10 +155,10 @@ function renderAuth(){
 
 /* ---- LIBRARY ---- */
 function renderLibrary(){
-  setAccent("#ffb02e");
+  setAccent("var(--lib-accent)");
   const cloud = Backend.isCloud(), u = Backend.user();
   const cards = LIBRARY.map(p=>`
-    <a class="card" href="#/p/${esc(p.id)}" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'#ffb02e')}">
+    <a class="card" href="#/p/${esc(p.id)}" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'var(--lib-accent)')}">
       <div class="tag">${esc(p.tag||'')}</div><div class="dot"></div>
       <div class="ct">${esc(p.title||'')} <em>${esc(p.title2||'')}</em></div>
       <div class="cb">${esc(p.blurb||'')}</div>
@@ -236,7 +236,7 @@ const TEMPLATE = {
             yt:"https://www.youtube.com/results?search_query=exercice" }] }] }]
 };
 function renderAdd(){
-  setAccent("#ffb02e");
+  setAccent("var(--lib-accent)");
   const list = LIBRARY.map(p=>`
     <div class="mrow">
       <div><div class="mt">${esc(p.title)} ${esc(p.title2||'')}</div><div class="ms">${esc(p.id)}</div></div>
@@ -308,7 +308,7 @@ function renderAdd(){
 
 /* ---- PROGRAM ---- */
 function renderProgram(prog){
-  CUR = prog; setAccent(prog.accent||"#ffb02e");
+  CUR = prog; setAccent(prog.accent||"var(--lib-accent)");
   activeSession = prog.sessions[0].id;
   const wk = getWeek(prog.id);
   app.innerHTML = `<div class="view"><div class="wrap">
@@ -346,8 +346,8 @@ function renderTabs(){
   const tabs=$("#tabs"); tabs.innerHTML="";
   CUR.sessions.forEach(s=>{ const b=document.createElement("button");
     b.className="tab"+(s.id===activeSession?" active":""); b.setAttribute("aria-pressed",s.id===activeSession);
-    b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'#ffb02e')}"></span><div class="t">${esc(sText(s))}</div><div class="s">${esc(s.sub||'')}</div>`;
-    b.onclick=()=>{ activeSession=s.id; setAccent(s.accent||"#ffb02e"); renderTabs(); renderSession(); updateGlobal(); };
+    b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'var(--lib-accent)')}"></span><div class="t">${esc(sText(s))}</div><div class="s">${esc(s.sub||'')}</div>`;
+    b.onclick=()=>{ activeSession=s.id; setAccent(s.accent||"var(--lib-accent)"); renderTabs(); renderSession(); updateGlobal(); };
     tabs.appendChild(b); });
 }
 function tempoGrid(t,key){ const L=["EXC","PAUSE","CONC","PAUSE"];

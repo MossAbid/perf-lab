@@ -100,6 +100,8 @@ t("coque : chaque fichier existe dans le dépôt, polices comprises (hors ligne 
   const files = f.calls.map(c => c.url).filter(u => u !== "./");
   files.forEach(u => assert.ok(fs.existsSync(path.join(__dirname, "..", u)), u + " absent"));
   assert.ok(files.filter(u => u.endsWith(".woff2")).length >= 3, "polices absentes de la coque");
+  fs.readdirSync(path.join(__dirname, "..", "fonts")).filter(f => f.endsWith(".woff2"))
+    .forEach(f => assert.ok(files.includes("./fonts/" + f), f + " hors de la coque (pas de cache hors ligne)"));
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });

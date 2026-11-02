@@ -14,7 +14,7 @@
    ================================================================================= */
 const CycleUI = (() => {
   const C = window.PLCycle;
-  const ACC = "var(--lime)";
+  const ACC = "var(--cf-accent)";
   const PHASE = { base: "Base", montee: "Montée", surcharge: "Surcharge", decharge: "Décharge", test: "Test" };
   const DAYS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
 
