@@ -30,6 +30,12 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 /* titre de séance : t2 suit t, sans espace quand t finit par un tiret (« ANTI-EXTENSION ») */
 const sGlue = s => (s.t||"").endsWith("-") ? "" : " ";
 const sText = s => ((s.t||"") + sGlue(s) + (s.t2||"")).trim();
+/* titres saisis en capitales (PUISSANCE, UPPER) affichés en casse normale ; sigles (RX, EMOM, 3RM…) et lettres seules gardés */
+const KEEP_CAPS = /^(RX|INT|BMU|T2B|C2B|HSPU|EMOM|AMRAP|RPE|WOD|J\d+|S\d+|\d+RM)$/;
+const dcase = str => { const s = String(str||""); if(!/\p{Lu}/u.test(s) || s !== s.toUpperCase()) return s;
+  let first = true;
+  return s.replace(/[\p{L}\d]+/gu, w => { const out = KEEP_CAPS.test(w) || (w.length === 1 && !first) ? w
+    : first ? w.charAt(0) + w.slice(1).toLowerCase() : w.toLowerCase(); first = false; return out; }); };
 const today = ()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 /* téléchargement d'un fichier (sauvegarde JSON) */
 function dl(name, text){
@@ -132,7 +138,7 @@ function renderAuth(){
   setAccent("var(--lib-accent)");
   app.innerHTML = `<div class="view"><main class="wrap auth">
     <div class="kicker">Perf Lab · Compte</div>
-    <h1>PERF <em>LAB</em></h1>
+    <h1>Perf Lab</h1>
     <p class="lede">Connecte-toi pour retrouver tes programmes et tes charges sur tous tes appareils.</p>
     <div class="authbox">
       <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="email" aria-label="Email">
@@ -158,9 +164,9 @@ function renderLibrary(){
   setAccent("var(--lib-accent)");
   const cloud = Backend.isCloud(), u = Backend.user();
   const cards = LIBRARY.map(p=>`
-    <a class="card" href="#/p/${esc(p.id)}" data-go="${esc(p.id)}" style="--c-accent:${esc(p.accent||'var(--lib-accent)')}">
-      <div class="tag">${esc(p.tag||'')}</div><div class="dot"></div>
-      <div class="ct">${esc(p.title||'')} <em>${esc(p.title2||'')}</em></div>
+    <a class="card" href="#/p/${esc(p.id)}" data-go="${esc(p.id)}">
+      <div class="tag">${esc(p.tag||'')}</div>
+      <div class="ct">${esc(dcase(p.title))} ${esc(dcase(p.title2))}</div>
       <div class="cb">${esc(p.blurb||'')}</div>
       <div class="cmeta">${(p.meta||[]).map(m=>`<span>${esc(m)}</span>`).join("")}</div>
     </a>`).join("");
@@ -192,7 +198,7 @@ function renderLibrary(){
         <div class="kicker">Bibliothèque</div>
         ${cloud&&u?`<button class="back" id="signout">${esc(u.email||'compte')} · sortir</button>`:profSel}
       </div>
-      <h1>PERF<br><em>LAB</em></h1>
+      <h1>Perf Lab</h1>
       <p class="lede">${LIBRARY.length} programme${LIBRARY.length>1?"s":""} · ${cloud?"synchronisé sur tes appareils":"profil "+esc(prof.charAt(0).toUpperCase()+prof.slice(1))+" · stocké sur cet appareil"}.</p>
       ${assidHtml}
       ${backupHtml}
@@ -203,7 +209,7 @@ function renderLibrary(){
         ${cards}
         <a class="card add" href="#/add" data-add>
           <div class="plus">＋</div>
-          <div class="ct">AJOUTER</div>
+          <div class="ct">Ajouter</div>
           <div class="cb">Colle un programme (JSON) — il apparaît partout.</div>
         </a>
       </div>
@@ -239,7 +245,7 @@ function renderAdd(){
   setAccent("var(--lib-accent)");
   const list = LIBRARY.map(p=>`
     <div class="mrow">
-      <div><div class="mt">${esc(p.title)} ${esc(p.title2||'')}</div><div class="ms">${esc(p.id)}</div></div>
+      <div><div class="mt">${esc(dcase(p.title))} ${esc(dcase(p.title2))}</div><div class="ms">${esc(p.id)}</div></div>
       <div class="mbtns">
         <button class="dbtn" data-exp="${esc(p.id)}">Exporter</button>
         <button class="dbtn" data-del="${esc(p.id)}">Suppr.</button>
@@ -249,7 +255,7 @@ function renderAdd(){
     <header>
       <div class="topbar"><div class="kicker">Bibliothèque · Ajouter</div>
         <button class="back" id="back">◂ Retour</button></div>
-      <h1>＋ <em>PROGRAMME</em></h1>
+      <h1>Ajouter un programme</h1>
       <p class="lede">Colle un programme au format JSON puis <b>Importer</b>. Astuce : demande à Claude « génère-moi un programme Perf Lab pour … » et colle sa réponse ici.</p>
     </header>
     <main>
@@ -308,14 +314,15 @@ function renderAdd(){
 
 /* ---- PROGRAM ---- */
 function renderProgram(prog){
-  CUR = prog; setAccent(prog.accent||"var(--lib-accent)");
+  // un seul accent (l'or) : la couleur propre au programme reste dans ses données, sans être affichée
+  CUR = prog; setAccent("var(--lib-accent)");
   activeSession = prog.sessions[0].id;
   const wk = getWeek(prog.id);
   app.innerHTML = `<div class="view"><div class="wrap">
     <header>
       <div class="topbar"><div class="kicker">${esc(prog.tag||'')}</div>
         <button class="back" id="back">◂ Bibliothèque</button></div>
-      <h1>${esc(prog.title)} <em>${esc(prog.title2||'')}</em></h1>
+      <h1>${esc(dcase(prog.title))} ${esc(dcase(prog.title2))}</h1>
       <p class="lede">${esc(prog.intro||'')}</p>
       <div class="meta">
         <div class="weekbox"><span class="wl">Semaine</span>
@@ -329,7 +336,7 @@ function renderProgram(prog){
     </header>
     <main id="main"></main>
     <button class="reset" id="reset">↺ Réinitialiser la semaine</button>
-    <footer>${esc(prog.title)} ${esc(prog.title2||'')} · ${Backend.isCloud()?"synchronisé":"local"} · surcharge progressive</footer>
+    <footer>${esc(dcase(prog.title))} ${esc(dcase(prog.title2))} · ${Backend.isCloud()?"synchronisé":"local"} · surcharge progressive</footer>
   </div></div>`;
   $("#back").onclick=()=> location.hash="#/";
   $("#wup").onclick=()=> changeWeek(1);
@@ -346,8 +353,8 @@ function renderTabs(){
   const tabs=$("#tabs"); tabs.innerHTML="";
   CUR.sessions.forEach(s=>{ const b=document.createElement("button");
     b.className="tab"+(s.id===activeSession?" active":""); b.setAttribute("aria-pressed",s.id===activeSession);
-    b.innerHTML=`<span class="tdot" style="background:${esc(s.accent||'var(--lib-accent)')}"></span><div class="t">${esc(sText(s))}</div><div class="s">${esc(s.sub||'')}</div>`;
-    b.onclick=()=>{ activeSession=s.id; setAccent(s.accent||"var(--lib-accent)"); renderTabs(); renderSession(); updateGlobal(); };
+    b.innerHTML=`<div class="t">${esc(dcase(sText(s)))}</div><div class="s">${esc(s.sub||'')}</div>`;
+    b.onclick=()=>{ activeSession=s.id; renderTabs(); renderSession(); updateGlobal(); };
     tabs.appendChild(b); });
 }
 function tempoGrid(t,key){ const L=["EXC","PAUSE","CONC","PAUSE"];
@@ -413,8 +420,8 @@ function exCard(s,ex,blockTimer){
 function renderSession(){
   stopRest();
   const s=CUR.sessions.find(x=>x.id===activeSession);
-  let html=`<div class="shead"><h2>${esc(s.t||'')}${sGlue(s)}<em>${esc(s.t2||'')}</em></h2><div class="pill">${esc(s.pill||'')}</div></div><p class="sfocus">${esc(s.focus||'')}</p>`;
-  s.blocks.forEach(b=>{ html+=`<div class="blk"><div class="blk-h"><div class="bl">${esc(b.label||'')}</div><div class="line"></div>`;
+  let html=`<div class="shead"><h2>${esc(dcase(sText(s)))}</h2><div class="pill">${esc(dcase(s.pill))}</div></div><p class="sfocus">${esc(s.focus||'')}</p>`;
+  s.blocks.forEach(b=>{ html+=`<div class="blk"><div class="blk-h"><div class="bl">${esc(dcase(b.label))}</div><div class="line"></div>`;
     html+=`</div>`; if(b.note) html+=`<div class="blk-note">${esc(b.note)}</div>`;
     (b.ex||[]).forEach(ex=> html+=exCard(s,ex,b.timer)); html+=`</div>`; });
   const logged=Backend.getLog().some(e=>e.d===today() && e.prog===CUR.id && e.s===s.id);
@@ -500,7 +507,7 @@ function updateGlobal(){
   let total=0,done=0;
   s.blocks.forEach(b=>(b.ex||[]).forEach(ex=>{ const n=ex.sets||1; total+=n; const arr=(st[s.id]&&st[s.id][ex.k]&&st[s.id][ex.k].done)||[]; for(let i=0;i<n;i++) if(arr[i]) done++; }));
   const pct=total?Math.round(done/total*100):0;
-  $("#gfill").style.width=pct+"%"; $("#gtxt").textContent=`${done} / ${total} séries · ${sText(s)}`; $("#gpct").textContent=pct+"%";
+  $("#gfill").style.width=pct+"%"; $("#gtxt").textContent=`${done} / ${total} séries · ${dcase(sText(s))}`; $("#gpct").textContent=pct+"%";
 }
 
 /* ---- service worker + go ---- */

@@ -74,6 +74,14 @@
     ok("profil actif annoncé (aria-pressed)", document.querySelector(".profbtn.active").getAttribute("aria-pressed") === "true"
        && document.querySelector(".profbtn:not(.active)").getAttribute("aria-pressed") === "false");
     ok("bibliothèque sans emoji", !EMOJI.test(document.getElementById("app").innerHTML));
+    /* DA Sumi, lot 3 : un seul accent, titres en casse normale, listes sans panneau */
+    const topOf3 = q => document.querySelector(q).getBoundingClientRect().top;
+    ok("accueil : titres en casse normale", document.querySelector("h1").textContent.trim() === "Perf Lab"
+       && [...document.querySelectorAll(".card .ct")].every(e => e.textContent !== e.textContent.toUpperCase()));
+    ok("accueil : cartes sans couleur propre ni panneau", [...document.querySelectorAll(".card")].every(c => !c.style.getPropertyValue("--c-accent"))
+       && getComputedStyle(document.querySelector(".card[data-go]")).backgroundColor === "rgba(0, 0, 0, 0)");
+    ok("casse : sigles et lettres seules gardés", dcase("BLOC A — EVERY 2′ × 6") === "Bloc A — every 2′ × 6" && dcase("EMOM 12 MIN") === "EMOM 12 min"
+       && dcase("ANTI-EXTENSION") === "Anti-extension" && dcase("Force verticale") === "Force verticale" && dcase("~15 MIN") === "~15 min");
     const oneMain = () => document.querySelectorAll("main").length === 1 && !document.querySelector("header main");
     ok("accueil : une zone principale <main> (Lighthouse)", oneMain() && !!document.querySelector("main .lib"));
     toast("test");
@@ -98,6 +106,13 @@
     await goto("p/pullup");
     ok("Pull-Up Lab : 4 séances (dont TEST)", document.querySelectorAll(".tab").length === 4);
     ok("Pull-Up Lab : paliers affichés", document.querySelectorAll(".target.tier").length >= 3);
+    ok("programme : retour, titre puis repère", topOf3(".back") < topOf3("h1") && topOf3("h1") < topOf3(".kicker"));
+    ok("programme : titre, onglets et séance en casse normale", ["h1", ".tab .t", ".shead h2"].every(q => { const t = document.querySelector(q).textContent; return t !== t.toUpperCase(); }));
+    ok("programme : nom du bloc à la verticale", getComputedStyle(document.querySelector(".blk-h .bl")).writingMode === "vertical-rl");
+    document.querySelectorAll(".tab")[1].click(); await tick();
+    ok("programme : un seul accent (l'or), quelle que soit la couleur du programme ou de la séance",
+       document.documentElement.style.getPropertyValue("--accent") === "var(--lib-accent)" && !document.querySelector(".tdot"));
+    document.querySelectorAll(".tab")[0].click(); await tick();
     ok("plus aucun bouton Timer/EMOM", !document.querySelector("[data-settimer]") && !document.querySelector("[data-setemom]"));
     /* jalon : séance TEST, saisie d'un résultat */
     document.querySelectorAll(".tab")[3].click(); await tick();
@@ -146,7 +161,8 @@
     await goto("p/lower");
     ok("J1/J2 en onglets", document.querySelectorAll(".tab").length === 2);
     const wrap = document.querySelector(".wrap"); wrap.style.maxWidth = "390px";   // largeur iPhone
-    ok("bouton retour sur une seule ligne (390 px)", document.querySelector(".back").getBoundingClientRect().height < 40);
+    const backLines = document.createRange(); backLines.selectNodeContents(document.querySelector(".back"));
+    ok("bouton retour sur une seule ligne (390 px)", backLines.getClientRects().length === 1);
     wrap.style.maxWidth = "";
     ok("écran gardé allumé en séance (Wake Lock)", wl.n === wlN + 1);
     const h44 = sel => { const el = document.querySelector(sel); return !!el && el.getBoundingClientRect().height >= 44; };
@@ -255,6 +271,8 @@
     ok("carte Programmation chez Moss", !!document.querySelector("[data-cf]"));
     await goto("cf");
     ok("semaine : 4 séances", document.querySelectorAll(".cf-sess").length === 4);
+    ok("Programmation : titres en casse normale", document.querySelector("h1").textContent.trim() === "Ta semaine");
+    ok("Ta semaine : liste sans panneau", getComputedStyle(document.querySelector(".cf-list")).backgroundColor === "rgba(0, 0, 0, 0)");
     ok("w1s1 en tête", document.querySelector(".cf-next [data-open]").dataset.open === "w1s1");
     ok("bonus présent", !!document.querySelector(".cf-bonus"));
     ok("pas de carte micro-programme", !document.querySelector("[data-micro]"));

@@ -63,9 +63,9 @@ const CycleUI = (() => {
         : "Semaine bouclée. Reste le team WOD.";
       meta = `Semaine ${v.weekIndex + 1}/${cycle.weeks.length} · ${done}/4`;
     }
-    return `<a class="card cfcard" href="#/cf" data-cf style="--c-accent:${ACC}">
-      <div class="tag">Programmation</div><div class="dot"></div>
-      <div class="ct">TA <em>SEMAINE</em></div>
+    return `<a class="card cfcard" href="#/cf" data-cf>
+      <div class="tag">Programmation</div>
+      <div class="ct">Ta semaine</div>
       <div class="cb">${blurb}</div>
       <div class="cs">${meta}</div>
     </a>`;
@@ -94,7 +94,7 @@ const CycleUI = (() => {
   function renderWeek(){
     const cycle = CycleStore.getCycle();
     if(!cycle){
-      shell("Programmation", "TA <em>SEMAINE</em>", `
+      shell("Programmation", "Ta semaine", `
         <div class="cf-empty"><p>Aucun cycle importé pour l'instant.</p>
           <a class="dbtn go" href="#/cf/import">Importer un cycle</a></div>
         ${footer()}`);
@@ -143,7 +143,7 @@ const CycleUI = (() => {
       <span class="cf-st"><b>Team WOD à la salle</b><small>Compté dans ta semaine</small></span>
       <span class="cf-bdate">${dayLabel(addDays(cycle.start, Math.max(0, C.calendarWeek(cycle, today())) * 7 + 6))}</span></div>`;
 
-    shell("Programmation", "TA <em>SEMAINE</em>", `
+    shell("Programmation", "Ta semaine", `
       ${segHtml("week")}
       <p class="lede">${esc(cycle.title)} · Semaine ${v.weekIndex + 1} sur ${cycle.weeks.length}${w.bloc && w.phase !== "test" ? ` · Bloc ${esc(w.bloc)}` : ""} · ${esc(PHASE[w.phase] || w.phase)}
         <br><span class="nw">${ddmm(wStart)} → ${ddmm(addDays(wStart, 6))}</span></p>
@@ -223,7 +223,7 @@ const CycleUI = (() => {
         aria-label="${dayLabel(c.iso)}${c.items.map(it => ", " + ITEM_ARIA[it.type](it)).join("")}">
         <span class="cf-dn">${c.day}</span><span class="cf-chips">${c.items.map(chip).join("")}</span></button>`).join("");
     const sel = MS.sel && all.find(c => c.iso === MS.sel && c.inMonth);
-    shell("Programmation", "TON <em>MOIS</em>", `
+    shell("Programmation", "Ton mois", `
       ${segHtml("month")}
       <div class="cf-mnav">
         <button class="dbtn" id="cfprev" aria-label="Mois précédent"${MS.ym <= b.min ? " disabled" : ""}>‹</button>
@@ -279,7 +279,7 @@ const CycleUI = (() => {
     const cards = p.sessions.map(s => card(s.id, `Séance ${s.n} · ${esc(s.title)}`, s.lines.map(progLine).join(""), status(s.id))).join("")
       + (p.bonus ? card(p.bonus.id, `Bonus · ${esc(p.bonus.title.replace(/^Bonus · /, ""))}`, `<span>Facultatif</span>`,
           (log.bonus || {})[p.bonus.id] ? `fait ${ddmm(log.bonus[p.bonus.id])}` : "") : "");
-    shell("Programmation", "TON <em>PROGRAMME</em>", `
+    shell("Programmation", "Ton programme", `
       <p class="lede">${esc(cycle.title)} · ${nW} semaines · <span class="nw">${ddmm(cycle.start)} → ${ddmm(C.cycleEnd(cycle))}</span></p>
       ${goals}
       <div class="cf-lab cf-mt">Les ${nW} semaines</div>
@@ -326,7 +326,7 @@ const CycleUI = (() => {
 
   /* ---- connexion (CLOUD) : pas de création de compte ici ---- */
   function renderLogin(){
-    shell("Programmation", "TA <em>SEMAINE</em>", `
+    shell("Programmation", "Ta semaine", `
       <p class="lede">Connecte-toi pour retrouver ta programmation sur tous tes appareils.</p>
       <div class="authbox">
         <input id="cfemail" type="email" inputmode="email" autocomplete="email" placeholder="email" aria-label="Email">
@@ -530,7 +530,7 @@ const CycleUI = (() => {
   function renderMax(){
     const cycle = CycleStore.getCycle();
     if(!cycle){
-      shell("Programmation", "TES <em>MAX</em>", `<div class="cf-empty"><p>Importe d'abord un cycle : la liste des mouvements vient du cycle.</p>
+      shell("Programmation", "Tes max", `<div class="cf-empty"><p>Importe d'abord un cycle : la liste des mouvements vient du cycle.</p>
         <a class="dbtn go" href="#/cf/import">Importer un cycle</a></div>`, ["Ta semaine", "#/cf"]);
       return;
     }
@@ -539,7 +539,7 @@ const CycleUI = (() => {
     const has = id => (athlete.maxes[id] || []).length > 0;
     const staleBefore = addDays(cycle.start, -63);
     const withMax = ids.filter(has), without = ids.filter(id => !has(id));
-    shell("Programmation", "TES <em>MAX</em>", `
+    shell("Programmation", "Tes max", `
       <p class="lede">Ils calculent toutes tes charges. Chaque nouveau max recalcule les séances à venir.</p>
       ${withMax.length ? `<div class="blk"><div class="blk-h"><div class="bl">Force & haltéro</div><div class="line"></div></div>
         <div class="cf-mlist">${withMax.map(id => maxRow(cycle, athlete, id, staleBefore)).join("")}</div>
@@ -572,7 +572,7 @@ const CycleUI = (() => {
   /* ---- Importer un cycle (JSON perflab-cycle-v1) ---- */
   function renderImport(){
     const cur = CycleStore.getCycle();
-    shell("Programmation", "IMPORTER <em>UN CYCLE</em>", `
+    shell("Programmation", "Importer un cycle", `
       <p class="lede">Colle le JSON du cycle. Il remplace le cycle en cours${cur ? ` (${esc(cur.title)})` : ""} ; tes séances faites, tes scores et tes max sont conservés.</p>
       <textarea id="cfjson" class="cf-json" spellcheck="false" placeholder='{ "schema": "perflab-cycle-v1", … }' aria-label="JSON du cycle"></textarea>
       <div class="cf-err" id="cfimperr"></div>
@@ -631,7 +631,7 @@ const CycleUI = (() => {
     const ids = Object.keys(mv);
     const groups = C.MOVE_CATS.map(cat => ({ cat, ids: ids.filter(id => mv[id].cat === cat)
       .sort((a, b) => mv[a].name.localeCompare(mv[b].name, "fr")) })).filter(g => g.ids.length);
-    shell("Programmation", "FICHES <em>MOUVEMENT</em>", ids.length ? groups.map(g => `
+    shell("Programmation", "Fiches mouvement", ids.length ? groups.map(g => `
       <div class="blk"><div class="blk-h"><div class="bl">${CAT[g.cat]}</div><div class="line"></div></div>
         <div class="cf-list">${g.ids.map(id => `<button class="cf-sess" data-move="${esc(id)}">
           <span class="cf-st"><b>${esc(mv[id].name)}</b></span><span class="cf-chev">›</span></button>`).join("")}</div></div>`).join("")

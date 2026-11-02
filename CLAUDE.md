@@ -18,7 +18,7 @@ Deux parties :
 
 ## Fichiers clés
 - `index.html` : coque, scripts dans l'ordre `config.js → programs.js → progression.js → cycle.js → (CDN Supabase) → backend.js → cyclestore.js → cycle-ui.js → app.js` (`cycle-ui.js` avant `app.js` : `boot()` route dès le chargement)
-- `app.js` : moteur — routeur, rendu des bibliothèques, écran d'ajout, timer ; délègue les routes `#/cf…` à `CycleUI`
+- `app.js` : moteur — routeur, rendu des bibliothèques, écran d'ajout, timer ; délègue les routes `#/cf…` à `CycleUI` ; titres saisis en capitales affichés en casse normale (`dcase`) ; le champ `accent` des programmes reste dans les données mais n'est plus affiché (DA Sumi : un seul accent, l'or)
 - `app.css` : design + animations (section `/* ===== Programmation ===== */`, classes `cf-`) ; DA « Sumi » : toutes les valeurs dans `:root` (couleurs, accents `--cf-accent`/`--lib-accent`, phases `--phase-*`, polices `--f-*`, graisses `--fw-*`, tailles `--fs-*`, espacements `--sp-*`/`--gutter`, arrondis `--r-*`) : pas de couleur, police, taille, espacement ni arrondi en dur (vérifié par `tests/tokens.test.js`)
 - `progression.js` : règle RPE, paliers, validation & migration du schéma (logique pure, testée en Node)
 - `cycle.js` (`PLCycle`) : format `perflab-cycle-v1`, validation, max et charges, semaine/file/rattraper-passer, scores (logique pure, testée en Node)
