@@ -36,9 +36,9 @@ const CycleUI = (() => {
 
   /* gabarit commun ; le défilement est remis en haut par route(), pas ici :
      déplier un bloc re-rend l'écran sans faire sauter la page */
-  function shell(kicker, title, body, back = ["Bibliothèque", "#/"]){
+  function shell(kicker, title, body, back = ["Bibliothèque", "#/"], cls = ""){
     setAccent(ACC);
-    app.innerHTML = `<div class="view cf"><div class="wrap">
+    app.innerHTML = `<div class="view cf${cls ? " " + cls : ""}"><div class="wrap">
       <header>
         <div class="topbar"><div class="kicker">${esc(kicker)}</div>
           <button class="back" id="cfback">◂ ${esc(back[0])}</button></div>
@@ -349,6 +349,7 @@ const CycleUI = (() => {
      Un bloc = un en-tête qui déplie/replie (force déplié par défaut).
      Metcon : RX et INT exclusifs, score rangé par séance au niveau choisi. */
   const FLAG = { tapis: "Tapis", ceinture: "Ceinture" };
+  const KIND = { warmup: "Échauffement", strength: "Force", metcon: "Metcon", accessory: "Accessoire", skill: "Technique" };
   const SCORE_HINT = { time: "Ton temps (mm:ss)", reps: "Tes reps", rounds_reps: "Tours + reps (ex. 5+8)", load: "Ta charge (kg)" };
   const SCORE_MODE = { time: "text", reps: "numeric", rounds_reps: "text", load: "decimal" };
   const fmtKg = kg => String(kg).replace(".", ",") + " kg";
@@ -380,11 +381,15 @@ const CycleUI = (() => {
     const maxLine = m
       ? `Calculé sur ton max : <b>${fmtKg(m.kg)}</b>${src ? ` · dérivé du ${esc(src.name.toLowerCase())}` : ""}`
       : `Pas encore de max pour ce mouvement · <a href="#/cf/max">Saisis ton max</a>`;
-    const rows = C.strengthLines(cycle, athlete.maxes, b).map(l => `
-      <span>${esc(l.sets)} × ${esc(l.reps)}</span><span>${esc(l.pct)} %</span>
-      <span class="cf-kg"><span class="cf-load">${l.kg != null ? fmtKg(l.kg) : "—"}</span>${l.belt ? `<span class="cf-belt">Ceinture</span>` : ""}</span>`).join("");
+    // la série de travail (le % le plus haut, la dernière à égalité) passe en grand ; l'unité en petit
+    const ls = C.strengthLines(cycle, athlete.maxes, b);
+    const top = ls.reduce((t, l, i) => Number(l.pct) >= Number(ls[t].pct) ? i : t, 0);
+    const load = l => l.kg != null ? fmtKg(l.kg).replace(/ kg$/, "<small> kg</small>") : "—";
+    const rows = ls.map((l, i) => `<div class="cf-line${i === top ? " top" : ""}">
+      <span class="cf-sr">${esc(l.sets)} × ${esc(l.reps)}</span><span class="cf-pc">${esc(l.pct)} %</span>
+      <span class="cf-kg"><span class="cf-load">${load(l)}</span>${l.belt ? `<span class="cf-belt">Ceinture</span>` : ""}</span></div>`).join("");
     return `<div class="cf-max">${maxLine}</div>
-      <div class="cf-table"><span class="cf-th">Séries</span><span class="cf-th">% du max</span><span class="cf-th">Charge</span>${rows}</div>
+      <div class="cf-lines">${rows}</div>
       ${b.rest ? `<div class="cf-rest">Repos : ${esc(b.rest)}</div>` : ""}
       ${b.notes ? `<div class="cf-text">${lines(b.notes)}</div>` : ""}
       ${(cycle.movements || {})[b.lift] ? `<a class="cf-flink" href="${moveHref(b.lift)}">Fiche · ${esc(lift.name)}</a>`
@@ -431,8 +436,11 @@ const CycleUI = (() => {
     const blocks = f.s.blocks.map((b, i) => {
       const isMet = b.kind === "metcon", open = isMet || SS.open.has(i);
       const sub = `${Number(b.minutes) > 0 ? Number(b.minutes) + " min" : ""}${b.optional ? " · facultatif" : ""}`;
-      const head = `<span class="cf-bn">${String(i + 1).padStart(2, "0")}</span>
-        <span class="cf-bt"><b>${esc(b.title)}</b><small>${sub}</small></span>${flagsHtml(b)}`;
+      // type du bloc à la verticale ; le titre ne le répète pas (« Force · Back squat » → « Back squat »)
+      const kind = KIND[b.kind] || b.kind;
+      const name = b.title === kind ? "" : b.title.startsWith(kind + " · ") ? b.title.slice(kind.length + 3) : b.title;
+      const head = `<span class="cf-vk">${esc(kind)}</span>
+        <span class="cf-bt">${name ? `<b>${esc(name)}</b><small>${sub}</small>` : `<b>${sub}</b>`}</span>${flagsHtml(b)}`;
       const body = (b.kind === "strength" ? strengthBody(cycle, athlete, b)
         : isMet ? metconBody(athlete, log, b, sid, locked)
         : `<div class="cf-text">${lines(b.text)}</div>`) + movesHtml(cycle, b.moves);
@@ -448,11 +456,11 @@ const CycleUI = (() => {
       : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
           <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
-    const title = f.bonus ? "BONUS" : `SÉANCE ${f.n}`;
-    shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase}`, `${title}<br><em>${esc(f.s.title.replace(/^Bonus · /, ""))}</em>`, `
+    const rank = f.bonus ? "bonus" : `séance ${f.n} sur ${f.w.sessions.length}`;
+    shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase} · ${rank}`, esc(f.s.title.replace(/^Bonus · /, "")), `
       <p class="lede">${minutesOf(f.s)} min, hors blocs facultatifs.</p>
       <div class="cf-blocks">${blocks}</div>
-      ${foot}`, sessBack);
+      ${foot}`, sessBack, "cf-seance");
 
     app.querySelectorAll("[data-block]").forEach(btn => btn.onclick = () => {
       const i = +btn.dataset.block;

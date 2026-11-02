@@ -268,6 +268,20 @@
     ok("tapis sur l'échauffement", !!document.querySelector(".cf-flag-tapis"));
     ok("séance de la Programmation : une zone principale <main>", oneMain() && !!document.querySelector("main .cf-blocks"));
     ok("charge lisible à bout de bras (26 px)", parseFloat(getComputedStyle(document.querySelector(".cf-load")).fontSize) >= 26);
+    /* 9a. séance en composition Sumi : en-tête, type des blocs à la verticale, série de travail en grand */
+    const topOf = sel => document.querySelector(sel).getBoundingClientRect().top;
+    ok("séance : retour, titre puis repère, dans cet ordre", topOf(".back") < topOf("h1") && topOf("h1") < topOf(".kicker"));
+    ok("séance : le titre est celui de la séance", document.querySelector("h1").textContent.trim() === "Back squat");
+    ok("séance : repère semaine, phase et rang", /Semaine 1 · Base · séance 1 sur 4/.test(document.querySelector(".kicker").textContent));
+    const vks = [...document.querySelectorAll(".cf-blk .cf-vk")];
+    ok("blocs : type écrit à la verticale", vks.length === 4 && vks.every(e => getComputedStyle(e).writingMode === "vertical-rl")
+       && vks.map(e => e.textContent).join("|") === "Échauffement|Force|Metcon|Accessoire");
+    ok("blocs : le type fait partie du bouton (nom annoncé)", /^Force/.test(document.querySelector('[data-block="1"]').textContent.trim()));
+    ok("blocs : titre sans répéter le type", document.querySelector('[data-block="1"] b').textContent.trim() === "Back squat");
+    ok("blocs : sans panneau", getComputedStyle(document.querySelector(".cf-blk")).backgroundColor === "rgba(0, 0, 0, 0)");
+    const topLoad = document.querySelectorAll(".cf-line.top .cf-load");
+    ok("force : la série de travail en grand", topLoad.length === 1 && topLoad[0].textContent.trim() === "95 kg"
+       && parseFloat(getComputedStyle(topLoad[0]).fontSize) >= 72);
     ok("fondu à l'arrivée sur la séance", document.querySelector(".view").classList.contains("enter"));
     document.querySelector('[data-level="int"]').click(); await tick();
     ok("pas de fondu quand on reste sur la séance (clic RX / INT)", !document.querySelector(".view").classList.contains("enter"));

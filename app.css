@@ -30,13 +30,15 @@
   --ls-display:0; --ls-label:.03em;
   --lh-display:1.2;
   --fs-2xs:11px; --fs-xs:12px; --fs-sm:13px; --fs-base:15px; --fs-input:16px; --fs-md:17px;
-  --fs-lg:20px; --fs-h2:22px; --fs-xl:24px; --fs-title:28px; --fs-num:30px;
+  --fs-lg:20px; --fs-h2:22px; --fs-xl:24px; --fs-title:28px; --fs-num:30px; --fs-hero:96px;
+  --lh-num:.9; --ls-num:-.02em;   /* grands chiffres : serrés */
   /* espacements : pas de 4 px (2 px pour les serrages), marge de page */
   --sp-0:2px; --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-7:32px; --sp-8:40px;
   --gutter:var(--sp-6);
   --bottom-space:110px;        /* place laissée sous le contenu (toast, barre d'accueil) */
   /* arrondis : nets */
   --r-chip:3px; --r-ctl:4px; --r-panel:6px;
+  --vk-w:28px; --vk-min:96px;   /* colonne du type de bloc écrit à la verticale, et hauteur où il tient en entier */
   --safe-b:env(safe-area-inset-bottom,0px);
   --safe-t:env(safe-area-inset-top,0px);
 }
@@ -55,7 +57,7 @@ input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0}
 a{color:inherit}
 /* étiquettes mono en majuscules : famille et casse communes, taille et espacement propres à chacune */
 .kicker,.back,.card .tag,.card .cs,.card .cmeta,.weekbox .wl,.gprog .lab,.tab .s,.pill,.blk-h .bl,.tcell .l,.setlab,/* boutons : secondaire (bord) et principal (.go, accent plein), 44 px de haut */
-.dbtn,.gbtn,.painbtn,.reset,.profbtn,.sparklab,.alab,.cf-lab,.cf-st small,.cf-bdate,.cf-bt small,.cf-flag,.cf-belt,.cf-th,.cf-score label,.cf-mvl,.cf-here,.cf-glab{font-family:var(--f-label);text-transform:var(--tt-label)}
+.dbtn,.gbtn,.painbtn,.reset,.profbtn,.sparklab,.alab,.cf-lab,.cf-st small,.cf-bdate,.cf-bt small,.cf-flag,.cf-belt,.cf-score label,.cf-mvl,.cf-here,.cf-glab{font-family:var(--f-label);text-transform:var(--tt-label)}
 
 /* HEADER */
 header{padding:var(--sp-7) 0 var(--sp-4)}
@@ -339,40 +341,55 @@ footer{color:var(--muted);font-size:var(--fs-xs);font-family:var(--f-label);lett
 .cf-sync.ok{color:var(--muted)}
 .cf-sync.err{color:var(--hot)}
 /* séance : blocs dépliables */
-.cf-blocks{display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-5)}
-.cf-blk{border:1px solid var(--line);background:var(--panel);border-radius:var(--r-panel);overflow:hidden}
-.cf-blk.k-strength{border-color:rgba(var(--cf-accent-rgb),.45)}
-.cf-bh{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:56px;padding:var(--sp-3) var(--sp-4);cursor:pointer}
+/* séance, composition Sumi : retour, titre puis repère ; blocs sans panneau, type écrit à la verticale dans la marge */
+.cf-seance header{display:flex;flex-direction:column;align-items:flex-start}
+.cf-seance .topbar{display:contents}
+.cf-seance .back{order:-1;min-height:44px;padding:0;border:0;background:none;font-size:var(--fs-base);color:var(--muted)}
+.cf-seance h1{order:1;margin:var(--sp-1) 0 0}
+.cf-seance .kicker{order:2;margin-top:var(--sp-1);font-size:var(--fs-sm);color:var(--muted)}
+.cf-seance .kicker::before{display:none}
+.cf-blocks{display:flex;flex-direction:column;gap:var(--sp-7);margin-top:var(--sp-6)}
+.cf-blk{position:relative;min-height:var(--vk-min);padding-left:calc(var(--vk-w) + var(--sp-3))}
+.cf-bh{all:unset;box-sizing:border-box;display:flex;align-items:flex-start;gap:var(--sp-3);width:100%;min-height:44px;cursor:pointer}
 div.cf-bh{cursor:default}
-.cf-bn{font-family:var(--f-label);font-size:var(--fs-xs);font-weight:var(--fw-bold);color:var(--accent);flex:none}
+/* dans le bouton (le type fait partie de son nom) mais posé dans la marge, sur toute la hauteur du bloc */
+.cf-vk{position:absolute;left:0;top:0;bottom:0;width:var(--vk-w);padding-right:var(--sp-1);border-right:1px solid var(--line);writing-mode:vertical-rl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-xs);letter-spacing:var(--ls-label);color:var(--muted)}
 .cf-bt{display:flex;flex-direction:column;flex:1;min-width:0}
-.cf-bt b{font-weight:var(--fw-medium);font-size:var(--fs-base)}
+.cf-bt b{font-weight:var(--fw-medium);font-size:var(--fs-lg);line-height:1.3}
 .cf-bt small{font-size:var(--fs-xs);letter-spacing:var(--ls-label);color:var(--muted)}
 .cf-chev{font-family:var(--f-label);font-size:var(--fs-md);color:var(--muted);width:18px;text-align:center;flex:none}
 .cf-flag,.cf-belt{font-size:var(--fs-xs);font-weight:var(--fw-bold);letter-spacing:var(--ls-label);padding:var(--sp-1) var(--sp-2);border-radius:var(--r-chip);flex:none}
 .cf-flag{border:1px solid var(--info);color:var(--info)}
 .cf-flag-ceinture,.cf-belt{border:1px solid var(--warn);color:var(--warn)}
-.cf-bb{padding:0 var(--sp-4) var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-3)}
+.cf-bb{padding-top:var(--sp-3);display:flex;flex-direction:column;gap:var(--sp-3)}
 .cf-text{display:flex;flex-direction:column;gap:var(--sp-1);font-size:var(--fs-base);line-height:1.45}
 .cf-max{font-size:var(--fs-sm);color:var(--muted)}
 .cf-max b{color:var(--ink);font-weight:var(--fw-bold)}
 .cf-max a{color:var(--accent)}
-.cf-table{font-variant-numeric:tabular-nums;display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:var(--sp-2) var(--sp-3);align-items:center;font-size:var(--fs-base)}
-.cf-th{font-size:var(--fs-xs);letter-spacing:var(--ls-label);color:var(--muted)}
+/* lignes de force : montée en charge en ligne, série de travail en grand */
+.cf-lines{display:flex;flex-direction:column}
+.cf-line{display:grid;grid-template-columns:6em 4em minmax(0,1fr);align-items:center;gap:var(--sp-3);min-height:52px;border-bottom:1px solid var(--line);font-size:var(--fs-base)}
+.cf-line .cf-kg{justify-self:end}
+.cf-line.top{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"kg kg" "sr pc";align-items:baseline;row-gap:var(--sp-2);padding:var(--sp-4) 0 var(--sp-2);border-bottom:0}
+.cf-line.top .cf-kg{grid-area:kg;justify-self:start}
+.cf-line.top .cf-sr{grid-area:sr;font-size:var(--fs-xl);font-weight:var(--fw-num)}
+.cf-line.top .cf-pc{grid-area:pc;color:var(--muted)}
+.cf-line.top .cf-load{font-size:var(--fs-hero);line-height:var(--lh-num);letter-spacing:var(--ls-num)}
+.cf-line.top .cf-load small{font-size:var(--fs-xl)}
 .cf-kg{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
 .cf-load{font-weight:var(--fw-num);font-family:var(--f-display);font-size:var(--fs-num);letter-spacing:var(--ls-display)}
+.cf-load small{font-size:var(--fs-sm);color:var(--muted)}
 .cf-rest{font-size:var(--fs-base);color:var(--muted)}
 .cf-video{display:inline-flex;align-items:center;gap:var(--sp-2);min-height:44px;color:var(--accent);font-size:var(--fs-sm);text-decoration:none}
 /* metcon : RX / INT exclusifs + score */
-.cf-levels{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-ctl);overflow:hidden}
-.cf-lvh{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:50px;padding:var(--sp-2) var(--sp-3);cursor:pointer}
+.cf-levels{display:flex;flex-direction:column;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.cf-lvh{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:50px;padding:var(--sp-2) 0;cursor:pointer}
 .cf-lvh:not(:first-child){border-top:1px solid var(--line)}
-.cf-lvh.on{background:var(--panel2)}
 .cf-lvp{font-family:var(--f-label);font-size:var(--fs-2xs);font-weight:var(--fw-bold);padding:var(--sp-1) var(--sp-2);border-radius:var(--r-chip);color:var(--bg);flex:none}
 .cf-lvp.lv-rx{background:var(--accent)}
 .cf-lvp.lv-int{background:var(--info)}
 .cf-lvs{flex:1;min-width:0;font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cf-level{padding:var(--sp-3) var(--sp-3) var(--sp-3);background:var(--panel2);display:flex;flex-direction:column;gap:var(--sp-1)}
+.cf-level{padding:0 0 var(--sp-3);display:flex;flex-direction:column;gap:var(--sp-1)}
 .cf-level span{font-size:var(--fs-base);line-height:1.5}
 .cf-score{display:flex;flex-direction:column;gap:var(--sp-2)}
 .cf-score label{font-size:var(--fs-xs);letter-spacing:var(--ls-label);color:var(--muted)}
