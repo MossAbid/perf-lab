@@ -110,6 +110,23 @@ function syncCycle(){
   }, ()=>{});
 }
 
+/* ---- THÈME ---- */
+/* sombre par défaut, clair au choix : réglage de l'appareil, hors des données des profils (jamais exporté) ;
+   index.html le pose déjà avant le premier rendu, ici on suit la bascule et la couleur de barre */
+const THEME_KEY = "perflab.theme";
+const isLight = () => { try{ return localStorage.getItem(THEME_KEY) === "light"; }catch(e){ return false; } };
+function applyTheme(light){
+  const root = document.documentElement;
+  if(light) root.dataset.theme = "light"; else delete root.dataset.theme;
+  const m = document.querySelector('meta[name="theme-color"]');
+  if(m) m.content = getComputedStyle(root).getPropertyValue("--bg").trim();
+}
+function setTheme(light){
+  try{ light ? localStorage.setItem(THEME_KEY, "light") : localStorage.removeItem(THEME_KEY); }catch(e){}
+  applyTheme(light);
+}
+applyTheme(isLight());
+
 /* ---- ROUTER ---- */
 let lastRoute=null;
 function route(){
@@ -214,7 +231,11 @@ function renderLibrary(){
         </a>
       </div>
     </main>
+    <footer class="prefs">
+      <button type="button" class="switch" id="theme" role="switch" aria-checked="${isLight()}"><span>Mode clair</span><span class="sw" aria-hidden="true"></span></button>
+    </footer>
   </div></div>`;
+  $("#theme").onclick = e => { const on = !isLight(); setTheme(on); e.currentTarget.setAttribute("aria-checked", on); };
   app.querySelectorAll("[data-prof]").forEach(b=> b.onclick=async()=>{
     if(b.dataset.prof===Backend.activeProfile()) return;
     Backend.setProfile(b.dataset.prof);

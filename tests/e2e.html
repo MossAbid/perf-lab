@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Perf Lab — e2e</title>
+<meta name="theme-color" content="#191917">
 <link rel="stylesheet" href="../app.css">
 <!-- Harnais e2e : charge la vraie app et déroule le parcours complet.
      Lancer :  python3 tools/serve.py 8741  (racine du repo) puis
@@ -89,6 +90,27 @@
     const idx = await (await fetch("../index.html", { cache: "no-store" })).text();
     ok("zoom autorisé (plus de user-scalable=no ni maximum-scale)", !/user-scalable\s*=\s*no|maximum-scale/.test(idx));
     ok("profil actif par défaut : Moss", Backend.activeProfile() === "moss");
+    /* mode clair : interrupteur sur l'accueil, réglage de l'appareil (hors des données des profils) */
+    const sw = () => document.getElementById("theme"), bodyBg = () => getComputedStyle(document.body).backgroundColor;
+    const rootBg = () => getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    ok("mode clair : interrupteur sur l'accueil, éteint par défaut", !!sw() && sw().getAttribute("role") === "switch"
+       && sw().getAttribute("aria-checked") === "false" && /Mode clair/.test(sw().textContent) && lum(bodyBg()) < .05);
+    ok("mode clair : interrupteur assez grand pour le pouce (44 px)", sw().getBoundingClientRect().height >= 44);
+    sw().click(); await tick();
+    ok("mode clair : fond papier, texte encre lisible", document.documentElement.dataset.theme === "light" && lum(bodyBg()) > .8
+       && ratio(getComputedStyle(document.body).color, bodyBg()) >= 4.5);
+    ok("mode clair : retenu sur l'appareil et après un nouveau rendu", localStorage.getItem("perflab.theme") === "light"
+       && (renderLibrary(), sw().getAttribute("aria-checked") === "true"));
+    ok("mode clair : couleur de barre du navigateur suivie", document.querySelector('meta[name="theme-color"]').content === rootBg());
+    const head = idx.split("</head>")[0];
+    ok("mode clair : posé avant le premier rendu (index.html, avant app.css), barre iOS claire",
+       head.includes("perflab.theme") && head.indexOf("perflab.theme") < head.indexOf('href="app.css"') && head.includes('"' + rootBg() + '"') && /"default"/.test(head));
+    ok("mode clair : bande d'encre sous l'heure si iOS garde la barre translucide",
+       getComputedStyle(document.body, "::before").backgroundColor === getComputedStyle(document.body).color);
+    ok("mode clair : hors de la sauvegarde des profils", !/theme/.test(JSON.stringify(Backend.exportAll())));
+    sw().click(); await tick();
+    ok("mode sombre rétabli", !document.documentElement.dataset.theme && localStorage.getItem("perflab.theme") === null
+       && lum(bodyBg()) < .05 && document.querySelector('meta[name="theme-color"]').content === rootBg());
 
     /* 2. bascule Souad : bibliothèque indépendante */
     document.querySelector('[data-prof="souad"]').click();

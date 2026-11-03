@@ -16,6 +16,11 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon.png" type="image/png">
 
+<!-- mode clair choisi sur l'accueil : posé avant le premier rendu (pas d'éclair sombre), avec la barre d'état d'iOS en clair
+     (couleur = --bg du mode clair dans app.css) -->
+<script>try{if(localStorage.getItem("perflab.theme")==="light"){document.documentElement.dataset.theme="light";
+  document.querySelector('meta[name="theme-color"]').content="#f6f5f1";
+  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content="default";}}catch(e){}</script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
