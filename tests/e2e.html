@@ -386,9 +386,43 @@
     ok("mois : team WOD le dimanche de la semaine", /T/.test(document.querySelector(`.cf-day[data-day="${sunCal}"]`).textContent));
     const fut = [...document.querySelectorAll(".cf-day[data-day]")].find(b => b.dataset.day > sunCal && !b.disabled && b.dataset.day.slice(0, 7) === today().slice(0, 7));
     if (fut) { fut.click(); await tick(); ok("mois : jour à venir", /À venir|Après la fin du cycle/.test(document.querySelector(".cf-dday").textContent)); }
-    const b9 = PLCycle.monthBounds(CycleStore.getCycle(), today());
+    const b9 = PLCycle.monthBounds(CycleStore.getCycles(), today());
     ok("mois : précédent désactivé à la borne", today().slice(0, 7) !== b9.min || document.getElementById("cfprev").disabled);
     PLCycle.unmarkDone(a9.logs["cycle-1"], "w1s2"); await CycleStore.saveAthlete(a9);
+
+    /* 9c bis. Ton mois : un ancien cycle reste visible après l'import du suivant */
+    const dAgo = k => isoUTC(new Date(Date.parse(mon) - k * 864e5));
+    const old0 = dAgo(70), old0d = dAgo(69), gap0 = dAgo(40);
+    const c0 = makeSampleCycle(old0, "cycle-0"); c0.title = "Cycle 0";
+    await CycleStore.importCycle(c0); await CycleStore.importCycle(makeSampleCycle(mon));
+    const a0 = CycleStore.getAthlete(); a0.logs["cycle-0"] = PLCycle.newLog();
+    PLCycle.markDone(a0.logs["cycle-0"], "w1s1", old0d);
+    PLCycle.recordScore(a0.logs["cycle-0"], "w1s1", "rx", PLCycle.parseScore("rounds_reps", "7+3"), old0d, "amrap-a");
+    await CycleStore.saveAthlete(a0);
+    const monthsBack = iso => { const [y, m] = iso.split("-").map(Number); return (ty * 12 + tm) - (y * 12 + m); };
+    const openDay = async iso => {
+      await goto("cf"); await goto("cf/mois");
+      for (let i = monthsBack(iso); i > 0; i--) { document.getElementById("cfprev").click(); await tick(); }
+      document.querySelector(`.cf-day[data-day="${iso}"]`).click(); await tick();
+    };
+    await openDay(old0d);
+    ok("mois : séance d'un ancien cycle", [...document.querySelectorAll(`.cf-day[data-day="${old0d}"] .cf-chip.c-session`)].map(e => e.textContent).join(",") === "S1");
+    const dd0 = document.querySelector(".cf-dday").textContent;
+    ok("mois : ancien cycle nommé, avec son score", /Cycle 0 · Semaine 1/.test(dd0) && /7 tours \+ 3/.test(dd0));
+    const lab0 = document.querySelector(".cf-mlabel").textContent;
+    const rev0 = document.querySelector('.cf-dday a[href="#/cf/s/cycle-0/w1s1"]');
+    ok("mois : lien vers la séance de l'ancien cycle", !!rev0);
+    if (rev0) {
+      rev0.click(); await tick();
+      ok("séance d'un ancien cycle : ouverte, son score", location.hash === "#/cf/s/cycle-0/w1s1"
+         && /Cycle 0/.test(document.querySelector(".cf").textContent) && /Enregistré : 7 tours \+ 3/.test(document.querySelector(".cf").textContent));
+      document.getElementById("cfback").click(); await tick();
+      ok("séance d'un ancien cycle : retour au même mois", location.hash === "#/cf/mois" && document.querySelector(".cf-mlabel").textContent === lab0);
+    }
+    await openDay(gap0);
+    ok("mois : jour entre deux cycles", /Entre deux cycles\./.test(document.querySelector(".cf-dday").textContent));
+    await goto("cf"); await goto("cf/mois");
+    ok("mois : cycle actif sans nom de cycle", !/Cycle test ·/.test(document.querySelector(".cf-dday").textContent));
 
     /* 9d. PROGRAMMATION : Ton programme */
     await goto("cf");

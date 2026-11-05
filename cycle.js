@@ -280,31 +280,42 @@
 
   const cycleEnd = cycle => isoOf(dayNum(cycle.start) + cycle.weeks.length * 7 - 1);
 
-  function monthBounds(cycle, todayISO) {
-    const ms = [cycle.start, cycleEnd(cycle), todayISO].map(iso => iso.slice(0, 7)).sort();
+  /* tous les cycles connus (l'actif et les anciens) : rien ne disparaît quand un nouveau cycle arrive */
+  const byStart = cycles => (cycles || []).filter(Boolean).slice().sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+
+  function monthBounds(cycles, todayISO) {
+    const ms = byStart(cycles).flatMap(c => [c.start, cycleEnd(c)]).concat(todayISO).map(iso => iso.slice(0, 7)).sort();
     return { min: ms[0], max: ms[ms.length - 1] };
   }
 
-  function monthGrid(cycle, log, year, month, todayISO) {
-    const L = log || {}, ym = `${year}-${String(month).padStart(2, "0")}`;
+  // cycle qui couvre ce jour ; s'ils se chevauchent, le plus récent
+  function cycleAt(cycles, iso) {
+    const n = dayNum(iso);
+    return byStart(cycles).reverse().find(c => n >= dayNum(c.start) && n <= dayNum(cycleEnd(c))) || null;
+  }
+
+  function monthGrid(cycles, logs, year, month, todayISO) {
+    const LS = logs || {}, ym = `${year}-${String(month).padStart(2, "0")}`;
     const first = dayNum(ym + "-01"), dim = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const from = first - weekday(first), last = first + dim - 1, to = last + 6 - weekday(last);
-    const startN = dayNum(cycle.start), endN = dayNum(cycleEnd(cycle));
-    const order = sessionOrder(cycle), byDay = {};
+    const all = byStart(cycles), byDay = {};
     const add = (iso, item) => (byDay[iso] = byDay[iso] || []).push(item);
-    cycle.weeks.forEach((w, wi) => {
-      w.sessions.forEach((s, i) => {
-        const d = (L.done || {})[s.id];
-        if (d) add(d, { type: "session", id: s.id, n: i + 1, wi, title: s.title, chip: "S" + (i + 1), _o: order.indexOf(s.id) });
+    all.forEach((cycle, ci) => {
+      const L = LS[cycle.id] || {}, order = sessionOrder(cycle), base = ci * 1000;   // ordre : cycle puis séance
+      cycle.weeks.forEach((w, wi) => {
+        w.sessions.forEach((s, i) => {
+          const d = (L.done || {})[s.id];
+          if (d) add(d, { type: "session", id: s.id, cid: cycle.id, n: i + 1, wi, title: s.title, chip: "S" + (i + 1), _o: base + order.indexOf(s.id) });
+        });
+        const bd = w.bonus && (L.bonus || {})[w.bonus.id];
+        if (bd) add(bd, { type: "bonus", id: w.bonus.id, cid: cycle.id, title: w.bonus.title, chip: "B", _o: base + order.length });
       });
-      const bd = w.bonus && (L.bonus || {})[w.bonus.id];
-      if (bd) add(bd, { type: "bonus", id: w.bonus.id, title: w.bonus.title, chip: "B", _o: order.length });
     });
     const weeks = [];
     for (let n = from; n <= to; n++) {
       const iso = isoOf(n);
       const items = (byDay[iso] || []).sort((a, b) => a._o - b._o).map(({ _o, ...it }) => it);
-      if (weekday(n) === 6 && n >= startN && n <= endN) items.push({ type: "wod", chip: "T", past: iso < todayISO });
+      if (weekday(n) === 6 && cycleAt(all, iso)) items.push({ type: "wod", chip: "T", past: iso < todayISO });
       if (weekday(n) === 0) weeks.push([]);
       weeks[weeks.length - 1].push({ iso, day: +iso.slice(8), inMonth: iso.slice(0, 7) === ym, today: iso === todayISO, items });
     }
@@ -410,7 +421,7 @@
     loadKg, liftMax, strengthLines, newAthlete, setMax,
     newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,
     parseScore, recordScore, previousScore,
-    cycleEnd, monthBounds, monthGrid, programmeWeek,
+    cycleEnd, monthBounds, monthGrid, cycleAt, programmeWeek,
     schemeOf, weekZone, loadDelta, liftSeries, nextTest, attendance
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;

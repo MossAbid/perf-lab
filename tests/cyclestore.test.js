@@ -131,6 +131,26 @@ t("LOCAL : réimporter le même cycle conserve le journal", async () => {
   assert.equal(CycleStore.getAthlete().logs["cycle-1"].done.w1s1, "2026-11-24");
 });
 
+t("LOCAL : un nouveau cycle garde l'ancien (Ton mois)", async () => {
+  const { CycleStore, ls } = boot();
+  await CycleStore.init();
+  assert.deepEqual(CycleStore.getCycles(), [], "aucun cycle");
+  await CycleStore.importCycle(makeSampleCycle());
+  await CycleStore.importCycle(makeSampleCycle("2027-01-25", "cycle-2"));
+  assert.equal(CycleStore.getCycle().id, "cycle-2", "le dernier importé reste l'actif");
+  assert.deepEqual(CycleStore.getCycles().map(c => c.id), ["cycle-1", "cycle-2"]);
+  assert.deepEqual(JSON.parse(ls.getItem("perflab.cf.past")).map(c => c.id), ["cycle-1"], "seuls les anciens dans perflab.cf.past");
+  const fixed = makeSampleCycle("2027-01-25", "cycle-2"); fixed.title = "Cycle 2 corrigé";
+  await CycleStore.importCycle(fixed);
+  assert.deepEqual(CycleStore.getCycles().map(c => [c.id, c.title]), [["cycle-1", "Cycle test"], ["cycle-2", "Cycle 2 corrigé"]], "réimport : remplacé, pas doublé");
+});
+
+t("LOCAL : cache d'avant (cycle actif seul) → un seul cycle connu", async () => {
+  const { CycleStore } = boot({ "perflab.cf.cycle": JSON.stringify(makeSampleCycle()) });
+  await CycleStore.init();
+  assert.deepEqual(CycleStore.getCycles().map(c => c.id), ["cycle-1"]);
+});
+
 /* ---- CLOUD ---- */
 t("CLOUD : refresh charge le cycle actif et le blob athlète", async () => {
   const store = {
@@ -164,6 +184,39 @@ t("CLOUD : importCycle écrit cycles + cycle_athletes avec owner = moi", async (
     { cycle_id: store.cycle_athletes[0].cycle_id, user_id: store.cycle_athletes[0].user_id, owner: store.cycle_athletes[0].owner, active: store.cycle_athletes[0].active },
     { cycle_id: "cycle-1", user_id: "u1", owner: "u1", active: true });
   assert.equal(CycleStore.getCycle().id, "cycle-1");
+});
+
+t("CLOUD : refresh garde tous les cycles inscrits, servis aussi hors-ligne", async () => {
+  const store = {
+    cycles: [
+      { id: "cycle-1", owner: "u1", data: makeSampleCycle() },
+      { id: "c-sep", owner: "u1", data: makeSampleCycle("2026-09-07", "c-sep") },
+      { id: "c-autre", owner: "u2", data: makeSampleCycle("2026-06-01", "c-autre") }
+    ],
+    cycle_athletes: [
+      { cycle_id: "cycle-1", user_id: "u1", owner: "u1", active: true },
+      { cycle_id: "c-sep", user_id: "u1", owner: "u1", active: true },
+      { cycle_id: "c-autre", user_id: "u1", owner: "u2", active: true }
+    ],
+    state: []
+  };
+  const { CycleStore, ls } = boot(null, { store, session: ME });
+  await CycleStore.init();
+  await CycleStore.refresh();
+  assert.equal(CycleStore.getCycle().id, "cycle-1");
+  assert.deepEqual(CycleStore.getCycles().map(c => c.id), ["c-sep", "cycle-1"], "lien posé par un autre : ignoré, comme pour l'actif");
+  const off = boot({ ...ls._store }, { store, session: ME, failSelect: true });
+  await off.CycleStore.init();
+  await off.CycleStore.refresh();
+  assert.deepEqual(off.CycleStore.getCycles().map(c => c.id), ["c-sep", "cycle-1"], "hors-ligne : depuis le cache");
+});
+
+t("CLOUD : importer le cycle suivant garde le précédent avant tout refresh", async () => {
+  const store = { cycles: [], cycle_athletes: [], state: [] };
+  const { CycleStore } = boot({ "perflab.cf.cycle": JSON.stringify(makeSampleCycle()) }, { store, session: ME });
+  await CycleStore.init();
+  await CycleStore.importCycle(makeSampleCycle("2027-01-25", "cycle-2"));
+  assert.deepEqual(CycleStore.getCycles().map(c => c.id), ["cycle-1", "cycle-2"]);
 });
 
 t("CLOUD : saveAthlete hors-ligne → file, poussé au retour du réseau", async () => {

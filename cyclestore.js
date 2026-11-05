@@ -7,7 +7,8 @@
              sauvegarde faite sans réseau.
 
    Contenu du cycle : tables `cycles` / `cycle_athletes` (jamais dans le dépôt),
-   cache `perflab.cf.cycle`. Données de l'athlète (max, séances faites, scores) :
+   cache `perflab.cf.cycle` (cycle actif) et `perflab.cf.past` (anciens cycles,
+   pour Ton mois). Données de l'athlète (max, séances faites, scores) :
    table `state` clé `cycle`, cache `perflab.p.moss.cycle` — la clé que lit
    l'export de Backend, donc la sauvegarde JSON les emporte.
    ================================================================================= */
@@ -17,6 +18,7 @@ const CycleStore = (() => {
   const C = () => window.PLCycle;
 
   const CYCLE_KEY = "perflab.cf.cycle";
+  const PAST_KEY = "perflab.cf.past";           // anciens cycles : leurs séances restent dans Ton mois
   const ATHLETE_KEY = "perflab.p.moss.cycle";
   const QUEUE_KEY = "perflab.cf.queue";
   const AUTH_KEY = "perflab.cf.auth";          // session Supabase du module (storageKey)
@@ -32,6 +34,12 @@ const CycleStore = (() => {
 
   /* ---- lecture (toujours depuis le cache : marche hors-ligne) ---- */
   function getCycle(){ return readLS(CYCLE_KEY, null); }
+  /* tous les cycles connus, du plus ancien au plus récent (l'actif compris) */
+  function getCycles(){
+    const act = getCycle(), past = readLS(PAST_KEY, []);
+    return (Array.isArray(past) ? past : []).filter(c => c && c.id && (!act || c.id !== act.id))
+      .concat(act ? [act] : []).sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+  }
   function getAthlete(){
     const a = readLS(ATHLETE_KEY, null);
     return a && a.v ? a : C().newAthlete();
@@ -126,17 +134,19 @@ const CycleStore = (() => {
         .select("*").eq("user_id", currentUser.id).eq("active", true));
       if(e1) throw e1;
       const ids = (links || []).filter(r => r.owner === currentUser.id).map(r => r.cycle_id);
-      let cycle = null;
+      let cycle = null, found = [];
       if(ids.length){
         const { data: rows, error: e2 } = await withTimeout(client.from("cycles").select("*").in("id", ids));
         if(e2) throw e2;
         const valid = c => { try { return C().validateCycle(c); } catch(e){ return false; } };
-        (rows || []).forEach(r => { if(r.data && valid(r.data) && (!cycle || r.data.start > cycle.start)) cycle = r.data; });
+        found = (rows || []).filter(r => r.data && valid(r.data)).map(r => r.data);
+        found.forEach(c => { if(!cycle || c.start > cycle.start) cycle = c; });
       }
       const { data: st, error: e3 } = await withTimeout(client.from("state")
         .select("*").eq("user_id", currentUser.id).eq("key", "cycle"));
       if(e3) throw e3;
       writeLS(CYCLE_KEY, cycle);
+      writeLS(PAST_KEY, found.filter(c => c !== cycle));
       const remote = st && st[0] && st[0].value;
       if(remote && !readLS(QUEUE_KEY, null)) writeLS(ATHLETE_KEY, remote);
       return { cycle, athlete: getAthlete() };
@@ -170,9 +180,11 @@ const CycleStore = (() => {
       }));
       if(r2.error) throw msg(r2.error);
     }
+    // l'actif remplacé par un autre cycle passe dans les anciens ; un réimport remplace sans doubler
+    writeLS(PAST_KEY, getCycles().filter(c => c.id !== cycle.id));
     writeLS(CYCLE_KEY, cycle);
   }
 
   return { init, isCloud, needAuth, signIn, signOut, user, onAuth,
-           refresh, flush, syncState, getCycle, getAthlete, saveAthlete, importCycle };
+           refresh, flush, syncState, getCycle, getCycles, getAthlete, saveAthlete, importCycle };
 })();

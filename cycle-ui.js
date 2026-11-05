@@ -1,8 +1,9 @@
 /* ======================= PERF LAB — PROGRAMMATION : ÉCRANS =======================
    Module réservé au profil Moss. Routes :
      #/cf           Ta semaine (file ordonnée de 4 séances + bonus + team WOD)
-     #/cf/s/<sid>   une séance
-     #/cf/mois      ton mois (calendrier des séances faites)
+     #/cf/s/<sid>   une séance du cycle actif
+     #/cf/s/<cycle>/<sid>  une séance d'un ancien cycle (ouverte depuis Ton mois)
+     #/cf/mois      ton mois (calendrier des séances faites, tous cycles confondus)
      #/cf/programme ton programme (objectifs, semaines, charges)
      #/cf/max       tes max
      #/cf/import    importer un cycle
@@ -187,24 +188,39 @@ const CycleUI = (() => {
   };
   const ITEM_ARIA = { session: it => `séance ${it.n} faite`, bonus: () => "bonus fait", wod: () => "team WOD" };
 
-  function dayDetail(cycle, log, cell, td){
+  /* séance du cycle actif : #/cf/s/<sid> ; d'un ancien cycle : #/cf/s/<cycle>/<sid>
+     (les identifiants w1s1… se répètent d'un cycle à l'autre) */
+  const sKey = (sid, cid) => (cid ? cid + "/" : "") + sid;
+  function sessHref(cid, sid){
+    const act = CycleStore.getCycle();
+    return "#/cf/s/" + (act && act.id === cid ? "" : encodeURIComponent(cid) + "/") + encodeURIComponent(sid);
+  }
+
+  /* cycles : tous les cycles connus (getCycles) ; cycle : l'actif */
+  function dayDetail(cycles, cycle, athlete, cell, td){
+    const titleOf = cid => { const c = cycles.find(x => x.id === cid); return c ? c.title : ""; };
     const rows = cell.items.map(it => {
       if(it.type === "wod") return `<div class="cf-ditem"><b>Team WOD à la salle · compté dans ta semaine.</b></div>`;
-      const link = `<a href="#/cf/s/${encodeURIComponent(it.id)}">Revoir la séance</a>`;
-      if(it.type === "bonus") return `<div class="cf-ditem"><b>Bonus · ${esc(it.title.replace(/^Bonus · /, ""))}</b>${link}</div>`;
-      const sc = log.scores[it.id];
+      const link = `<a href="${sessHref(it.cid, it.id)}">Revoir la séance</a>`;
+      const named = it.cid !== cycle.id ? esc(titleOf(it.cid)) : "";   // ancien cycle : on dit lequel
+      if(it.type === "bonus") return `<div class="cf-ditem"><b>Bonus · ${esc(it.title.replace(/^Bonus · /, ""))}</b>${named ? `<small>${named}</small>` : ""}${link}</div>`;
+      const sc = (((athlete.logs || {})[it.cid] || {}).scores || {})[it.id];
       return `<div class="cf-ditem"><b>Séance ${it.n} · ${esc(it.title)}</b>
-        <small>Semaine ${it.wi + 1} · ${sc ? "score : " + esc(sc.text) : "pas de score"}</small>${link}</div>`;
+        <small>${named ? named + " · " : ""}Semaine ${it.wi + 1} · ${sc ? "score : " + esc(sc.text) : "pas de score"}</small>${link}</div>`;
     });
     if(!rows.length){
-      const iso = cell.iso, v = C.weekView(cycle, log, td);
+      const iso = cell.iso, at = C.cycleAt(cycles, iso), lastEnd = cycles.map(C.cycleEnd).sort().pop();
       let msg = "Repos.", link = "";
-      if(iso < cycle.start) msg = `Avant le début du cycle (${dayLabel(cycle.start)}).`;
-      else if(iso > C.cycleEnd(cycle)) msg = "Après la fin du cycle.";
-      else if(iso === td && v.nextId){
-        const i = v.week.sessions.findIndex(s => s.id === v.nextId);
-        msg = `Prochaine séance : Séance ${i + 1} · ${esc(v.week.sessions[i].title)}.`;
-        link = `<a href="#/cf">Voir ta semaine</a>`;
+      if(iso < cycles[0].start) msg = `Avant le début du cycle (${dayLabel(cycles[0].start)}).`;
+      else if(iso > lastEnd) msg = "Après la fin du cycle.";
+      else if(!at) msg = "Entre deux cycles.";
+      else if(iso === td && at.id === cycle.id){
+        const v = C.weekView(cycle, logFor(athlete, cycle), td);
+        if(v.nextId){
+          const i = v.week.sessions.findIndex(s => s.id === v.nextId);
+          msg = `Prochaine séance : Séance ${i + 1} · ${esc(v.week.sessions[i].title)}.`;
+          link = `<a href="#/cf">Voir ta semaine</a>`;
+        }
       } else if(iso > td) msg = "À venir : tes séances se placent ici le jour où tu les fais.";
       rows.push(`<div class="cf-ditem"><p>${msg}</p>${link}</div>`);
     }
@@ -214,9 +230,9 @@ const CycleUI = (() => {
   function renderMonth(){
     const cycle = CycleStore.getCycle();
     if(!cycle){ location.hash = "#/cf"; return; }
-    const log = logFor(CycleStore.getAthlete(), cycle), td = today();
-    const b = C.monthBounds(cycle, td), [y, mo] = MS.ym.split("-").map(Number);
-    const g = C.monthGrid(cycle, log, y, mo, td), all = g.weeks.flat();
+    const athlete = CycleStore.getAthlete(), cycles = CycleStore.getCycles(), td = today();
+    const b = C.monthBounds(cycles, td), [y, mo] = MS.ym.split("-").map(Number);
+    const g = C.monthGrid(cycles, athlete.logs, y, mo, td), all = g.weeks.flat();
     const chip = it => `<span class="cf-chip c-${it.type}${it.past ? " past" : ""}">${it.chip}</span>`;
     const cells = all.map(c => `<button class="cf-day${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.iso === MS.sel ? " sel" : ""}"
         data-day="${c.iso}"${c.inMonth ? "" : " disabled"}
@@ -240,7 +256,7 @@ const CycleUI = (() => {
         <span><span class="cf-chip c-wod">T</span>team WOD</span>
         <span><span class="cf-todaykey"></span>aujourd'hui</span>
       </div>
-      ${sel ? dayDetail(cycle, log, sel, td) : `<div class="cf-dday"><p>Touche un jour.</p></div>`}
+      ${sel ? dayDetail(cycles, cycle, athlete, sel, td) : `<div class="cf-dday"><p>Touche un jour.</p></div>`}
       ${footer()}`);
     const go = d => { MS.ym = shiftYm(MS.ym, d); MS.sel = td.slice(0, 7) === MS.ym ? td : null; renderMonth(); };
     $("#cfprev").onclick = () => go(-1);
@@ -419,15 +435,18 @@ const CycleUI = (() => {
     return `${b.text ? `<div class="cf-text">${lines(b.text)}</div>` : ""}<div class="cf-levels">${levels}</div>${score}`;
   }
 
-  function renderSession(sid){
-    const cycle = CycleStore.getCycle();
+  /* cid : cycle de la séance quand ce n'est pas l'actif (ouverte depuis Ton mois) */
+  function renderSession(sid, cid){
+    const act = CycleStore.getCycle();
+    const cycle = cid ? CycleStore.getCycles().find(c => c.id === cid) : act;
     const f = cycle && findSession(cycle, sid);
     if(!f){ location.hash = "#/cf"; return; }
+    const past = !act || cycle.id !== act.id, key = sKey(sid, cid);
     const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle);
     const metcon = f.s.blocks.find(b => b.kind === "metcon");
-    if(SS.sid !== sid){
+    if(SS.sid !== key){
       const prev = metcon && C.previousScore(athlete, metcon.bench, today());
-      SS = { sid, open: new Set(f.s.blocks.map((b, i) => b.kind === "strength" ? i : -1).filter(i => i >= 0)),
+      SS = { sid: key, open: new Set(f.s.blocks.map((b, i) => b.kind === "strength" ? i : -1).filter(i => i >= 0)),
              level: (log.scores[sid] || prev || {}).level || "rx", levelOpen: true, err: "" };
     }
     const locked = f.wi > C.calendarWeek(cycle, today());
@@ -457,7 +476,7 @@ const CycleUI = (() => {
           <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
     const rank = f.bonus ? "bonus" : `séance ${f.n} sur ${f.w.sessions.length}`;
-    shell(`Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase} · ${rank}`, esc(f.s.title.replace(/^Bonus · /, "")), `
+    shell(`${past ? cycle.title + " · " : ""}Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase} · ${rank}`, esc(f.s.title.replace(/^Bonus · /, "")), `
       <p class="lede">${minutesOf(f.s)} min, hors blocs facultatifs.</p>
       <div class="cf-blocks">${blocks}</div>
       ${foot}`, sessBack, "cf-seance");
@@ -465,13 +484,13 @@ const CycleUI = (() => {
     app.querySelectorAll("[data-block]").forEach(btn => btn.onclick = () => {
       const i = +btn.dataset.block;
       if(SS.open.has(i)) SS.open.delete(i); else SS.open.add(i);
-      renderSession(sid);
+      renderSession(sid, cid);
     });
     app.querySelectorAll("[data-level]").forEach(btn => btn.onclick = () => {
       const k = btn.dataset.level, inp = $("#cfscore");
       if(inp) SS.draft = inp.value;   // garder la saisie en cours
       if(SS.level === k && SS.levelOpen) SS.levelOpen = false; else { SS.level = k; SS.levelOpen = true; }
-      renderSession(sid);
+      renderSession(sid, cid);
     });
     const save = $("#cfsave");
     if(save) save.onclick = busy(async () => {
@@ -483,7 +502,7 @@ const CycleUI = (() => {
       C.recordScore(logFor(a, cycle), sid, SS.level, sc, today(), metcon.bench);
       await CycleStore.saveAthlete(a);
       toast("Score enregistré.");
-      renderSession(sid);
+      renderSession(sid, cid);
     });
     const undo = $("#cfundo");
     if(undo) undo.onclick = busy(async () => {
@@ -491,7 +510,7 @@ const CycleUI = (() => {
       if(f.bonus) C.unmarkBonus(l, sid); else C.unmarkDone(l, sid);
       await CycleStore.saveAthlete(a);
       toast("Séance remise à faire.");
-      renderSession(sid);
+      renderSession(sid, cid);
     });
     const done = $("#cfdone");
     if(done && !done.disabled) done.onclick = busy(async () => {
@@ -499,7 +518,7 @@ const CycleUI = (() => {
       if(f.bonus) C.markBonus(l, sid, today()); else C.markDone(l, sid, today());
       await CycleStore.saveAthlete(a);
       toast(f.bonus ? "Bonus noté." : "Séance enregistrée — bien joué.");
-      renderSession(sid);
+      renderSession(sid, cid);
     });
   }
 
@@ -598,8 +617,8 @@ const CycleUI = (() => {
   }
 
   function renderFiche(id){
-    const cycle = CycleStore.getCycle();
-    const m = cycle && (cycle.movements || {})[id];
+    const cycle = [CycleStore.getCycle(), ...CycleStore.getCycles().reverse()].find(c => c && (c.movements || {})[id]);
+    const m = cycle && cycle.movements[id];
     if(!m){ location.hash = "#/cf/m"; return; }
     const sec = (label, html) => html ? `<div class="cf-fsec"><div class="cf-lab">${label}</div>${html}</div>` : "";
     let max = "";
@@ -652,12 +671,13 @@ const CycleUI = (() => {
     let y = 0;
     if(CycleStore.needAuth()) renderLogin();
     else if(m){
-      const sid = decodeURIComponent(m[1]), fromFiche = /^cf\/m\//.test(from);
+      const parts = m[1].split("/").map(decodeURIComponent), sid = parts.pop(), cid = parts[0] || null;
+      const fromFiche = /^cf\/m\//.test(from);
       if(/^cf\/(programme|mois)$/.test(from)) sessBack = [from === "cf/mois" ? "Ton mois" : "Ton programme", "#/" + from];
       else if(!fromFiche) sessBack = ["Ta semaine", "#/cf"];
-      if(fromFiche && SS.sid === sid) y = SS.y || 0;
+      if(fromFiche && SS.sid === sKey(sid, cid)) y = SS.y || 0;
       else SS = { sid: null };   // écran neuf, sauf au retour d'une fiche
-      renderSession(sid);
+      renderSession(sid, cid);
     }
     else if(mv) renderFiche(decodeURIComponent(mv[1]));
     else if(h === "cf/m") renderMoves();

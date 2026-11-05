@@ -176,31 +176,61 @@ const MONTHS_LOG = () => ({ ...C.newLog(), done: { w1s2: "2026-11-24", w1s1: "20
 const cell = (g, iso) => g.weeks.flat().find(x => x.iso === iso);
 t("fin du cycle : dimanche de la dernière semaine", () => assert.equal(C.cycleEnd(makeSampleCycle()), "2026-12-06"));
 t("mois : novembre 2026 sur 6 lignes", () => {
-  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  const g = C.monthGrid([makeSampleCycle()], { "cycle-1": MONTHS_LOG() }, 2026, 11, "2026-11-25");
   assert.equal(g.label, "Novembre 2026"); assert.equal(g.weeks.length, 6);
   assert.equal(g.weeks[0][0].iso, "2026-10-26"); assert.equal(g.weeks[0][0].inMonth, false);
   assert.equal(g.weeks[5][6].iso, "2026-12-06");
 });
 t("mois : deux séances le même jour, dans l'ordre", () => {
-  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  const g = C.monthGrid([makeSampleCycle()], { "cycle-1": MONTHS_LOG() }, 2026, 11, "2026-11-25");
   assert.deepEqual(cell(g, "2026-11-24").items.map(i => i.chip), ["S1", "S2"]);
 });
 t("mois : bonus et aujourd'hui", () => {
-  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  const g = C.monthGrid([makeSampleCycle()], { "cycle-1": MONTHS_LOG() }, 2026, 11, "2026-11-25");
   assert.deepEqual(cell(g, "2026-11-26").items.map(i => i.type), ["bonus"]);
   assert.equal(cell(g, "2026-11-25").today, true);
 });
 t("mois : team WOD seulement les dimanches du cycle", () => {
-  const g = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 11, "2026-11-25");
+  const g = C.monthGrid([makeSampleCycle()], { "cycle-1": MONTHS_LOG() }, 2026, 11, "2026-11-25");
   assert.deepEqual(cell(g, "2026-11-29").items, [{ type: "wod", chip: "T", past: false }]);
   assert.deepEqual(cell(g, "2026-11-22").items, []);
-  const d = C.monthGrid(makeSampleCycle(), MONTHS_LOG(), 2026, 12, "2026-12-20");
+  const d = C.monthGrid([makeSampleCycle()], { "cycle-1": MONTHS_LOG() }, 2026, 12, "2026-12-20");
   assert.equal(cell(d, "2026-12-06").items[0].past, true);
   assert.deepEqual(cell(d, "2026-12-13").items, []);
 });
 t("mois : bornes de navigation", () => {
-  assert.deepEqual(C.monthBounds(makeSampleCycle(), "2026-10-26"), { min: "2026-10", max: "2026-12" });
-  assert.deepEqual(C.monthBounds(makeSampleCycle(), "2027-02-10"), { min: "2026-11", max: "2027-02" });
+  assert.deepEqual(C.monthBounds([makeSampleCycle()], "2026-10-26"), { min: "2026-10", max: "2026-12" });
+  assert.deepEqual(C.monthBounds([makeSampleCycle()], "2027-02-10"), { min: "2026-11", max: "2027-02" });
+});
+/* deux cycles : cycle-1 du 23/11 au 06/12, cycle-2 du 14/12 au 27/12 (semaine du 07/12 entre les deux) */
+const TWO = () => [makeSampleCycle("2026-12-14", "cycle-2"), makeSampleCycle()];   // dans le désordre exprès
+const TWO_LOGS = () => ({ "cycle-1": MONTHS_LOG(), "cycle-2": { ...C.newLog(), done: { w1s1: "2026-12-15" } } });
+t("mois : séances d'un ancien cycle gardées, chacune avec son cycle", () => {
+  const nov = C.monthGrid(TWO(), TWO_LOGS(), 2026, 11, "2026-12-16");
+  assert.deepEqual(cell(nov, "2026-11-24").items.map(i => [i.chip, i.cid]), [["S1", "cycle-1"], ["S2", "cycle-1"]]);
+  const dec = C.monthGrid(TWO(), TWO_LOGS(), 2026, 12, "2026-12-16");
+  assert.deepEqual(cell(dec, "2026-12-15").items.map(i => [i.chip, i.cid, i.id]), [["S1", "cycle-2", "w1s1"]]);
+});
+t("mois : team WOD les dimanches de chaque cycle, pas entre deux", () => {
+  const dec = C.monthGrid(TWO(), TWO_LOGS(), 2026, 12, "2026-12-16");
+  assert.equal(cell(dec, "2026-12-06").items[0].type, "wod");
+  assert.deepEqual(cell(dec, "2026-12-13").items, []);
+  assert.deepEqual(cell(dec, "2026-12-20").items, [{ type: "wod", chip: "T", past: false }]);
+});
+t("mois : journal absent pour un cycle → aucune séance, sans erreur", () => {
+  const dec = C.monthGrid(TWO(), { "cycle-1": MONTHS_LOG() }, 2026, 12, "2026-12-16");
+  assert.deepEqual(cell(dec, "2026-12-15").items, []);
+});
+t("mois : bornes sur tous les cycles", () => {
+  assert.deepEqual(C.monthBounds(TWO(), "2026-12-16"), { min: "2026-11", max: "2026-12" });
+  assert.deepEqual(C.monthBounds([makeSampleCycle("2027-01-25", "cycle-2"), makeSampleCycle()], "2026-12-16"), { min: "2026-11", max: "2027-02" });
+});
+t("mois : cycle qui couvre un jour (le plus récent s'ils se chevauchent)", () => {
+  assert.equal(C.cycleAt(TWO(), "2026-11-30").id, "cycle-1");
+  assert.equal(C.cycleAt(TWO(), "2026-12-27").id, "cycle-2");
+  assert.equal(C.cycleAt(TWO(), "2026-12-09"), null);
+  assert.equal(C.cycleAt(TWO(), "2026-11-22"), null);
+  assert.equal(C.cycleAt([makeSampleCycle(), makeSampleCycle("2026-11-30", "cycle-2")], "2026-12-01").id, "cycle-2");
 });
 t("programme : semaine 1, dernière série et charge", () => {
   const p = C.programmeWeek(makeSampleCycle(), { back_squat: [{ kg: 120, d: "2026-08-15" }] }, 0);

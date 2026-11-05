@@ -22,7 +22,7 @@ Deux parties :
 - `app.css` : design + animations (section `/* ===== Programmation ===== */`, classes `cf-`) ; DA « Sumi » : toutes les valeurs dans `:root` (couleurs, accents `--cf-accent`/`--lib-accent`, phases `--phase-*`, polices `--f-*`, graisses `--fw-*`, tailles `--fs-*`, espacements `--sp-*`/`--gutter`, arrondis `--r-*`) : pas de couleur, police, taille, espacement ni arrondi en dur (vérifié par `tests/tokens.test.js`) ; mode clair = bloc `:root[data-theme="light"]` qui redéfinit chaque couleur (contrastes des deux thèmes vérifiés), bascule par l'interrupteur en pied d'accueil, choix gardé dans `localStorage["perflab.theme"]` (réglage de l'appareil, hors des données des profils et de l'export) et posé avant le premier rendu par le script en tête d'`index.html` (sa couleur `#f6f5f1` = `--bg` clair)
 - `progression.js` : règle RPE, paliers, validation & migration du schéma (logique pure, testée en Node)
 - `cycle.js` (`PLCycle`) : format `perflab-cycle-v1`, validation, max et charges, semaine/file/rattraper-passer, scores (logique pure, testée en Node)
-- `cyclestore.js` (`CycleStore`) : données de la Programmation, LOCAL ou CLOUD (tables `cycles`/`cycle_athletes`, blob `state` clé `cycle`), cache offline, file d'une opération
+- `cyclestore.js` (`CycleStore`) : données de la Programmation, LOCAL ou CLOUD (tables `cycles`/`cycle_athletes`, blob `state` clé `cycle`), cache offline (`perflab.cf.cycle` = cycle actif, `perflab.cf.past` = anciens cycles, que `getCycles()` réunit pour Ton mois), file d'une opération
 - `cycle-ui.js` (`CycleUI`) : écrans Ta semaine, Ton mois, Ton programme, Séance, Fiches mouvement, Tes max, Importer un cycle, connexion
 - `backend.js` : couche local/cloud des bibliothèques — profils, auth, sync, cache offline, file d'attente
 - `programs.js` : programmes par défaut (semés à la première utilisation), champ `assign` pour le routage par profil
@@ -52,7 +52,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - **Tests unitaires** : `node tests/progression.test.js && node tests/backend.test.js && node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js && node tests/tokens.test.js`.
 - **Tests e2e** : `python3 tools/serve.py 8741` à la racine, puis `chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"` → aucune ligne `E2E-FAIL` dans `#results`. (Avec `python3 -m http.server`, la file de 5 connexions fait échouer des scripts au hasard.)
 - **Vérifier un cycle** : `node tools/validate-cycle.js content/cycle-1.json`.
-- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v22`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
+- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v23`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
 
 ## Schéma des données
 Aucun fichier `.json` de schéma dans le dépôt :
