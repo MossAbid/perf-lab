@@ -179,10 +179,12 @@
     if (pos < 0) pos = order.length;
 
     const state = cw < 0 ? "upcoming" : pos === order.length ? "finished" : "active";
+    // avant le départ, la semaine 1 est déjà ouverte : ce qui est fait compte dans le cycle
+    const cwOpen = Math.max(cw, 0);
     // semaine affichée : celle de la file, sans dépasser la semaine calendrier
-    // (semaine bouclée en avance → on la montre, la suivante reste verrouillée)
-    const weekIndex = Math.max(0, Math.min(weekOf(pos), cw, nW - 1));
-    const nextId = state === "active" && weekOf(pos) <= cw ? order[pos] : null;
+    // (semaine bouclée en avance → on la montre ; la suivante s'ouvre depuis Ton programme)
+    const weekIndex = Math.max(0, Math.min(weekOf(pos), cwOpen, nW - 1));
+    const nextId = state !== "finished" && weekOf(pos) <= cwOpen ? order[pos] : null;
 
     let decision = null;
     if (state === "active" && weekOf(pos) < cw && !log.decisions[cw]) {
@@ -196,7 +198,7 @@
       const status = log.done[s.id] ? "done"
         : log.skipped.includes(s.id) ? "skipped"
         : s.id === nextId ? "next"
-        : weekOf(i) > cw ? "locked" : "todo";
+        : weekOf(i) > cwOpen ? "locked" : "todo";
       return { id: s.id, title: s.title, status, date: log.done[s.id] || null };
     });
     const bonus = week.bonus ? { id: week.bonus.id, title: week.bonus.title, date: log.bonus[week.bonus.id] || null } : null;

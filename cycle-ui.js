@@ -108,7 +108,7 @@ const CycleUI = (() => {
     const done = v.sessions.filter(s => s.status === "done").length;
 
     let banner = "";
-    if(v.state === "upcoming") banner = `<div class="cf-note">Le cycle démarre le ${dayLabel(cycle.start)}.</div>`;
+    if(v.state === "upcoming") banner = `<div class="cf-note">Le cycle démarre le ${dayLabel(cycle.start)} · tout est déjà ouvert : ce que tu coches compte dans le cycle.</div>`;
     else if(v.state === "finished") banner = `<div class="cf-note">Cycle terminé · prépare le cycle suivant avec Claude.</div>`;
     else if(v.decision) banner = decisionHtml(cycle, v);
 
@@ -121,7 +121,7 @@ const CycleUI = (() => {
         <div class="cf-nm">${minutesOf(s)} min · ${s.blocks.filter(b => !b.optional).map(b => esc(b.title)).join(" · ")}</div>
         <button class="dbtn go" data-open="${esc(s.id)}">Ouvrir</button>
       </div>`;
-    } else if(v.state === "active" && done === 4){
+    } else if(v.state !== "finished" && done === 4){
       next = `<div class="cf-next cf-closed"><div class="cf-lab">Semaine bouclée</div>
         <div class="cf-nt">4 séances sur 4</div>
         <div class="cf-nm">Reste le team WOD dimanche à la salle.</div></div>`;
@@ -138,7 +138,7 @@ const CycleUI = (() => {
         <button class="cf-bopen" data-sess="${esc(v.bonus.id)}"><span class="cf-num">+</span>
           <span class="cf-st"><b>Bonus · facultatif</b><small>${esc(v.bonus.title)}</small></span></button>
         ${v.bonus.date ? `<span class="cf-bdate">fait ${dayLabel(v.bonus.date)}</span>`
-          : v.state === "active" ? `<button class="dbtn" data-bonus="${esc(v.bonus.id)}">Fait</button>` : ""}
+          : v.state !== "finished" ? `<button class="dbtn" data-bonus="${esc(v.bonus.id)}">Fait</button>` : ""}
       </div>` : "";
     const wod = `<div class="cf-wod"><span class="cf-num">D</span>
       <span class="cf-st"><b>Team WOD à la salle</b><small>Compté dans ta semaine</small></span>
@@ -412,7 +412,7 @@ const CycleUI = (() => {
         : lift.video ? `<a class="cf-video" href="${esc(lift.video)}" target="_blank" rel="noopener">▶ Vidéo · ${esc(lift.name)}</a>` : ""}`;
   }
 
-  function metconBody(athlete, log, b, sid, readOnly){
+  function metconBody(athlete, log, b, sid){
     const levels = ["rx", "int"].map(k => {
       const open = SS.levelOpen && SS.level === k, t = b.levels[k].text || "";
       return `<button class="cf-lvh${open ? " on" : ""}" data-level="${k}" aria-expanded="${open}">
@@ -424,7 +424,7 @@ const CycleUI = (() => {
     // « dernière fois » = avant le score de cette séance, pour ne pas le répéter
     const prev = C.previousScore(athlete, b.bench, mine ? mine.d : today());
     const draft = SS.draft != null ? SS.draft : mine ? mine.text : "";
-    const score = readOnly ? "" : `<div class="cf-score">
+    const score = `<div class="cf-score">
         <label for="cfscore">${SCORE_HINT[b.score]} · niveau ${SS.level === "rx" ? "RX" : "INT"}</label>
         <div class="cf-srow"><input id="cfscore" type="text" inputmode="${SCORE_MODE[b.score]}" autocomplete="off" value="${esc(draft)}">
           <button class="dbtn go" id="cfsave">Enregistrer</button></div>
@@ -449,7 +449,6 @@ const CycleUI = (() => {
       SS = { sid: key, open: new Set(f.s.blocks.map((b, i) => b.kind === "strength" ? i : -1).filter(i => i >= 0)),
              level: (log.scores[sid] || prev || {}).level || "rx", levelOpen: true, err: "" };
     }
-    const locked = f.wi > C.calendarWeek(cycle, today());
     const doneDate = f.bonus ? log.bonus[sid] : log.done[sid];
 
     const blocks = f.s.blocks.map((b, i) => {
@@ -461,7 +460,7 @@ const CycleUI = (() => {
       const head = `<span class="cf-vk">${esc(kind)}</span>
         <span class="cf-bt">${name ? `<b>${esc(name)}</b><small>${sub}</small>` : `<b>${sub}</b>`}</span>${flagsHtml(b)}`;
       const body = (b.kind === "strength" ? strengthBody(cycle, athlete, b)
-        : isMet ? metconBody(athlete, log, b, sid, locked)
+        : isMet ? metconBody(athlete, log, b, sid)
         : `<div class="cf-text">${lines(b.text)}</div>`) + movesHtml(cycle, b.moves);
       return `<section class="cf-blk k-${esc(b.kind)}">
         ${isMet ? `<div class="cf-bh">${head}</div>`
@@ -470,9 +469,8 @@ const CycleUI = (() => {
       </section>`;
     }).join("");
 
-    const foot = locked
-      ? `<div class="cf-note">Séance de la semaine ${f.wi + 1} : elle s'ouvre le ${dayLabel(addDays(cycle.start, f.wi * 7))}.</div>`
-      : doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
+    // tout est ouvert : n'importe quelle séance du cycle peut être faite, même avant le départ
+    const foot = doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
           <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
     const rank = f.bonus ? "bonus" : `séance ${f.n} sur ${f.w.sessions.length}`;

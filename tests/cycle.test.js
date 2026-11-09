@@ -88,9 +88,17 @@ t("calendarWeek", () => {
   assert.equal(C.calendarWeek(cyc, "2026-11-22"), -1); assert.equal(C.calendarWeek(cyc, "2026-11-23"), 0);
   assert.equal(C.calendarWeek(cyc, "2026-11-29"), 0);  assert.equal(C.calendarWeek(cyc, "2026-11-30"), 1);
 });
-t("avant le début : upcoming, rien de faisable", () => {
-  const v = C.weekView(cyc, C.newLog(), "2026-11-20");
-  assert.equal(v.state, "upcoming"); assert.equal(v.nextId, null);
+t("avant le début : upcoming, la semaine 1 est déjà ouverte", () => {
+  const v = C.weekView(cyc, C.newLog(), "2026-11-09");
+  assert.equal(v.state, "upcoming"); assert.equal(v.weekIndex, 0); assert.equal(v.nextId, "w1s1");
+  assert.deepEqual(v.sessions.map(s => s.status), ["next", "todo", "todo", "todo"]);
+  assert.equal(v.decision, null);
+});
+t("avant le début : séance faite comptée, la suivante en tête, jusqu'au départ", () => {
+  const l = C.markDone(C.newLog(), "w1s1", "2026-11-10");
+  assert.deepEqual(C.weekView(cyc, l, "2026-11-10").sessions.map(s => s.status), ["done", "next", "todo", "todo"]);
+  const v = C.weekView(cyc, l, "2026-11-23");
+  assert.equal(v.state, "active"); assert.equal(v.nextId, "w1s2"); assert.equal(v.decision, null);
 });
 t("première séance mise en avant", () => {
   const v = C.weekView(cyc, C.newLog(), "2026-11-24");

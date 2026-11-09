@@ -479,6 +479,15 @@
        location.hash === "#/cf/s/w1s1" && !!document.querySelector('.cf-level[data-open-level="rx"]') && document.getElementById("cfscore").value === "9+1");
     await CycleStore.importCycle(makeSampleCycle(mon));
 
+    /* 9f. tout est ouvert : séance d'une semaine à venir, cycle pas encore commencé */
+    await goto("cf/s/w2s1");
+    ok("semaine à venir : séance faisable (bouton, score)", !!document.getElementById("cfdone") && !document.getElementById("cfdone").disabled && !!document.getElementById("cfscore"));
+    const nextMon = isoUTC(new Date(Date.parse(mon) + 7 * 864e5));
+    await CycleStore.importCycle(makeSampleCycle(nextMon, "cycle-1")); await goto("cf/m"); await goto("cf");
+    ok("avant le départ : bandeau, tout est ouvert", /démarre le/.test(document.querySelector(".cf-note").textContent) && /déjà ouvert/.test(document.querySelector(".cf-note").textContent));
+    ok("avant le départ : prochaine séance proposée", !!document.querySelector(".cf-next [data-open]"));
+    await CycleStore.importCycle(makeSampleCycle(mon));
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";
