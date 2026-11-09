@@ -147,6 +147,10 @@ Carte **TA SEMAINE** de la bibliothèque (profil Moss uniquement) → `#/cf`.
   de ressenti. **Coche par bloc** : glisser l'en-tête d'un bloc vers la droite le coche (trait
   d'or le long du filet, heure notée, le bloc suivant s'ouvre), vers la gauche l'efface ;
   enregistrer le score coche le metcon. Seul **Séance faite** compte la journée.
+- **Tes stats** (`#/cf/stats`) : assiduité (séances faites / prévues à ce jour, semaines
+  bouclées, bonus, temps d'entraînement), grille du cycle (une case par séance, tap = l'ouvre),
+  metcons (part en RX, benchmarks refaits : premier contre dernier, au même niveau),
+  force (max des mouvements du cycle et écart depuis le départ).
 - **Tes max** (`#/cf/max`) : le plus récent par mouvement ; un mouvement *dérivé* (ex. front
   squat = 85 % du back squat) est estimé tant qu'il n'a pas son propre max.
 - **Importer un cycle** (`#/cf/import`) : colle le JSON. Le journal (séances, scores, max)
