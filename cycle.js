@@ -245,6 +245,68 @@
     return session.blocks.findIndex((b, j) => j > i && !b.optional && !m[j]);
   }
 
+  /* ---- Tes stats : assiduité du cycle, grille, metcons, benchmarks refaits, force ---- */
+  // minutes d'une séance faite : blocs obligatoires + facultatifs cochés
+  const doneMinutes = (s, stamps) => s.blocks.reduce((a, b, i) => a + (!b.optional || stamps[i] ? Number(b.minutes) || 0 : 0), 0);
+  function cycleStats(cycle, log, todayISO) {
+    norm(log);
+    const cw = calendarWeek(cycle, todayISO), weeksStarted = Math.max(0, Math.min(cw + 1, cycle.weeks.length));
+    const st = { started: cw >= 0, weeksStarted, due: 0, done: 0, weeksClosed: 0, bonus: 0, minutes: 0, skipped: log.skipped.length };
+    const cell = (s, wi, isDone) => ({ id: s.id,
+      state: isDone ? "done" : log.skipped.includes(s.id) ? "skipped" : wi < weeksStarted ? "open" : "future" });
+    st.grid = cycle.weeks.map((w, wi) => {
+      const cells = w.sessions.map(s => {
+        const d = !!log.done[s.id];
+        if (d) { st.done++; st.minutes += doneMinutes(s, blockStamps(log, s.id)); }
+        return cell(s, wi, d);
+      });
+      if (wi < weeksStarted) st.due += w.sessions.length;
+      if (cells.every(c => c.state === "done")) st.weeksClosed++;
+      let bonus = null;
+      if (w.bonus) {
+        const d = !!log.bonus[w.bonus.id];
+        if (d) { st.bonus++; st.minutes += doneMinutes(w.bonus, blockStamps(log, w.bonus.id)); }
+        bonus = cell(w.bonus, wi, d);
+      }
+      return { wi, phase: w.phase, current: wi === cw, cells, bonus };
+    });
+    const sc = Object.values(log.scores);
+    st.rx = sc.filter(x => x.level === "rx").length;
+    st.scored = sc.length;
+    return st;
+  }
+
+  /* b meilleur que a ? temps : plus court ; le reste : plus grand ; égalité : null */
+  const better = (type, a, b) => a === b ? null : type === "time" ? b < a : b > a;
+
+  /* benchmarks du cycle faits au moins deux fois (tous cycles confondus) : le premier contre le dernier */
+  function benchmarks(cycle, athlete) {
+    const meta = {};
+    cycle.weeks.forEach(w => w.sessions.concat(w.bonus || []).forEach(s => s.blocks.forEach(b => {
+      if (b.kind === "metcon" && b.bench && !meta[b.bench]) meta[b.bench] = { title: b.title, type: b.score };
+    })));
+    const by = {};
+    Object.values((athlete && athlete.logs) || {}).forEach(log => Object.values((log && log.scores) || {}).forEach(x => {
+      if (x.bench && meta[x.bench]) (by[x.bench] = by[x.bench] || []).push(x);
+    }));
+    return Object.keys(meta).filter(k => (by[k] || []).length > 1).map(k => {
+      const xs = by[k].slice().sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0), f = xs[0], l = xs[xs.length - 1];
+      const pick = x => ({ text: x.text, level: x.level, d: x.d });
+      return { bench: k, title: meta[k].title, type: meta[k].type, first: pick(f), last: pick(l),
+               better: f.level === l.level ? better(meta[k].type, f.value, l.value) : null };
+    });
+  }
+
+  /* max actuels des mouvements du cycle (ceux de Tes max) et écart depuis le début du cycle */
+  function liftProgress(cycle, maxes) {
+    const m = maxes || {}, lifts = cycle.lifts || {};
+    return Object.keys(lifts).filter(id => (m[id] || []).length).map(id => {
+      const xs = m[id].slice().sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0), cur = xs[xs.length - 1];
+      const before = xs.filter(x => x.d < cycle.start), base = before.length ? before[before.length - 1] : xs[0];
+      return { id, name: lifts[id].name, kg: cur.kg, d: cur.d, delta: Math.round((cur.kg - base.kg) * 10) / 10 };
+    });
+  }
+
   function applyDecision(log, cycle, todayISO, choice) {
     const d = weekView(cycle, log, todayISO).decision;
     if (!d) return log;
@@ -447,6 +509,7 @@
     loadKg, liftMax, strengthLines, newAthlete, setMax,
     newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,
     toggleBlock, stampBlock, blockStamps, blockProgress, nextBlock,
+    cycleStats, better, benchmarks, liftProgress,
     parseScore, recordScore, previousScore,
     cycleEnd, monthBounds, monthGrid, cycleAt, programmeWeek,
     schemeOf, weekZone, loadDelta, liftSeries, nextTest, attendance

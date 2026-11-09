@@ -370,4 +370,73 @@ t("coche d'un bloc : progression sur les blocs obligatoires seulement, et bloc s
   assert.deepEqual(C.blockProgress(s, l, "w1s2"), { done: 0, total: 3, complete: false });   // séance par séance
 });
 
+/* ---- Tes stats ---- */
+t("stats : avant le départ, rien n'est dû", () => {
+  const st = C.cycleStats(makeSampleCycle("2026-11-23"), C.newLog(), "2026-11-20");
+  assert.equal(st.started, false);
+  assert.equal(st.due, 0);
+  assert.equal(st.done, 0);
+});
+t("stats : assiduité, semaines bouclées, bonus et temps d'entraînement", () => {
+  const cyc = makeSampleCycle("2026-11-23"), l = C.newLog();
+  ["w1s1", "w1s2", "w1s3", "w1s4", "w2s1"].forEach((id, k) => C.markDone(l, id, "2026-11-2" + (3 + k)));
+  C.markBonus(l, "w1b", "2026-11-28");
+  C.toggleBlock(l, "w1s1", 3, "2026-11-23T19:00");     // accessoire facultatif coché : ses 10 min comptent
+  C.toggleBlock(l, "w1s2", 3, "2026-11-24T19:00");
+  C.toggleBlock(l, "w1s2", 3, "2026-11-24T19:01");     // … sauf s'il a été décoché
+  const st = C.cycleStats(cyc, l, "2026-12-01");        // semaine 2 entamée
+  assert.equal(st.started, true);
+  assert.equal(st.weeksStarted, 2);
+  assert.equal(st.due, 8);
+  assert.equal(st.done, 5);
+  assert.equal(st.weeksClosed, 1);
+  assert.equal(st.bonus, 1);
+  assert.equal(st.minutes, 5 * 46 + 10 + 30);
+});
+t("stats : grille du cycle (faite, passée, ouverte, à venir)", () => {
+  const cyc = makeSampleCycle("2026-11-23"), l = C.newLog();
+  C.markDone(l, "w1s1", "2026-11-23"); l.skipped.push("w1s3"); C.markDone(l, "w2s2", "2026-11-25");   // tout est ouvert : faite en avance
+  const g = C.cycleStats(cyc, l, "2026-11-26").grid;
+  assert.equal(g.length, 2);
+  assert.deepEqual(g[0].cells.map(c => c.state), ["done", "open", "skipped", "open"]);
+  assert.deepEqual(g[1].cells.map(c => c.state), ["future", "done", "future", "future"]);
+  assert.deepEqual([g[0].bonus.id, g[0].bonus.state, g[1].bonus.state], ["w1b", "open", "future"]);
+  assert.equal(g[0].phase, "base");
+  assert.equal(g[0].current, true);
+  assert.equal(g[1].current, false);
+});
+t("stats : part des metcons en RX", () => {
+  const cyc = makeSampleCycle("2026-11-23"), l = C.newLog();
+  C.recordScore(l, "w1s1", "rx", { value: 5003, text: "5 tours + 3" }, "2026-11-23", "amrap-a");
+  C.recordScore(l, "w1s2", "int", { value: 4000, text: "4 tours" }, "2026-11-24", null);
+  const st = C.cycleStats(cyc, l, "2026-11-26");
+  assert.deepEqual([st.rx, st.scored], [1, 2]);
+});
+t("stats : sens d'un score (temps : plus court = mieux)", () => {
+  assert.equal(C.better("time", 300, 280), true);
+  assert.equal(C.better("time", 280, 300), false);
+  assert.equal(C.better("rounds_reps", 5003, 6000), true);
+  assert.equal(C.better("load", 80, 80), null);
+});
+t("stats : benchmarks refaits, premier contre dernier, même niveau seulement", () => {
+  const cyc = makeSampleCycle("2026-11-23"), a = C.newAthlete(); a.logs["cycle-1"] = C.newLog();
+  const l = a.logs["cycle-1"];
+  C.recordScore(l, "w1s1", "rx", { value: 5003, text: "5 tours + 3" }, "2026-11-23", "amrap-a");
+  assert.deepEqual(C.benchmarks(cyc, a), []);                     // fait une seule fois : rien à comparer
+  C.recordScore(l, "w2s1", "rx", { value: 6000, text: "6 tours" }, "2026-11-30", "amrap-a");
+  const b = C.benchmarks(cyc, a);
+  assert.equal(b.length, 1);
+  assert.deepEqual([b[0].bench, b[0].title, b[0].first.text, b[0].last.text, b[0].better], ["amrap-a", "AMRAP 12 min", "5 tours + 3", "6 tours", true]);
+  C.recordScore(l, "w2s1", "int", { value: 7000, text: "7 tours" }, "2026-11-30", "amrap-a");
+  assert.equal(C.benchmarks(cyc, a)[0].better, null);             // RX puis INT : pas comparable
+});
+t("stats : force, max actuel et écart depuis le début du cycle (mouvements du cycle, comme Tes max)", () => {
+  const cyc = makeSampleCycle("2026-11-23"), a = C.newAthlete();
+  a.maxes = { back_squat: [{ d: "2027-01-20", kg: 125 }, { d: "2026-06-01", kg: 110 }, { d: "2026-08-15", kg: 120 }],   // dans le désordre ; base = le dernier avant le départ
+              snatch: [{ d: "2026-09-11", kg: 55 }], jerk: [{ d: "2026-09-09", kg: 80 }] };
+  const f = C.liftProgress(cyc, a.maxes);
+  assert.deepEqual(f.map(x => [x.id, x.name, x.kg, x.delta]),
+    [["back_squat", "Back squat", 125, 5], ["snatch", "Snatch", 55, 0]]);   // jerk : hors du cycle, absent
+});
+
 console.log(`\n${n} tests OK`);

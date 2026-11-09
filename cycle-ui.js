@@ -5,6 +5,7 @@
      #/cf/s/<cycle>/<sid>  une séance d'un ancien cycle (ouverte depuis Ton mois)
      #/cf/mois      ton mois (calendrier des séances faites, tous cycles confondus)
      #/cf/programme ton programme (objectifs, semaines, charges)
+     #/cf/stats     tes stats (assiduité, grille du cycle, metcons, force)
      #/cf/max       tes max
      #/cf/import    importer un cycle
      #/cf/m         fiches mouvement (index)
@@ -330,6 +331,7 @@ const CycleUI = (() => {
   function footer(){
     const u = CycleStore.isCloud() && CycleStore.user();
     return `${syncLine()}<div class="cf-list cf-foot">
+      <a class="cf-link" href="#/cf/stats"><span class="cf-st"><b>Tes stats</b><small>Assiduité, metcons, force</small></span><span class="cf-chev">›</span></a>
       <a class="cf-link" href="#/cf/programme"><span class="cf-st"><b>Ton programme</b><small>Toutes les semaines du cycle</small></span><span class="cf-chev">›</span></a>
       <a class="cf-link" href="#/cf/max"><span class="cf-st"><b>Tes max</b><small>Ils calculent toutes tes charges</small></span><span class="cf-chev">›</span></a>
       <a class="cf-link" href="#/cf/import"><span class="cf-st"><b>Importer un cycle</b><small>Le prochain, préparé avec Claude</small></span><span class="cf-chev">›</span></a>
@@ -716,6 +718,60 @@ const CycleUI = (() => {
     app.querySelectorAll("[data-move]").forEach(b => b.onclick = () => location.hash = moveHref(b.dataset.move));
   }
 
+  /* ---- Tes stats : assiduité, grille du cycle, metcons, force ---- */
+  const hm = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+  const kv = (k, v) => `<div class="cf-kv"><span>${k}</span><b>${v}</b></div>`;
+  const sect = (label, body) => `<div class="blk"><div class="blk-h"><div class="bl">${label}</div><div class="line"></div></div>${body}</div>`;
+  const CELL = { done: "faite", open: "à faire", skipped: "passée", future: "à venir" };
+  function renderStats(){
+    const cycle = CycleStore.getCycle();
+    if(!cycle){ shell("Programmation", "Tes stats", `<div class="cf-empty"><p>Aucun cycle importé.</p></div>`, ["Ta semaine", "#/cf"]); return; }
+    const athlete = CycleStore.getAthlete(), log = logFor(athlete, cycle), td = today();
+    const st = C.cycleStats(cycle, log, td), nW = cycle.weeks.length;
+    const s1 = n => n > 1 ? "s" : "";
+
+    const lede = st.started ? `${esc(cycle.title)} · semaine ${Math.min(st.weeksStarted, nW)} sur ${nW}.`
+      : `${esc(cycle.title)} · départ le ${dayLabel(cycle.start)}. Ce que tu fais avant compte déjà.`;
+    const hero = st.started && st.due
+      ? `<div class="cf-hero"><span class="cf-hnum">${st.done}</span><span class="cf-hof">/ ${st.due}</span></div>
+         <p class="cf-hcap">séance${s1(st.done)} faite${s1(st.done)} sur les ${st.due} prévues à ce jour</p>`
+      : `<div class="cf-hero"><span class="cf-hnum">${st.done}</span></div><p class="cf-hcap">séance${s1(st.done)} faite${s1(st.done)}</p>`;
+    const assid = hero + `<div class="cf-kvs">
+      ${kv("Semaines bouclées", `${st.weeksClosed} sur ${nW}`)}
+      ${kv("Bonus faits", st.bonus)}
+      ${kv("Temps d'entraînement", hm(st.minutes))}
+      ${st.skipped ? kv("Séances passées", st.skipped) : ""}</div>`;
+
+    const cellBtn = (c, bonus) => `<button class="cf-gc s-${c.state}${bonus ? " bonus" : ""}" data-open="${esc(c.id)}"
+      aria-label="${esc(c.id)} · ${CELL[c.state]}"></button>`;
+    const grid = `<div class="cf-grid">${st.grid.map(w => `<div class="cf-gw${w.current ? " cur" : ""}">
+        <span class="cf-gwl">S${w.wi + 1}</span><span class="cf-gph" style="color:${PHASE_COLOR[w.phase] || "var(--muted)"}">${esc(PHASE[w.phase] || w.phase)}</span>
+        <span class="cf-gcs">${w.cells.map(c => cellBtn(c)).join("")}${w.bonus ? cellBtn(w.bonus, true) : ""}</span></div>`).join("")}</div>
+      <p class="cf-glegend"><span class="cf-gc s-done"></span> faite <span class="cf-gc s-open"></span> à faire <span class="cf-gc s-skipped"></span> passée <span class="cf-gc bonus s-open"></span> bonus</p>`;
+
+    const bm = C.benchmarks(cycle, athlete);
+    const verdict = b => b.better === true ? `<i class="cf-up">mieux</i>` : b.better === false ? `<i>moins bien</i>`
+      : b.first.level !== b.last.level ? `<i>autre niveau</i>` : `<i>égal</i>`;
+    const lvl = x => x.level === "rx" ? "RX" : "INT";
+    const metcons = `${st.scored ? kv("En RX", `${st.rx} sur ${st.scored} · ${Math.round(100 * st.rx / st.scored)} %`) : kv("En RX", "aucun score encore")}
+      ${bm.length ? bm.map(b => `<div class="cf-bm"><b>${esc(b.title)}</b>
+          <span>${esc(b.first.text)} <small>${lvl(b.first)} · ${ddmm(b.first.d)}</small> → ${esc(b.last.text)} <small>${lvl(b.last)} · ${ddmm(b.last.d)}</small> ${verdict(b)}</span></div>`).join("")
+        : `<p class="cf-hcap">Les benchmarks reviennent en semaine de test : ton évolution s'affichera ici.</p>`}`;
+
+    const lp = C.liftProgress(cycle, athlete.maxes);
+    const force = lp.length ? `<div class="cf-kvs">${lp.map(x => `<div class="cf-kv"><span>${esc(x.name)}
+        <small class="${x.delta > 0 ? "cf-up" : ""}">${x.delta ? `${x.delta > 0 ? "+" : ""}${fmtKg(x.delta)} depuis le début du cycle` : `depuis le ${ddmm(x.d)}`}</small></span>
+        <b class="cf-mkg">${fmtKg(x.kg)}</b></div>`).join("")}</div>`
+      : `<p class="cf-hcap">Pas encore de max · <a href="#/cf/max">Saisis tes max</a></p>`;
+
+    shell("Programmation", "Tes stats", `<p class="lede">${lede}</p>
+      ${sect("Assiduité", assid)}
+      ${sect("Le cycle", grid)}
+      ${sect("Metcons", metcons)}
+      ${sect("Force", force)}`, ["Ta semaine", "#/cf"], "cf-stats");
+    app.querySelectorAll(".cf-grid [data-open]").forEach(b => b.onclick = () => location.hash = "#/cf/s/" + b.dataset.open);
+  }
+
   /* ---- routeur du module : true si la route est gérée ---- */
   function route(h){
     if(h !== curHash){
@@ -731,7 +787,7 @@ const CycleUI = (() => {
     else if(m){
       const parts = m[1].split("/").map(decodeURIComponent), sid = parts.pop(), cid = parts[0] || null;
       const fromFiche = /^cf\/m\//.test(from);
-      if(/^cf\/(programme|mois)$/.test(from)) sessBack = [from === "cf/mois" ? "Ton mois" : "Ton programme", "#/" + from];
+      if(/^cf\/(programme|mois|stats)$/.test(from)) sessBack = [{ "cf/mois": "Ton mois", "cf/stats": "Tes stats" }[from] || "Ton programme", "#/" + from];
       else if(!fromFiche) sessBack = ["Ta semaine", "#/cf"];
       if(fromFiche && SS.sid === sKey(sid, cid)) y = SS.y || 0;
       else SS = { sid: null };   // écran neuf, sauf au retour d'une fiche
@@ -749,6 +805,7 @@ const CycleUI = (() => {
       renderProgramme();
     }
     else if(h === "cf/max"){ editLift = null; renderMax(); }
+    else if(h === "cf/stats") renderStats();
     else if(h === "cf/import") renderImport();
     else renderWeek();
     window.scrollTo(0, y);

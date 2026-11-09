@@ -516,6 +516,24 @@
     ok("bloc : tous les obligatoires cochés → valider la séance", /valide la séance/.test(document.querySelector(".cf-bprog").textContent));
     ok("bloc : la séance n'est pas faite pour autant", !CycleStore.getAthlete().logs["cycle-1"].done.w2s1);
 
+    /* 9h. Tes stats : assiduité, grille du cycle, benchmarks, force */
+    await goto("cf");
+    ok("stats : lien depuis Ta semaine", !!document.querySelector('a[href="#/cf/stats"]'));
+    const as = CycleStore.getAthlete(), ls = as.logs["cycle-1"];
+    PLCycle.recordScore(ls, "w2s1", "int", { value: 6000, text: "6 tours" }, today(), "amrap-a"); await CycleStore.saveAthlete(as);
+    await goto("cf/stats");
+    const stx = PLCycle.cycleStats(CycleStore.getCycle(), CycleStore.getAthlete().logs["cycle-1"], today());
+    ok("stats : séances faites affichées", document.querySelector(".cf-hnum").textContent === String(stx.done) && stx.done > 0);
+    ok("stats : une ligne par semaine, 4 séances + bonus", document.querySelectorAll(".cf-gw").length === CycleStore.getCycle().weeks.length
+       && document.querySelectorAll(".cf-gw")[0].querySelectorAll(".cf-gc").length === 5);
+    ok("stats : w1s1 faite dans la grille", document.querySelector('.cf-grid [data-open="w1s1"]').classList.contains("s-done"));
+    ok("stats : benchmark refait comparé", [...document.querySelectorAll(".cf-bm")].some(e => /AMRAP 12 min/.test(e.textContent) && /mieux/.test(e.textContent)));
+    ok("stats : force ou invitation à saisir les max", !!document.querySelector(".cf-stats .cf-mkg") || !!document.querySelector('.cf-stats a[href="#/cf/max"]'));
+    document.querySelector('.cf-grid [data-open="w1s1"]').click(); await tick(100);
+    ok("stats : une case ouvre sa séance, retour vers Tes stats", location.hash === "#/cf/s/w1s1" && /Tes stats/.test(document.getElementById("cfback").textContent));
+    await goto("cf/stats");
+    ok("stats : rendu propre", !/NaN|undefined/.test(document.getElementById("app").textContent));
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";
