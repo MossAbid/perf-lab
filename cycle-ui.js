@@ -30,6 +30,7 @@ const CycleUI = (() => {
     athlete.logs[cycle.id] = athlete.logs[cycle.id] || C.newLog();
     return athlete.logs[cycle.id];
   }
+  const nowStamp = () => { const d = new Date(); return `${today()}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
   const minutesOf = s => s.blocks.filter(b => !b.optional).reduce((a, b) => a + (Number(b.minutes) || 0), 0);
   const isMoss = () => Backend.activeProfile() === "moss";
   /* bouton désactivé pendant l'envoi : pas de double tap pendant que Supabase répond */
@@ -451,9 +452,12 @@ const CycleUI = (() => {
     }
     const doneDate = f.bonus ? log.bonus[sid] : log.done[sid];
 
+    // coche par bloc (swipe) : heure de la coche à côté de la durée
+    const stamps = C.blockStamps(log, sid);
+    const stampLabel = st => st.slice(0, 10) === today() ? "fait à " + st.slice(11, 16).replace(":", "h") : "fait " + dayLabel(st.slice(0, 10));
     const blocks = f.s.blocks.map((b, i) => {
-      const isMet = b.kind === "metcon", open = isMet || SS.open.has(i);
-      const sub = `${Number(b.minutes) > 0 ? Number(b.minutes) + " min" : ""}${b.optional ? " · facultatif" : ""}`;
+      const isMet = b.kind === "metcon", st = stamps[i], open = isMet || SS.open.has(i);
+      const sub = `${Number(b.minutes) > 0 ? Number(b.minutes) + " min" : ""}${b.optional ? " · facultatif" : ""}${st ? ` · <i class="cf-stamp">${stampLabel(st)}</i>` : ""}`;
       // type du bloc à la verticale ; le titre ne le répète pas (« Force · Back squat » → « Back squat »)
       const kind = KIND[b.kind] || b.kind;
       const name = b.title === kind ? "" : b.title.startsWith(kind + " · ") ? b.title.slice(kind.length + 3) : b.title;
@@ -462,9 +466,9 @@ const CycleUI = (() => {
       const body = (b.kind === "strength" ? strengthBody(cycle, athlete, b)
         : isMet ? metconBody(athlete, log, b, sid)
         : `<div class="cf-text">${lines(b.text)}</div>`) + movesHtml(cycle, b.moves);
-      return `<section class="cf-blk k-${esc(b.kind)}">
-        ${isMet ? `<div class="cf-bh">${head}</div>`
-          : `<button class="cf-bh" data-block="${i}" aria-expanded="${open}">${head}<span class="cf-chev">${open ? "−" : "+"}</span></button>`}
+      return `<section class="cf-blk k-${esc(b.kind)}${st ? " done" : ""}">
+        ${isMet ? `<div class="cf-bh" data-swipe="${i}">${head}</div>`
+          : `<button class="cf-bh" data-block="${i}" data-swipe="${i}" aria-expanded="${open}">${head}<span class="cf-chev">${open ? "−" : "+"}</span></button>`}
         ${open ? `<div class="cf-bb">${body}</div>` : ""}
       </section>`;
     }).join("");
@@ -473,17 +477,72 @@ const CycleUI = (() => {
     const foot = doneDate ? `<button class="donebtn ok" id="cfdone" disabled>✓ Faite ${dayLabel(doneDate)}</button>
           <button class="dbtn cf-undo" id="cfundo">Annuler : pas encore faite</button>`
       : `<button class="donebtn" id="cfdone">✓ ${f.bonus ? "Bonus fait" : "Séance faite"}</button>`;
+    const bp = C.blockProgress(f.s, log, sid);
+    const progress = !Object.keys(stamps).length ? "Glisse un bloc vers la droite pour le cocher."
+      : !bp.complete ? `<b>${bp.done} sur ${bp.total}</b> blocs faits.`
+      : doneDate ? "Tous les blocs sont faits." : "Tous les blocs sont faits : valide la séance en bas.";
     const rank = f.bonus ? "bonus" : `séance ${f.n} sur ${f.w.sessions.length}`;
     shell(`${past ? cycle.title + " · " : ""}Semaine ${f.wi + 1} · ${PHASE[f.w.phase] || f.w.phase} · ${rank}`, esc(f.s.title.replace(/^Bonus · /, "")), `
       <p class="lede">${minutesOf(f.s)} min, hors blocs facultatifs.</p>
+      <p class="cf-bprog">${progress}</p>
       <div class="cf-blocks">${blocks}</div>
       ${foot}`, sessBack, "cf-seance");
 
     app.querySelectorAll("[data-block]").forEach(btn => btn.onclick = () => {
+      if(Date.now() < (SS.noClick || 0)) return;   // le relâché d'un swipe ne déplie pas le bloc
       const i = +btn.dataset.block;
       if(SS.open.has(i)) SS.open.delete(i); else SS.open.add(i);
       renderSession(sid, cid);
     });
+    /* swipe : glisser l'en-tête vers la droite tire un trait d'or depuis le filet ; passé le seuil, relâcher = coché.
+       Sur un bloc fait, glisser vers la gauche efface le trait. Le bloc coché se replie, le suivant s'ouvre. */
+    const toggle = async i => {
+      const a = CycleStore.getAthlete(), l = logFor(a, cycle);
+      if(!C.toggleBlock(l, sid, i, nowStamp())) toast("Bloc remis à faire.");
+      else {
+        SS.open.delete(i);
+        const next = C.nextBlock(f.s, l, sid, i);
+        if(next >= 0){ if(f.s.blocks[next].kind !== "metcon") SS.open.add(next); SS.scrollTo = "blk" + next; }
+        else if(C.blockProgress(f.s, l, sid).complete && !doneDate) SS.scrollTo = "done";
+      }
+      await CycleStore.saveAthlete(a);
+      renderSession(sid, cid);
+    };
+    app.querySelectorAll("[data-swipe]").forEach(h => {
+      const i = +h.dataset.swipe, sec = h.closest(".cf-blk"), dir = sec.classList.contains("done") ? -1 : 1;
+      let id = null, x0 = 0, y0 = 0, axis = null, armed = false;
+      const set = v => sec.style.setProperty("--dx", v + "px");
+      const settle = () => { sec.classList.add("settle"); sec.classList.remove("swiping"); set(0); };
+      h.addEventListener("pointerdown", e => { if(e.button) return; id = e.pointerId; x0 = e.clientX; y0 = e.clientY; axis = null; armed = false; });
+      h.addEventListener("pointermove", e => {
+        if(id !== e.pointerId) return;
+        const mx = e.clientX - x0, my = e.clientY - y0;
+        if(!axis){
+          if(Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+          axis = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+          if(axis === "x"){ try{ h.setPointerCapture(id); }catch(_){} sec.classList.remove("settle"); sec.classList.add("swiping"); }
+        }
+        if(axis !== "x") return;
+        const t = Math.min(110, h.getBoundingClientRect().width * .4), d = Math.max(0, mx * dir);
+        set((d <= t ? d : t + (d - t) * .3) * dir);   // résistance au-delà du seuil
+        if((d >= t) !== armed){ armed = d >= t; sec.classList.toggle("armed", armed); }
+      });
+      const end = e => {
+        if(id !== e.pointerId) return; id = null;
+        if(axis !== "x") return;
+        SS.noClick = Date.now() + 400;   // le relâché ne déplie pas le bloc
+        settle();
+        if(armed && e.type === "pointerup") setTimeout(() => toggle(i), 200);   // le temps que le titre revienne
+        else sec.classList.remove("armed");
+      };
+      h.addEventListener("pointerup", end);
+      h.addEventListener("pointercancel", end);
+    });
+    if(SS.scrollTo){
+      const to = SS.scrollTo; SS.scrollTo = null;
+      const el = to === "done" ? $("#cfdone") : app.querySelectorAll(".cf-blk")[+to.slice(3)];
+      if(el) requestAnimationFrame(() => window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - (to === "done" ? 200 : 72), behavior: "smooth" }));
+    }
     app.querySelectorAll("[data-level]").forEach(btn => btn.onclick = () => {
       const k = btn.dataset.level, inp = $("#cfscore");
       if(inp) SS.draft = inp.value;   // garder la saisie en cours
@@ -498,6 +557,7 @@ const CycleUI = (() => {
       SS.err = ""; SS.draft = null;
       const a = CycleStore.getAthlete();
       C.recordScore(logFor(a, cycle), sid, SS.level, sc, today(), metcon.bench);
+      C.stampBlock(logFor(a, cycle), sid, f.s.blocks.indexOf(metcon), nowStamp());   // le score coche le metcon
       await CycleStore.saveAthlete(a);
       toast("Score enregistré.");
       renderSession(sid, cid);

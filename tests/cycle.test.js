@@ -333,4 +333,41 @@ t("assiduité : rien avant le début du cycle", () => {
   assert.equal(a.closed, 0);
 });
 
+/* ---- coche par bloc (swipe dans la séance) ---- */
+t("coche d'un bloc : swipe pour cocher, re-swipe pour effacer, sans laisser de séance vide", () => {
+  const l = C.newLog();
+  assert.equal(C.toggleBlock(l, "w1s1", 0, "2026-11-24T18:42"), true);
+  assert.deepEqual(l.blocks, { w1s1: { 0: "2026-11-24T18:42" } });
+  assert.equal(C.toggleBlock(l, "w1s1", 0, "2026-11-24T18:50"), false);
+  assert.deepEqual(l.blocks, {});
+});
+t("coche d'un bloc : un journal d'avant la coche (sans blocks) est accepté", () => {
+  const legacy = { done: { w1s1: "2026-11-24" }, skipped: [], decisions: {}, scores: {}, bonus: {} };
+  C.toggleBlock(legacy, "w1s2", 1, "2026-11-25T07:00");
+  assert.equal(legacy.blocks.w1s2[1], "2026-11-25T07:00");
+  assert.equal(legacy.done.w1s1, "2026-11-24");
+});
+t("coche d'un bloc : enregistrer le score coche le metcon sans écraser une coche existante", () => {
+  const l = C.newLog();
+  C.stampBlock(l, "w1s1", 2, "2026-11-24T19:00");
+  C.stampBlock(l, "w1s1", 2, "2026-11-24T19:30");
+  assert.equal(l.blocks.w1s1[2], "2026-11-24T19:00");
+});
+t("coche d'un bloc : progression sur les blocs obligatoires seulement, et bloc suivant", () => {
+  const s = makeSampleCycle().weeks[0].sessions[0];   // échauffement, force, metcon, accessoire facultatif
+  const l = C.newLog();
+  assert.deepEqual(C.blockProgress(s, l, "w1s1"), { done: 0, total: 3, complete: false });
+  assert.equal(C.nextBlock(s, l, "w1s1", 0), 1);
+  C.toggleBlock(l, "w1s1", 3, "2026-11-24T19:10");          // le facultatif ne compte pas
+  C.toggleBlock(l, "w1s1", 1, "2026-11-24T18:50");
+  assert.deepEqual(C.blockProgress(s, l, "w1s1"), { done: 1, total: 3, complete: false });
+  assert.equal(C.nextBlock(s, l, "w1s1", 0), 2);             // la force est déjà cochée
+  C.toggleBlock(l, "w1s1", 0, "2026-11-24T18:40");
+  C.toggleBlock(l, "w1s1", 2, "2026-11-24T19:05");
+  assert.deepEqual(C.blockProgress(s, l, "w1s1"), { done: 3, total: 3, complete: true });
+  const l2 = C.newLog(); [0, 1, 2].forEach(i => C.toggleBlock(l2, "w1s1", i, "2026-11-24T19:00"));
+  assert.equal(C.nextBlock(s, l2, "w1s1", 2), -1);           // reste le facultatif, non coché : pas proposé
+  assert.deepEqual(C.blockProgress(s, l, "w1s2"), { done: 0, total: 3, complete: false });   // séance par séance
+});
+
 console.log(`\n${n} tests OK`);

@@ -144,7 +144,9 @@ Carte **TA SEMAINE** de la bibliothèque (profil Moss uniquement) → `#/cf`.
 - **Séance** (`#/cf/s/<id>`) : blocs dépliables ; charges = **max × % arrondi au 2,5 kg**,
   pastille *Ceinture* dès 80 %, *Tapis* quand le genou touche le sol ; metcon en **RX / INT**
   (ouvrir l'un replie l'autre), score enregistré et comparé à la dernière fois. Aucune saisie
-  de ressenti.
+  de ressenti. **Coche par bloc** : glisser l'en-tête d'un bloc vers la droite le coche (trait
+  d'or le long du filet, heure notée, le bloc suivant s'ouvre), vers la gauche l'efface ;
+  enregistrer le score coche le metcon. Seul **Séance faite** compte la journée.
 - **Tes max** (`#/cf/max`) : le plus récent par mouvement ; un mouvement *dérivé* (ex. front
   squat = 85 % du back squat) est estimé tant qu'il n'a pas son propre max.
 - **Importer un cycle** (`#/cf/import`) : colle le JSON. Le journal (séances, scores, max)
@@ -180,7 +182,9 @@ restent en mode LOCAL. Pour activer la synchro de la programmation :
    (laisse `SUPABASE_URL` / `SUPABASE_ANON_KEY` vides).
 
 Données de l'athlète : blob `state` clé `cycle` (cache `perflab.p.moss.cycle`) =
-`{ v, maxes, logs }`, inclus dans l'export/import de profils.
+`{ v, maxes, logs }`, inclus dans l'export/import de profils. `logs[idCycle]` =
+`{ done, skipped, decisions, scores, bonus, blocks }` ; `blocks[idSéance][indexBloc]` =
+`"AAAA-MM-JJTHH:MM"` (absent des anciens journaux : ajouté à la volée).
 
 **Tests** : `node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js`, puis l'e2e
 (`python3 tools/serve.py 8741` et `chrome --headless=new --virtual-time-budget=30000

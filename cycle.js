@@ -158,7 +158,7 @@
   /* ---- semaine : file ordonnée de 4 séances, calée sur le calendrier ----
      log = journal d'un cycle : séances faites (datées), passées, décisions
      « rattraper » par semaine calendrier, scores, bonus faits.            */
-  const newLog = () => ({ done: {}, skipped: [], decisions: {}, scores: {}, bonus: {} });
+  const newLog = () => ({ done: {}, skipped: [], decisions: {}, scores: {}, bonus: {}, blocks: {} });
   function norm(log) {
     const base = newLog();
     Object.keys(base).forEach(k => { if (log[k] == null) log[k] = base[k]; });
@@ -220,6 +220,30 @@
   /* annuler un « fait » tapé par erreur : la séance reprend sa place dans la file */
   function unmarkDone(log, sid) { delete norm(log).done[sid]; return log; }
   function unmarkBonus(log, bid) { delete norm(log).bonus[bid]; return log; }
+
+  /* coche par bloc dans la séance : blocks[sid][index du bloc] = "AAAA-MM-JJTHH:MM".
+     Indépendante de « Séance faite » (c'est elle seule qui compte la journée). */
+  function toggleBlock(log, sid, i, stamp) {
+    const all = norm(log).blocks, m = all[sid] || {};
+    if (m[i]) { delete m[i]; if (!Object.keys(m).length) delete all[sid]; return false; }
+    m[i] = stamp; all[sid] = m; return true;
+  }
+  function stampBlock(log, sid, i, stamp) {
+    const all = norm(log).blocks;
+    if (!(all[sid] && all[sid][i])) toggleBlock(log, sid, i, stamp);
+    return log;
+  }
+  const blockStamps = (log, sid) => (log.blocks && log.blocks[sid]) || {};
+  function blockProgress(session, log, sid) {
+    const m = blockStamps(log, sid), req = session.blocks.map((b, i) => b.optional ? -1 : i).filter(i => i >= 0);
+    const done = req.filter(i => m[i]).length;
+    return { done, total: req.length, complete: done === req.length };
+  }
+  /* bloc obligatoire suivant encore à faire après i, ou -1 */
+  function nextBlock(session, log, sid, i) {
+    const m = blockStamps(log, sid);
+    return session.blocks.findIndex((b, j) => j > i && !b.optional && !m[j]);
+  }
 
   function applyDecision(log, cycle, todayISO, choice) {
     const d = weekView(cycle, log, todayISO).decision;
@@ -422,6 +446,7 @@
     validateCycle,
     loadKg, liftMax, strengthLines, newAthlete, setMax,
     newLog, sessionOrder, calendarWeek, weekView, markDone, markBonus, unmarkDone, unmarkBonus, applyDecision,
+    toggleBlock, stampBlock, blockStamps, blockProgress, nextBlock,
     parseScore, recordScore, previousScore,
     cycleEnd, monthBounds, monthGrid, cycleAt, programmeWeek,
     schemeOf, weekZone, loadDelta, liftSeries, nextTest, attendance

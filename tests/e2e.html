@@ -488,6 +488,34 @@
     ok("avant le départ : prochaine séance proposée", !!document.querySelector(".cf-next [data-open]"));
     await CycleStore.importCycle(makeSampleCycle(mon));
 
+    /* 9g. coche par bloc : swipe sur l'en-tête (droite = coché, gauche = effacé), le score coche le metcon */
+    const swipe = async (i, dx, dy = 0) => {
+      const h = document.querySelector(`[data-swipe="${i}"]`), r = h.getBoundingClientRect(), x = r.left + 40, y = r.top + 10;
+      const P = (type, k) => h.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 5, button: 0, clientX: x + dx * k, clientY: y + dy * k }));
+      P("pointerdown", 0); for(let k = 1; k <= 8; k++) P("pointermove", k / 8);
+      P("pointerup", 1); if(!dy) h.click(); await tick(400);
+    };
+    const bl = sid => CycleStore.getAthlete().logs["cycle-1"].blocks[sid] || {};
+    ok("bloc : le score enregistré a coché le metcon", !!bl("w1s1")[2]);
+    await goto("cf/s/w2s1");
+    ok("bloc : consigne du swipe tant que rien n'est coché", /Glisse un bloc/.test(document.querySelector(".cf-bprog").textContent));
+    document.querySelector('[data-block="1"]').click(); await tick();
+    ok("bloc : force repliée avant le test", document.querySelector('[data-block="1"]').getAttribute("aria-expanded") === "false");
+    await swipe(0, 40);
+    ok("bloc : swipe court = rien coché, rien déplié", !bl("w2s1")[0] && document.querySelector('[data-block="0"]').getAttribute("aria-expanded") === "false");
+    await swipe(0, 6, 80);
+    ok("bloc : geste vertical = rien coché", !bl("w2s1")[0]);
+    await swipe(0, 220);
+    ok("bloc : swipe long = échauffement coché", !!bl("w2s1")[0] && document.querySelectorAll(".cf-blk")[0].classList.contains("done"));
+    ok("bloc : heure de la coche affichée", /fait à \d\dh\d\d/.test(document.querySelectorAll(".cf-blk")[0].textContent));
+    ok("bloc : le suivant (force) s'ouvre", document.querySelector('[data-block="1"]').getAttribute("aria-expanded") === "true");
+    ok("bloc : progression 1 sur 3", /1 sur 3/.test(document.querySelector(".cf-bprog").textContent));
+    await swipe(0, -220);
+    ok("bloc : swipe vers la gauche = effacé", !bl("w2s1")[0] && !document.querySelectorAll(".cf-blk")[0].classList.contains("done"));
+    await swipe(0, 220); await swipe(1, 220); await swipe(2, 220);
+    ok("bloc : tous les obligatoires cochés → valider la séance", /valide la séance/.test(document.querySelector(".cf-bprog").textContent));
+    ok("bloc : la séance n'est pas faite pour autant", !CycleStore.getAthlete().logs["cycle-1"].done.w2s1);
+
     /* 10. PROGRAMMATION : importer un cycle, tes max */
     await goto("cf/import");
     const badCycle = makeSampleCycle(mon, "cycle-bad"); badCycle.schema = "x";

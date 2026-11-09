@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- Source de l'icône « Le trait » (DA Sumi) : le filet des blocs tracé au pinceau en or, « Perf Lab » à la verticale.
+     Régénérer les PNG : python3 tools/serve.py 8000, puis pour chaque taille S :
+     chrome --headless=new --hide-scrollbars --window-size=S,S --screenshot=icons/xxx.png "http://localhost:8000/tools/icon.html?s=S"
+     (?s=64 : favicon sans texte, illisible à cette taille) -->
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Zen Kaku Gothic New';font-weight:500;src:url(../fonts/zen-kaku-gothic-new-500-latin.woff2) format('woff2')}
+html,body{margin:0;background:#191917;overflow:hidden}
+svg{display:block}
+</style></head><body>
+<svg id="i" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="lift" cx="30%" cy="0%" r="110%"><stop offset="0" stop-color="#26251f"/><stop offset=".6" stop-color="#191917"/></radialGradient></defs>
+  <rect width="180" height="180" fill="url(#lift)"/>
+  <!-- trait : tête appuyée, corps qui s'affine, queue sèche -->
+  <path d="M100 28C106 26 111 30 111 37L109.5 128C109 140 106 150 102 155C100 157 98.5 155 98.5 150L97.5 38C97.5 32 98 29 100 28Z" fill="#cfa25a"/>
+  <path d="M100.2 142L100.6 159" stroke="#cfa25a" stroke-width="1.3" stroke-linecap="round" opacity=".5"/>
+  <path d="M104.6 146L103.4 162" stroke="#cfa25a" stroke-width=".8" stroke-linecap="round" opacity=".35"/>
+  <text id="t" x="77" y="36" fill="#95938b" font-family="Zen Kaku Gothic New" font-weight="500" font-size="12.5" letter-spacing="3.2" style="writing-mode:vertical-rl">PERF LAB</text>
+</svg>
+<script>
+  const s = +new URLSearchParams(location.search).get("s") || 512, svg = document.getElementById("i");
+  svg.setAttribute("width", s); svg.setAttribute("height", s);
+  if (s <= 64) document.getElementById("t").remove();
+</script>
+</body></html>

@@ -29,7 +29,7 @@ Deux parties :
 - `config.js` : clés Supabase (vide = mode LOCAL), `SUPABASE_*` pour les bibliothèques, `CYCLE_SUPABASE_*` pour la Programmation
 - `schema.sql` : schéma Postgres à coller dans Supabase
 - `sw.js` : service worker, cache `perflab-vX` (bump manuel après modif de la coque)
-- `tools/validate-cycle.js` : vérifie un fichier de cycle ; `tools/serve.py` : serveur local (test + e2e)
+- `tools/validate-cycle.js` : vérifie un fichier de cycle ; `tools/serve.py` : serveur local (test + e2e) ; `tools/icon.html` : source de l'icône « Le trait » (commande de rendu des PNG en tête du fichier)
 - `manifest.webmanifest`, `icons/` : métadonnées PWA
 - `fonts/` : Zen Kaku Gothic New hébergée avec l'app (graisses 300/400/500/700, woff2 latin + latin étendu de Google Fonts, licence OFL) ; déclarées en tête de `app.css`, pré-cachées dans `SHELL`
 - `tests/progression.test.js`, `tests/backend.test.js`, `tests/cycle.test.js`, `tests/cyclestore.test.js`, `tests/sw.test.js`, `tests/tokens.test.js` : tests Node ; `tests/fixtures/cycle-sample.js` : cycle d'exemple
@@ -52,7 +52,7 @@ L'app réelle est une SPA unique (`index.html` + `app.js`), pas un multi-pages.
 - **Tests unitaires** : `node tests/progression.test.js && node tests/backend.test.js && node tests/cycle.test.js && node tests/cyclestore.test.js && node tests/sw.test.js && node tests/tokens.test.js`.
 - **Tests e2e** : `python3 tools/serve.py 8741` à la racine, puis `chrome --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8741/tests/e2e.html"` → aucune ligne `E2E-FAIL` dans `#results`. (Avec `python3 -m http.server`, la file de 5 connexions fait échouer des scripts au hasard.)
 - **Vérifier un cycle** : `node tools/validate-cycle.js content/cycle-1.json`.
-- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v24`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
+- Après une modification de la coque (`index.html`, `app.css`, `app.js`, `backend.js`, `config.js`, `programs.js`, `progression.js`, `cycle.js`, `cyclestore.js`, `cycle-ui.js`, icônes), incrémenter la constante `CACHE` dans `sw.js` (actuellement `perflab-v25`) **et** ajouter tout nouveau fichier au tableau `SHELL`.
 
 ## Schéma des données
 Aucun fichier `.json` de schéma dans le dépôt :
