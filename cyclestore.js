@@ -32,6 +32,12 @@ const CycleStore = (() => {
 
   let client = null, currentUser = null, authCb = null;
 
+  /* lien « mot de passe oublié » : supabase-js lit puis efface le #access_token…&type=recovery
+     pendant init() ; on le relève dès le chargement du script, avant qu'il disparaisse */
+  const LINK = (() => { try { return new URLSearchParams(location.hash.replace(/^#/, "")); } catch(e){ return new URLSearchParams(); } })();
+  let recovery = LINK.get("type") === "recovery";
+  let linkError = (LINK.get("error_code") || LINK.get("error")) ? "Lien expiré ou déjà utilisé : renvoie le mail de récupération." : null;
+
   /* ---- lecture (toujours depuis le cache : marche hors-ligne) ---- */
   function getCycle(){ return readLS(CYCLE_KEY, null); }
   /* tous les cycles connus, du plus ancien au plus récent (l'actif compris) */
@@ -87,7 +93,8 @@ const CycleStore = (() => {
       const { data } = await withTimeout(client.auth.getSession());
       currentUser = data?.session?.user || null;
     }catch(e){ currentUser = null; }
-    client.auth.onAuthStateChange((_e, session)=>{
+    client.auth.onAuthStateChange((ev, session)=>{
+      if(ev === "PASSWORD_RECOVERY") recovery = true;
       currentUser = session?.user || null;
       if(authCb) authCb(currentUser);
       if(currentUser) flush();
@@ -115,6 +122,16 @@ const CycleStore = (() => {
       catch(e){ dropLS(AUTH_KEY); }
     }
     currentUser = null;
+  }
+  /* session ouverte par le lien de récupération : il reste à choisir le nouveau mot de passe */
+  function inRecovery(){ return CLOUD && recovery && !!currentUser; }
+  function fromLink(){ return recovery || !!linkError; }
+  function takeLinkError(){ const e = linkError; linkError = null; return e; }
+  async function updatePassword(pw){
+    if(!client) throw "Connexion impossible hors-ligne.";
+    const { error } = await withTimeout(client.auth.updateUser({ password: pw }));
+    if(error) throw msg(error);
+    recovery = false;
   }
   function user(){ return currentUser; }
   function onAuth(cb){ authCb = cb; }
@@ -186,5 +203,6 @@ const CycleStore = (() => {
   }
 
   return { init, isCloud, needAuth, signIn, signOut, user, onAuth,
+           inRecovery, fromLink, takeLinkError, updatePassword,
            refresh, flush, syncState, getCycle, getCycles, getAthlete, saveAthlete, importCycle };
 })();

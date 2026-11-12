@@ -353,6 +353,7 @@ const CycleUI = (() => {
         <div class="autherr" id="cferr"></div>
         <div class="authbtns"><button class="dbtn go" id="cfsignin">Se connecter</button></div>
       </div>`);
+    const le = CycleStore.takeLinkError(); if(le) $("#cferr").textContent = le;
     $("#cfsignin").onclick = busy(async () => {
       const e = $("#cfemail").value.trim(), p = $("#cfpw").value;
       if(!e || !p){ $("#cferr").textContent = "Email et mot de passe requis."; return; }
@@ -361,6 +362,29 @@ const CycleUI = (() => {
         await CycleStore.refresh();
         if(location.hash === "#/cf") renderWeek(); else location.hash = "#/cf";
       }catch(ex){ $("#cferr").textContent = (ex && ex.message) || String(ex) || "Connexion impossible."; }
+    });
+  }
+
+  /* ---- nouveau mot de passe (ouvert par le lien de récupération) : tapé par Moss ---- */
+  function renderNewPassword(){
+    shell("Programmation", "Nouveau mot de passe", `
+      <p class="lede">Choisis ton nouveau mot de passe. Il servira pour te connecter sur tous tes appareils.</p>
+      <div class="authbox">
+        <input id="cfnpw" type="password" autocomplete="new-password" placeholder="nouveau mot de passe" aria-label="Nouveau mot de passe">
+        <input id="cfnpw2" type="password" autocomplete="new-password" placeholder="confirme-le" aria-label="Confirme le mot de passe">
+        <div class="autherr" id="cferr"></div>
+        <div class="authbtns"><button class="dbtn go" id="cfsetpw">Enregistrer</button></div>
+      </div>`);
+    $("#cfsetpw").onclick = busy(async () => {
+      const p = $("#cfnpw").value, p2 = $("#cfnpw2").value;
+      if(p.length < 6){ $("#cferr").textContent = "6 caractères au moins."; return; }
+      if(p !== p2){ $("#cferr").textContent = "Les deux mots de passe diffèrent."; return; }
+      try{
+        await CycleStore.updatePassword(p);
+        toast("Mot de passe enregistré.");
+        await CycleStore.refresh();
+        if(location.hash === "#/cf") renderWeek(); else location.hash = "#/cf";
+      }catch(ex){ $("#cferr").textContent = (ex && ex.message) || String(ex) || "Enregistrement impossible."; }
     });
   }
 
@@ -779,6 +803,7 @@ const CycleUI = (() => {
       if(/^cf\/s\//.test(curHash || "")){ SS.y = window.scrollY; const inp = $("#cfscore"); if(inp) SS.draft = inp.value; }
       prevHash = curHash; curHash = h;
     }
+    if(/^cf(\/|$)/.test(h) && CycleStore.inRecovery()){ renderNewPassword(); window.scrollTo(0, 0); return true; }
     if(!/^cf(\/|$)/.test(h) || !isMoss()) return false;
     const m = h.match(/^cf\/s\/(.+)$/), mv = h.match(/^cf\/m\/(.+)$/);
     const from = prevHash || "", back = /^cf\/[sm]\//.test(from);   // retour d'une séance ou d'une fiche

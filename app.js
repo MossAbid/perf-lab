@@ -82,6 +82,8 @@ async function boot(){
   let res;
   try{ res = await Backend.init(); }catch(e){ res={mode:"local",needAuth:false}; }
   if(CF){ try{ await CycleStore.init(); }catch(e){} }
+  // arrivée par le lien de récupération : on va droit à la Programmation (nouveau mot de passe ou erreur)
+  if(CF && CycleStore.fromLink()) history.replaceState(null, "", location.pathname + location.search + "#/cf");
   Backend.onAuth(async u=>{
     if(u){ await hydrate(); route(); }
     else { renderAuth(); }

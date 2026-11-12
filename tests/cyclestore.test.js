@@ -66,6 +66,7 @@ function makeMockClient(store, session, opts) {
         : opts.sessionError ? { data: { session: null }, error: { message: "Failed to fetch" } }
         : { data: { session } },
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      updateUser: async u => { opts.updated = u; return opts.updateError ? { error: { message: opts.updateError } } : { data: {}, error: null }; },
       signOut: async () => opts.signOutError ? { error: { message: "Failed to fetch" } } : {}
     },
     from
@@ -79,7 +80,7 @@ function boot(seedLS, cloud) {
   const onlineHandlers = [];
   const sandbox = {
     window: { addEventListener: (evt, cb) => { if (evt === "online") onlineHandlers.push(cb); } },
-    localStorage: ls, navigator: { onLine: true },
+    localStorage: ls, navigator: { onLine: true }, location: { hash: (cloud && cloud.hash) || "" },
     console, JSON, Math, Date, Array, Object, Set, String, Number, Boolean, Promise
   };
   sandbox.window.localStorage = ls;
@@ -91,6 +92,7 @@ function boot(seedLS, cloud) {
     const window = __sandbox.window;
     const localStorage = __sandbox.localStorage;
     const navigator = __sandbox.navigator;
+    const location = __sandbox.location;
     ${cloud ? "" : src("config.js") + "\nwindow.CONFIG.CYCLE_SUPABASE_URL = ''; window.CONFIG.CYCLE_SUPABASE_ANON_KEY = '';"}
     ${src("cycle.js")}
     ${src("cyclestore.js")}
@@ -352,6 +354,37 @@ t("CLOUD : état de synchro — en attente hors-ligne, refus du serveur signalé
   const st = CycleStore.syncState();
   assert.equal(st.pending, true);
   assert.ok(/permission denied/.test(st.error), "refus visible : " + st.error);
+});
+
+t("CLOUD : lien de récupération — nouveau mot de passe puis sortie du mode", async () => {
+  const store = { cycles: [], cycle_athletes: [], state: [] };
+  const cloud = { store, session: ME, hash: "#access_token=a&refresh_token=b&type=recovery" };
+  const { CycleStore } = boot(null, cloud);
+  assert.equal(CycleStore.fromLink(), true);
+  await CycleStore.init();
+  assert.equal(CycleStore.inRecovery(), true);
+  await CycleStore.updatePassword("nouveau1");
+  assert.deepEqual(cloud.updated, { password: "nouveau1" });
+  assert.equal(CycleStore.inRecovery(), false);
+});
+
+t("CLOUD : lien de récupération sans session ou en erreur", async () => {
+  const store = { cycles: [], cycle_athletes: [], state: [] };
+  const a = boot(null, { store, session: null, hash: "#type=recovery" });
+  await a.CycleStore.init();
+  assert.equal(a.CycleStore.inRecovery(), false, "pas d'écran sans session");
+  const b = boot(null, { store, session: null, hash: "#error=access_denied&error_code=otp_expired" });
+  assert.equal(b.CycleStore.fromLink(), true);
+  assert.ok(/expiré/.test(b.CycleStore.takeLinkError()));
+  assert.equal(b.CycleStore.takeLinkError(), null, "message affiché une seule fois");
+  const c = boot(null, { store, session: ME, hash: "#type=recovery", updateError: "Password should be at least 6 characters" });
+  await c.CycleStore.init();
+  await assert.rejects(c.CycleStore.updatePassword("abc"), m => /at least 6/.test(m));
+  assert.equal(c.CycleStore.inRecovery(), true, "reste en mode récupération après un refus");
+  const d = boot(null, { store, session: ME });
+  await d.CycleStore.init();
+  assert.equal(d.CycleStore.inRecovery(), false);
+  assert.equal(d.CycleStore.fromLink(), false);
 });
 
 chain.then(() => console.log(`\n${n} tests OK`)).catch(e => { console.error("  ✗ " + (e && e.stack || e)); process.exit(1); });
